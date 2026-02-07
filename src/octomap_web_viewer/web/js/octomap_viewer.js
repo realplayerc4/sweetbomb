@@ -98,7 +98,7 @@ class OctomapViewer {
 
                 const instancedMesh = new THREE.InstancedMesh(
                     geometry,
-                    new THREE.MeshLambertMaterial({ vertexColors: true }),
+                    new THREE.MeshBasicMaterial(),
                     marker.points.length
                 );
 
@@ -113,14 +113,8 @@ class OctomapViewer {
                     // Update bounds
                     bounds.expandByPoint(new THREE.Vector3(p.x, p.y, p.z));
 
-                    // Use color from message or height-based coloring
-                    if (marker.colors && marker.colors[i]) {
-                        const c = marker.colors[i];
-                        color.setRGB(c.r, c.g, c.b);
-                    } else {
-                        // Fixed color: Orange
-                        color.setHex(0xFFA500);
-                    }
+                    // Always force Orange color, ignoring marker colors
+                    color.setHex(0xFFA500);
                     instancedMesh.setColorAt(i, color);
                 }
 
@@ -129,8 +123,46 @@ class OctomapViewer {
                     instancedMesh.instanceColor.needsUpdate = true;
                 }
 
+                // Add wireframe edges (merged geometry for performance)
+                const pointCount = marker.points.length;
+                const edgeVertices = [];
+                const sx = marker.scale.x * 0.95 / 2;
+                const sy = marker.scale.y * 0.95 / 2;
+                const sz = marker.scale.z * 0.95 / 2;
+
+                // Relative coordinates for a cube's 12 edges (24 vertices)
+                const relC = [
+                    [-sx, -sy, -sz], [sx, -sy, -sz],
+                    [sx, -sy, -sz], [sx, sy, -sz],
+                    [sx, sy, -sz], [-sx, sy, -sz],
+                    [-sx, sy, -sz], [-sx, -sy, -sz],
+                    [-sx, -sy, sz], [sx, -sy, sz],
+                    [sx, -sy, sz], [sx, sy, sz],
+                    [sx, sy, sz], [-sx, sy, sz],
+                    [-sx, sy, sz], [-sx, -sy, sz],
+                    [-sx, -sy, -sz], [-sx, -sy, sz],
+                    [sx, -sy, -sz], [sx, -sy, sz],
+                    [sx, sy, -sz], [sx, sy, sz],
+                    [-sx, sy, -sz], [-sx, sy, sz]
+                ];
+
+                for (let i = 0; i < pointCount; i++) {
+                    const p = marker.points[i];
+                    for (let j = 0; j < 24; j++) {
+                        edgeVertices.push(p.x + relC[j][0]);
+                        edgeVertices.push(p.y + relC[j][1]);
+                        edgeVertices.push(p.z + relC[j][2]);
+                    }
+                }
+
+                const edgesGeo = new THREE.BufferGeometry();
+                edgesGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgeVertices, 3));
+                const edgesMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+                const edgesObj = new THREE.LineSegments(edgesGeo, edgesMat);
+
                 this.voxels.add(instancedMesh);
-                totalVoxels += marker.points.length;
+                this.voxels.add(edgesObj);
+                totalVoxels += pointCount;
             }
             // Handle single CUBE markers (type 1)
             else if (marker.type === 1) {
@@ -139,8 +171,8 @@ class OctomapViewer {
                     marker.scale.y * 0.95,
                     marker.scale.z * 0.95
                 );
-                const material = new THREE.MeshLambertMaterial({
-                    color: new THREE.Color(marker.color.r, marker.color.g, marker.color.b),
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xFFA500,
                     opacity: marker.color.a,
                     transparent: marker.color.a < 1
                 });
@@ -151,6 +183,13 @@ class OctomapViewer {
                     marker.pose.position.z
                 );
                 this.voxels.add(mesh);
+
+                // Add wireframe edge for single cube
+                const edges = new THREE.EdgesGeometry(geometry);
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
+                line.position.copy(mesh.position);
+                this.voxels.add(line);
+
                 totalVoxels++;
                 bounds.expandByPoint(new THREE.Vector3(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z));
             }
