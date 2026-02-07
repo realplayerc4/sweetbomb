@@ -14,6 +14,7 @@ ros2 launch realsense2_camera rs_octomap.launch.py
 ```
 
 **第一次运行？** 构建项目：
+
 ```bash
 cd /home/yq/ros2realsense
 colcon build --symlink-install
@@ -22,12 +23,27 @@ colcon build --symlink-install
 ## 🚀 启动方式
 
 ### 方式 1: 交互式启动（推荐）
+
 ```bash
 ./start_realsense_octomap.sh
 ```
+
 选择预设配置或自定义参数，支持地面高度过滤。
 
-### 方式 2: 快速启动
+### 方式 2: Web 可视化启动 (新功能 🌐)
+
+```bash
+# 终端 1: 启动核心系统
+ros2 launch realsense2_camera rs_octomap.launch.py
+
+# 终端 2: 启动 Web 查看器
+ros2 launch octomap_web_viewer web_viewer.launch.py
+```
+
+👉 打开浏览器访问: **<http://localhost:8080>**
+
+### 方式 3: 快速启动
+
 ```bash
 # 快速模式 (0.2m 体素，5-10 Hz)
 ros2 launch realsense2_camera rs_octomap.launch.py
@@ -39,7 +55,8 @@ ros2 launch realsense2_camera rs_octomap.launch.py resolution:=0.15
 ros2 launch realsense2_camera rs_octomap.launch.py resolution:=0.1
 ```
 
-### 方式 3: 无 RViz（纯处理）
+### 方式 4: 无 RViz（纯处理）
+
 ```bash
 ros2 launch realsense2_camera rs_octomap.launch.py enable_rviz:=false
 ```
@@ -47,6 +64,7 @@ ros2 launch realsense2_camera rs_octomap.launch.py enable_rviz:=false
 ## 📊 性能配置
 
 ### 相机配置
+
 - **分辨率**: 1280x720 @ 30 FPS（彩色 + 深度）
 - **Decimation**: 4x（输出 320x180 点云）
 - **距离裁剪**: 0-3 米（clip_distance）
@@ -60,6 +78,7 @@ ros2 launch realsense2_camera rs_octomap.launch.py enable_rviz:=false
 | 🎯 **精度** | 0.1m | 正常 | 1-3 Hz | 精确建图 |
 
 **关键优化**：
+
 - ✅ **动态观测模式**（不积累历史，只显示当前物体）
 - ✅ 禁用 RANSAC 地面提取（节省 70% 计算时间）
 - ✅ Decimation=4 减少点云数量（~100k → ~25k 点/帧）
@@ -73,6 +92,7 @@ ros2 launch realsense2_camera rs_octomap.launch.py enable_rviz:=false
 - **依赖**: OctoMap、RealSense SDK 2.x
 
 **安装依赖**:
+
 ```bash
 sudo apt-get install liboctomap-dev octomap-tools
 colcon build --symlink-install
@@ -81,6 +101,7 @@ colcon build --symlink-install
 ## 📈 性能测试
 
 运行性能基准测试：
+
 ```bash
 ./run_performance_test.sh
 ```
@@ -110,9 +131,11 @@ ros2 launch realsense2_camera rs_octomap.launch.py clip_distance:=-1
 ```
 
 **说明**：
+
 - `clip_distance` 是 **RealSense 输出侧**的过滤（效率高）
 - OctoMap 会额外进行 `sensor_model.min/max_range` 过滤
 - 两层过滤可减少 CPU 压力并降低内存占用
+- **注意**: `clip_distance` 参数仅在 RealSense 节点启动时生效
 
 ### 启动参数总览
 
@@ -132,6 +155,7 @@ ros2 launch realsense2_camera rs_octomap.launch.py \
 ### 相机检测失败
 
 **相机检测失败？**
+
 ```bash
 # 检查设备
 rs-enumerate-devices
@@ -145,12 +169,14 @@ lsusb | grep Intel
 ⚠️ **当前系统使用静态 TF**：如果机器人移动，地图会"跟着机器人走"，不会叠加。
 
 **解决方案**：
+
 1. **静止相机** ✅ 现在的配置，地图会累积在局部相机坐标系
 2. **移动机器人** ⚠️ 需要里程计/SLAM 提供 `map → base_link` 的动态 TF
    - 建议使用 `robot_localization`、`rtabmap`、或 `cartographer`
    - 这样 OctoMap 会自动累积在全局 `map` 坐标系
 
 **目前 TF 结构**：
+
 ```
 map (固定)
  └── base_link (固定)
@@ -161,6 +187,7 @@ map (固定)
 如需地图累积在全局坐标系，需要由外部系统提供 `map → base_link` 的变换。
 
 ### 点云数据异常
+
 ```bash
 # 验证话题
 ros2 topic hz /camera/depth/color/points
@@ -174,12 +201,14 @@ ros2 run tf2_tools view_frames
 ✅ **当前配置：动态观测模式**
 
 系统已优化为 **实时观测窗口**，特性如下：
+
 - ✅ 只显示相机当前看到的物体
 - ✅ 物体移走后 **<1 秒自动消失** ⚡
 - ✅ 不积累历史数据（适合观察面前物体）
 - ✅ 低计算代价（5-10 Hz 实时更新）
 
 **概率模型（超快清除 + Prune删除）**：
+
 - `hit: 0.97` → 检测到时立即建立
 - `miss: 0.01` → 未检测时**极速降概率**（每帧-99%）
 - `min: 0.49` → 概率低于0.5（占用阈值）后被prune删除
@@ -187,6 +216,7 @@ ros2 run tf2_tools view_frames
 
 **如需切换回累积地图模式**（适合移动机器人建图）：
 编辑 [realsense_params.yaml](src/octomap_server2/config/realsense_params.yaml)
+
 ```yaml
 sensor_model:
   hit: 0.7   # 降低（减慢建立速度）
@@ -194,13 +224,16 @@ sensor_model:
   min: 0.12  # 降低（体素不易清除）
 compress_map: true  # 启用压缩储存
 ```
+
 **调节消失速度**（如需更慢或更快）：
+
 - `miss: 0.01` + `compress_map: true` → 极快消失（<1秒）⚡ **当前**
 - `miss: 0.05` + `compress_map: true` → 快速消失（1-2秒）
 - `miss: 0.2` + `compress_map: true` → 中速消失（3-5秒）
 - **关键**：`compress_map: true` 必须启用，否则低概率体素不会被删除！
 - 配合调整 `min` 值（接近0.5则更易删除）
 **手动重置地图**（如需立即清空）：
+
 ```bash
 ./reset_octomap.sh
 ```
@@ -216,7 +249,8 @@ compress_map: true  # 启用压缩储存
 └── src/
     ├── realsense-ros-4.57.6/    ← RealSense 驱动
     ├── octomap_server2/         ← OctoMap 服务器
-    └── octomap_msgs/            ← 消息定义
+    ├── octomap_msgs/            ← 消息定义
+    └── octomap_web_viewer/      ← Web 可视化 (🌐)
 ```
 
 ## 🔗 参考资源
@@ -227,7 +261,16 @@ compress_map: true  # 启用压缩储存
 
 ## 📝 最新更新
 
+**2026-02-07**
+
+- ✅ **新增 Web 可视化** (rosbridge + Three.js)
+  - 浏览器访问 `http://localhost:8080`
+  - 实时 3D 显示、鼠标交互、状态监控
+- ✅ 优化 `README.md` 文档结构
+- ✅ 修复 `rosbridge` 端口监听问题
+
 **2026-02-06**
+
 - ✅ **切换为动态观测模式**（不积累历史，只显示当前物体）
 - ✅ **超快清除优化**（hit: 0.97, miss: 0.01, min: 0.49 + prune）→ 移走物体后 **<1 秒消失** ⚡
 - ✅ 禁用地图压缩（动态模式无需持久化）
@@ -250,3 +293,4 @@ compress_map: true  # 启用压缩储存
 **分辨率**: 1280x720 @ 30fps（Decimation=4 → 输出 320x180）  
 **距离范围**: 0.0m - 3.0m（clip_distance 可调）  
 **更新频率**: 5-10 Hz（物体移走后 **<1 秒消失** ⚡）
+**Web 可视化**: <http://localhost:8080> 🌐
