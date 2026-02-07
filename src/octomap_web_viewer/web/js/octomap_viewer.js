@@ -118,9 +118,8 @@ class OctomapViewer {
                         const c = marker.colors[i];
                         color.setRGB(c.r, c.g, c.b);
                     } else {
-                        // Height-based gradient (blue -> cyan -> green -> yellow -> red)
-                        const height = (p.z + 1) / 2; // Normalize to 0-1
-                        color.setHSL(0.6 - height * 0.6, 0.9, 0.5);
+                        // Fixed color: Orange
+                        color.setHex(0xFFA500);
                     }
                     instancedMesh.setColorAt(i, color);
                 }
@@ -200,7 +199,8 @@ class OctomapViewer {
     }
 
     resetView() {
-        this.camera.position.set(3, 2, 3);
+        // Top-down view (Z-axis +)
+        this.camera.position.set(0, 0, 8);
         this.camera.lookAt(0, 0, 0);
         this.controls.reset();
     }

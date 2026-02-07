@@ -11,7 +11,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -23,6 +23,7 @@ def generate_launch_description():
     # Get package directories
     realsense_pkg_dir = get_package_share_directory('realsense2_camera')
     octomap_pkg_dir = get_package_share_directory('octomap_server2')
+    web_viewer_pkg_dir = get_package_share_directory('octomap_web_viewer')
     
     # Declare launch arguments
     declare_camera_name = DeclareLaunchArgument(
@@ -41,6 +42,12 @@ def generate_launch_description():
         'enable_rviz',
         default_value='false',
         description='Launch RViz2 for visualization'
+    )
+    
+    declare_enable_web_viewer = DeclareLaunchArgument(
+        'enable_web_viewer',
+        default_value='true',
+        description='Launch web visualization (rosbridge + HTTP server)'
     )
     
     declare_rviz_config = DeclareLaunchArgument(
@@ -173,11 +180,33 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('enable_rviz'))
     )
     
+    # Rosbridge WebSocket server (for web visualization)
+    rosbridge_node = Node(
+        package='rosbridge_server',
+        executable='rosbridge_websocket',
+        name='rosbridge_websocket',
+        parameters=[{
+            'port': 9090,
+            'address': '',
+            'retry_startup_delay': 5.0,
+        }],
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('enable_web_viewer'))
+    )
+    
+    # HTTP server for web files
+    web_server = ExecuteProcess(
+        cmd=['python3', os.path.join(web_viewer_pkg_dir, '..', '..', 'lib', 'octomap_web_viewer', 'start_web_server.py')],
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('enable_web_viewer'))
+    )
+    
     return LaunchDescription([
         # Declare arguments
         declare_camera_name,
         declare_camera_namespace,
         declare_enable_rviz,
+        declare_enable_web_viewer,
         declare_rviz_config,
         declare_octomap_resolution,
         declare_camera_height,
@@ -191,4 +220,6 @@ def generate_launch_description():
         static_tf_base_to_camera,
         octomap_node,
         rviz_node,
+        rosbridge_node,
+        web_server,
     ])

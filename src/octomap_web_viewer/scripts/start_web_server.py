@@ -9,7 +9,7 @@ import http.server
 import socketserver
 from ament_index_python.packages import get_package_share_directory
 
-PORT = 8080
+PORT = 8888
 
 def main():
     # Get web directory path
