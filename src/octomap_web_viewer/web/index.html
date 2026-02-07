@@ -10,7 +10,7 @@
 
 <body>
     <div id="info-panel">
-        <h1>🗺️ OctoMap 3D</h1>
+        <h1>实时3D</h1>
         <div id="status">
             <span class="status-dot disconnected"></span>
             <span id="status-text">未连接</span>
@@ -22,6 +22,9 @@
         <div id="controls">
             <button id="reset-view">重置视角</button>
             <button id="toggle-axes">坐标轴</button>
+        </div>
+        <div style="font-size: 11px; margin-top: 10px; color: #888;">
+            <label>地面高度(Z): <input type="number" id="grid-height" value="0.0" step="0.1" style="width: 50px;"></label>
         </div>
     </div>
 
@@ -35,8 +38,8 @@
     <script src="js/lib/roslib.min.js"></script>
 
     <!-- App -->
-    <script src="js/octomap_viewer.js?v=7"></script>
-    <script src="js/app.js?v=7"></script>
+    <script src="js/octomap_viewer.js?v=17"></script>
+    <script src="js/app.js?v=17"></script>
 </body>
 
 </html>

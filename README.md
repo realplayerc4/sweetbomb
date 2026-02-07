@@ -1,296 +1,93 @@
-# 🗺️ RealSense D455 + OctoMap 实时观测
+# 🗺️ RealSense D455 + OctoMap 实时 Web 3D 可视化系统
 
-高性能 3D 动态观测系统。RealSense D455 点云 → OctoMap 实时 3D 显示。
+高性能、交互式的 ROS 2 实时 3D 观测系统。基于 RealSense D455 点云生成 OctoMap 八叉树地图，并提供流畅的 Web 浏览器 3D 可视化界面。
 
-> **系统模式**: **动态观测** - 只显示当前视野内的物体，移走后自动消失（不积累历史）  
-> **性能指标**: 5-10 Hz 实时更新（相比优化前的 0.5 Hz，提速 10 倍）
+> **核心技术栈**: ROS 2 Humble + RealSense SDK + OctoMap + Three.js + Rosbridge
+> **性能指标**: 5-10 Hz 实时更新，支持体素渲染与黑色边框优化。
 
-## ⚡ 快速开始（3 行命令）
+---
+
+## 🚀 快速开始
+
+### 1. 构建项目
+
+如果是第一次运行，请先构建工作空间：
 
 ```bash
 cd /home/yq/ros2realsense
+colcon build --symlink-install
+```
+
+### 2. 一键启动
+
+通过以下指令同时启动摄像头、地图生成服务器、Web 服务器和数据网关：
+
+```bash
 source install/setup.bash
 ros2 launch realsense2_camera rs_octomap.launch.py
 ```
 
-**第一次运行？** 构建项目：
+### 3. 打开 Web 可视化
+
+在浏览器中访问：**[http://localhost:8888](http://localhost:8888)**
+
+---
+
+## 🌐 Web 可视化功能介绍
+
+本项目提供了一个定制化的 Web 控制台，专门针对机器人观测场景优化：
+
+- **坐标系对齐 (Z-up)**：与 ROS 标准完全一致，相机默认从后上方俯视前方（X 轴正方向）。
+- **实时 3D 渲染**：橙色体素配合黑色边缘线，即使在大量体素下也能清晰辨识深度。
+- **地面高度调节**：可在 UI 输入框实时调整“地面高度 (Z)”，方便对齐物理地面或滤除干扰。
+- **单键重置视角**：点击“重置视角”按钮可立即将相机恢复至最佳观察位置。
+- **本地化离线支持**：所有核心库均已集成在本地，无需联网即可使用。
+
+---
+
+## 🛠️ 参数配置
+
+您可以在启动时通过命令行参数自定义系统行为：
+
+| 参数名 | 默认值 | 描述 |
+|--------|--------|------|
+| `octomap_resolution` | `0.2` | 体素分辨率（米）。精度越高，计算开销越大。 |
+| `enable_rviz` | `false` | 是否同时启动 RViz 2 可视化。 |
+| `enable_web_viewer` | `true` | 是否启动 Web 可视化组件 (rosbridge + HTTP)。 |
+| `clip_distance` | `3.0` | 深度裁剪距离（米）。超过此距离的点将被忽略。 |
+
+**示例：高精度模式启动**
 
 ```bash
-cd /home/yq/ros2realsense
-colcon build --symlink-install
+ros2 launch realsense2_camera rs_octomap.launch.py octomap_resolution:=0.05 enable_rviz:=true
 ```
 
-## 🚀 启动方式
+---
 
-### 方式 1: 交互式启动（推荐）
+## 🔄 地图管理
+
+如果需要清空当前已建立的地图（例如物体已移除但仍有残留位姿）：
 
 ```bash
-./start_realsense_octomap.sh
+ros2 service call /octomap_server/reset std_srvs/srv/Empty
 ```
 
-选择预设配置或自定义参数，支持地面高度过滤。
+---
 
-### 方式 2: Web 可视化启动 (新功能 🌐)
+## 📊 性能优化点
 
-```bash
-# 终端 1: 启动核心系统
-ros2 launch realsense2_camera rs_octomap.launch.py
+- ✅ **Decimation 降采样**: 输入点云仅保留 1/16，极大提升实时性。
+- ✅ **动态观测模式**: 配置为物体移开后在延迟极低的情况下（<1s）自动消失。
+- ✅ **渲染优化**: Web 端采用 `InstancedMesh` 和 `MergedBufferGeometry` 渲染体素，确保流畅运行。
+- ✅ **硬件加速**: 充分利用显卡进行 GL 加速（建议安装 NVIDIA 590+ 驱动）。
 
-# 终端 2: 启动 Web 查看器
-ros2 launch octomap_web_viewer web_viewer.launch.py
-```
+---
 
-👉 打开浏览器访问: **<http://localhost:8080>**
+## ⚠️ 环境依赖
 
-### 方式 3: 快速启动
+- **显卡驱动**: NVIDIA 驱动版本建议 590 以上。
+- **浏览器**: 建议使用 Chrome 或 Firefox，并开启“硬件加速”。
+- **ROS 2**: Humble Hawksbill (Ubuntu 22.04)。
 
-```bash
-# 快速模式 (0.2m 体素，5-10 Hz)
-ros2 launch realsense2_camera rs_octomap.launch.py
-
-# 标准模式 (0.15m 体素，3-5 Hz)
-ros2 launch realsense2_camera rs_octomap.launch.py resolution:=0.15
-
-# 高精度模式 (0.1m 体素，1-3 Hz)
-ros2 launch realsense2_camera rs_octomap.launch.py resolution:=0.1
-```
-
-### 方式 4: 无 RViz（纯处理）
-
-```bash
-ros2 launch realsense2_camera rs_octomap.launch.py enable_rviz:=false
-```
-
-## 📊 性能配置
-
-### 相机配置
-
-- **分辨率**: 1280x720 @ 30 FPS（彩色 + 深度）
-- **Decimation**: 4x（输出 320x180 点云）
-- **距离裁剪**: 0-3 米（clip_distance）
-
-### OctoMap 模式
-
-| 模式 | 分辨率 | 体素数 | 帧率 | 用途 |
-|------|--------|---------|------|------|
-| 🚀 **快速** | 0.2m | 8x 少 | 5-10 Hz | 实时导航/演示 |
-| ⚖️ **标准** | 0.15m | 4x 少 | 3-5 Hz | 一般应用 |
-| 🎯 **精度** | 0.1m | 正常 | 1-3 Hz | 精确建图 |
-
-**关键优化**：
-
-- ✅ **动态观测模式**（不积累历史，只显示当前物体）
-- ✅ 禁用 RANSAC 地面提取（节省 70% 计算时间）
-- ✅ Decimation=4 减少点云数量（~100k → ~25k 点/帧）
-- ✅ clip_distance=3.0m 裁剪远距离点
-- ✅ **超快清除概率**（hit=0.97, miss=0.01, min=0.49 + compress_map=true）→ 物体 **<1 秒消失** ⚡
-
-## ✅ 系统要求
-
-- **硬件**: RealSense D455（USB 3.0）、4GB+ RAM
-- **系统**: Ubuntu 22.04 + ROS 2 Humble
-- **依赖**: OctoMap、RealSense SDK 2.x
-
-**安装依赖**:
-
-```bash
-sudo apt-get install liboctomap-dev octomap-tools
-colcon build --symlink-install
-```
-
-## 📈 性能测试
-
-运行性能基准测试：
-
-```bash
-./run_performance_test.sh
-```
-
-输出报告：`octomap_performance_report.txt`
-
-## 📍 ROS 话题
-
-| 话题 | 类型 | 说明 |
-|------|------|------|
-| `/occupied_cells_vis_array` | MarkerArray | 3D 占用体素 |
-| `/projected_map` | OccupancyGrid | 2D 俯视图 |
-| `/camera/depth/color/points` | PointCloud2 | 输入点云 |
-
-## 🔧 参数调节
-
-### 点云距离过滤
-
-RealSense 点云可在源头裁剪距离，减少数据量：
-
-```bash
-# 将最大距离限制在 3 米
-ros2 launch realsense2_camera rs_octomap.launch.py clip_distance:=3.0
-
-# 禁用距离裁剪
-ros2 launch realsense2_camera rs_octomap.launch.py clip_distance:=-1
-```
-
-**说明**：
-
-- `clip_distance` 是 **RealSense 输出侧**的过滤（效率高）
-- OctoMap 会额外进行 `sensor_model.min/max_range` 过滤
-- 两层过滤可减少 CPU 压力并降低内存占用
-- **注意**: `clip_distance` 参数仅在 RealSense 节点启动时生效
-
-### 启动参数总览
-
-```bash
-ros2 launch realsense2_camera rs_octomap.launch.py \
-  clip_distance:=3.0 \           # RealSense 最大距离裁剪（-1=禁用）
-  resolution:=0.2 \              # OctoMap 分辨率（米）
-  pointcloud_max_z:=2.0 \        # 最大高度过滤（米）
-  colored_map:=false \           # RGB 处理（true/false）
-  filter_ground:=false \         # RANSAC 过滤（true/false）
-  camera_height:=0.5 \           # 相机离 base_link 的高度
-  enable_rviz:=true             # 启用 RViz（true/false）
-```
-
-## 🐛 故障排查
-
-### 相机检测失败
-
-**相机检测失败？**
-
-```bash
-# 检查设备
-rs-enumerate-devices
-
-# 检查 USB
-lsusb | grep Intel
-```
-
-### 地图不叠加 / 转向就丢失地图
-
-⚠️ **当前系统使用静态 TF**：如果机器人移动，地图会"跟着机器人走"，不会叠加。
-
-**解决方案**：
-
-1. **静止相机** ✅ 现在的配置，地图会累积在局部相机坐标系
-2. **移动机器人** ⚠️ 需要里程计/SLAM 提供 `map → base_link` 的动态 TF
-   - 建议使用 `robot_localization`、`rtabmap`、或 `cartographer`
-   - 这样 OctoMap 会自动累积在全局 `map` 坐标系
-
-**目前 TF 结构**：
-
-```
-map (固定)
- └── base_link (固定)
-      └── camera_link
-           └── camera_depth_optical_frame
-```
-
-如需地图累积在全局坐标系，需要由外部系统提供 `map → base_link` 的变换。
-
-### 点云数据异常
-
-```bash
-# 验证话题
-ros2 topic hz /camera/depth/color/points
-
-# 检查坐标变换
-ros2 run tf2_tools view_frames
-```
-
-### 系统工作模式说明
-
-✅ **当前配置：动态观测模式**
-
-系统已优化为 **实时观测窗口**，特性如下：
-
-- ✅ 只显示相机当前看到的物体
-- ✅ 物体移走后 **<1 秒自动消失** ⚡
-- ✅ 不积累历史数据（适合观察面前物体）
-- ✅ 低计算代价（5-10 Hz 实时更新）
-
-**概率模型（超快清除 + Prune删除）**：
-
-- `hit: 0.97` → 检测到时立即建立
-- `miss: 0.01` → 未检测时**极速降概率**（每帧-99%）
-- `min: 0.49` → 概率低于0.5（占用阈值）后被prune删除
-- `compress_map: true` → **关键！启用prune()才会真正删除体素**
-
-**如需切换回累积地图模式**（适合移动机器人建图）：
-编辑 [realsense_params.yaml](src/octomap_server2/config/realsense_params.yaml)
-
-```yaml
-sensor_model:
-  hit: 0.7   # 降低（减慢建立速度）
-  miss: 0.4  # 提高（保留历史数据）
-  min: 0.12  # 降低（体素不易清除）
-compress_map: true  # 启用压缩储存
-```
-
-**调节消失速度**（如需更慢或更快）：
-
-- `miss: 0.01` + `compress_map: true` → 极快消失（<1秒）⚡ **当前**
-- `miss: 0.05` + `compress_map: true` → 快速消失（1-2秒）
-- `miss: 0.2` + `compress_map: true` → 中速消失（3-5秒）
-- **关键**：`compress_map: true` 必须启用，否则低概率体素不会被删除！
-- 配合调整 `min` 值（接近0.5则更易删除）
-**手动重置地图**（如需立即清空）：
-
-```bash
-./reset_octomap.sh
-```
-
-## 📚 文件结构
-
-```
-/home/yq/ros2realsense/
-├── start_realsense_octomap.sh    ← 推荐启动脚本
-├── run_performance_test.sh       ← 性能测试
-├── README.md                     ← 本文件
-├── colcon/                       ← ROS1 兼容（可忽略）
-└── src/
-    ├── realsense-ros-4.57.6/    ← RealSense 驱动
-    ├── octomap_server2/         ← OctoMap 服务器
-    ├── octomap_msgs/            ← 消息定义
-    └── octomap_web_viewer/      ← Web 可视化 (🌐)
-```
-
-## 🔗 参考资源
-
-- [RealSense ROS](https://github.com/IntelRealSense/realsense-ros)
-- [OctoMap 文档](https://octomap.github.io/)
-- [ROS 2 Humble](https://docs.ros.org/en/humble/)
-
-## 📝 最新更新
-
-**2026-02-07**
-
-- ✅ **新增 Web 可视化** (rosbridge + Three.js)
-  - 浏览器访问 `http://localhost:8080`
-  - 实时 3D 显示、鼠标交互、状态监控
-- ✅ 优化 `README.md` 文档结构
-- ✅ 修复 `rosbridge` 端口监听问题
-
-**2026-02-06**
-
-- ✅ **切换为动态观测模式**（不积累历史，只显示当前物体）
-- ✅ **超快清除优化**（hit: 0.97, miss: 0.01, min: 0.49 + prune）→ 移走物体后 **<1 秒消失** ⚡
-- ✅ 禁用地图压缩（动态模式无需持久化）
-- ✅ 升级分辨率为 1280x720 @ 30fps（更高清）
-- ✅ Decimation 优化为 4x（减少点云数量，提升性能）
-- ✅ 添加 RealSense `clip_distance` 点云距离裁剪
-- ✅ 调整 OctoMap `sensor_model.min_range` 为 0.0、`max_range` 为 3.0m
-- ✅ 修复 RViz 点云堆积问题（QoS Depth: 5→1，消息队列深度优化）
-- ✅ 优化所有显示器配置（PointCloud2 / OctoMap MarkerArray / 2D Projection）
-- ✅ 添加地图重置脚本（`reset_octomap.sh`）
-- ✅ 更新启动脚本支持 clip_distance 参数
-- ✅ 添加地图叠加 / TF 说明
-- ✅ 性能优化到 5-10 Hz（快速模式）
-- ✅ 简化启动流程
-- ✅ 清理冗余文档和脚本
-
-**项目状态**: ✅ **动态观测模式**（实时显示当前物体，不积累历史）  
-**ROS 版本**: Humble  
-**相机**: RealSense D455  
-**分辨率**: 1280x720 @ 30fps（Decimation=4 → 输出 320x180）  
-**距离范围**: 0.0m - 3.0m（clip_distance 可调）  
-**更新频率**: 5-10 Hz（物体移走后 **<1 秒消失** ⚡）
-**Web 可视化**: <http://localhost:8080> 🌐
+---
+*维护者: Antigravity AI*

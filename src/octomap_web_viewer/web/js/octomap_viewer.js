@@ -26,6 +26,7 @@ class OctomapViewer {
             0.1,
             100
         );
+        this.camera.up.set(0, 0, 1); // Set Z-up BEFORE lookAt
         this.camera.position.set(3, 2, 3);
         this.camera.lookAt(0, 0, 0);
 
@@ -41,6 +42,7 @@ class OctomapViewer {
         this.controls.dampingFactor = 0.05;
         this.controls.minDistance = 0.5;
         this.controls.maxDistance = 20;
+        this.controls.update();
 
         // Lights
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -50,12 +52,14 @@ class OctomapViewer {
         directionalLight.position.set(5, 10, 5);
         this.scene.add(directionalLight);
 
-        // Grid
+        // Grid (on X-Y plane)
         const gridHelper = new THREE.GridHelper(10, 20, 0x303040, 0x202030);
+        // Rotate grid to be on X-Y plane (perpendicular to Z)
+        gridHelper.rotation.x = Math.PI / 2;
         this.scene.add(gridHelper);
 
         // Axes
-        this.axesHelper = new THREE.AxesHelper(1);
+        this.axesHelper = new THREE.AxesHelper(0.5);
         this.scene.add(this.axesHelper);
 
         // Voxels group
@@ -238,10 +242,31 @@ class OctomapViewer {
     }
 
     resetView() {
-        // Top-down view (Z-axis +)
-        this.camera.position.set(0, 0, 8);
-        this.camera.lookAt(0, 0, 0);
-        this.controls.reset();
+        // Look towards positive X-axis (from behind and above)
+        // Position: X=-3 (closer), Y=0 (centered), Z=2 (lower height)
+        this.camera.position.set(-3, 0, 2);
+        this.camera.up.set(0, 0, 1);
+        this.camera.lookAt(5, 0, 0);
+        this.controls.target.set(3, 0, 0);
+        this.controls.update();
+    }
+
+    setGridHeight(z) {
+        // Grid is on X-Y plane, so we just change its position.z (which is actually up/down in ROS coords?)
+        // Wait, Three.js Y-up vs Z-up. 
+        // We rotated grid by 90 deg around X.
+        // The original Y axis became Z axis.
+        // So we should translate along the NEW Z axis?
+        // gridHelper.position is in world coordinates.
+        // Since scene is Y-up by default but we treat Z-up...
+        // Camera up is (0,0,1).
+        // So we should move gridHelper.position.z
+
+        // Find gridHelper in scene
+        const gridHelper = this.scene.children.find(c => c.type === 'GridHelper');
+        if (gridHelper) {
+            gridHelper.position.z = parseFloat(z);
+        }
     }
 
     toggleAxes() {

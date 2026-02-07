@@ -56,7 +56,7 @@
 
     function connect() {
         setStatus('connecting', '连接中...');
-        addDebugMsg('尝试连接 WebSocket...');
+
 
         ros = new ROSLIB.Ros({
             url: ROSBRIDGE_URL
@@ -65,7 +65,7 @@
         ros.on('connection', () => {
             console.log('Connected to rosbridge');
             setStatus('connected', '已连接');
-            addDebugMsg('WebSocket 连接成功');
+
             subscribeToMarkers();
         });
 
@@ -106,7 +106,7 @@
         });
 
         console.log('Subscribed to ' + MARKER_TOPIC);
-        addDebugMsg('已订阅话题');
+
     }
 
     function updateStats() {
@@ -136,6 +136,13 @@
     if (toggleAxesBtn) {
         toggleAxesBtn.addEventListener('click', () => {
             viewer.toggleAxes();
+        });
+    }
+
+    const gridHeightEl = document.getElementById('grid-height');
+    if (gridHeightEl) {
+        gridHeightEl.addEventListener('change', (event) => {
+            viewer.setGridHeight(event.target.value);
         });
     }
 
