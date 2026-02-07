@@ -9,6 +9,7 @@ class OctomapViewer {
         this.voxels = new THREE.Group();
         this.voxelCount = 0;
         this.showAxes = true;
+        this.autoFocus = true;
 
         this.init();
     }
@@ -76,14 +77,19 @@ class OctomapViewer {
         this.clearVoxels();
 
         if (!markerArray.markers || markerArray.markers.length === 0) {
+            console.log('Received empty MarkerArray');
             return;
         }
 
+        console.log(`Received ${markerArray.markers.length} markers`);
         let totalVoxels = 0;
+        let bounds = new THREE.Box3();
 
         for (const marker of markerArray.markers) {
             // Handle CUBE_LIST markers (type 6)
             if (marker.type === 6 && marker.points) {
+                console.log(`Processing CUBE_LIST: ${marker.points.length} points, Scale: ${marker.scale.x}, ${marker.scale.y}, ${marker.scale.z}`);
+
                 const geometry = new THREE.BoxGeometry(
                     marker.scale.x * 0.95,
                     marker.scale.y * 0.95,
@@ -103,6 +109,9 @@ class OctomapViewer {
                     const p = marker.points[i];
                     matrix.setPosition(p.x, p.y, p.z);
                     instancedMesh.setMatrixAt(i, matrix);
+
+                    // Update bounds
+                    bounds.expandByPoint(new THREE.Vector3(p.x, p.y, p.z));
 
                     // Use color from message or height-based coloring
                     if (marker.colors && marker.colors[i]) {
@@ -144,10 +153,34 @@ class OctomapViewer {
                 );
                 this.voxels.add(mesh);
                 totalVoxels++;
+                bounds.expandByPoint(new THREE.Vector3(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z));
             }
         }
 
         this.voxelCount = totalVoxels;
+        console.log(`Total voxels rendered: ${totalVoxels}`);
+
+        // Auto-center camera if bounds are valid and first real load
+        if (!bounds.isEmpty() && this.voxelCount > 0 && this.autoFocus) {
+            const center = new THREE.Vector3();
+            bounds.getCenter(center);
+            // Zoom out to fit
+            const size = new THREE.Vector3();
+            bounds.getSize(size);
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = this.camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+            cameraZ *= 1.5; // Zoom out a bit
+            if (cameraZ < 2) cameraZ = 2; // Min distance
+
+            this.camera.position.set(center.x + cameraZ, center.y + cameraZ, center.z + cameraZ);
+            this.camera.lookAt(center);
+            this.controls.target.copy(center);
+            this.controls.update();
+
+            this.autoFocus = false; // Only once
+            console.log('Auto-focused camera on:', center, 'Size:', size);
+        }
     }
 
     clearVoxels() {
