@@ -16,6 +16,12 @@ install(DIRECTORY web/
 # Install scripts
 install(PROGRAMS scripts/start_web_server.py
   DESTINATION lib/${PROJECT_NAME}
+  RENAME start_web_server
+)
+
+install(PROGRAMS scripts/pointcloud_voxelizer.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME pointcloud_voxelizer
 )
 
 ament_package()

@@ -27,7 +27,7 @@ class OctomapViewer {
             100
         );
         this.camera.up.set(0, 0, 1); // Set Z-up BEFORE lookAt
-        this.camera.position.set(3, 2, 3);
+        this.camera.position.set(CONFIG.CAMERA_INITIAL.x, CONFIG.CAMERA_INITIAL.y, CONFIG.CAMERA_INITIAL.z);
         this.camera.lookAt(0, 0, 0);
 
         // Renderer
@@ -91,13 +91,15 @@ class OctomapViewer {
 
         for (const marker of markerArray.markers) {
             // Handle CUBE_LIST markers (type 6)
-            if (marker.type === 6 && marker.points) {
+            const MARKER_TYPE_CUBE_LIST = 6;
+            const MARKER_TYPE_CUBE = 1;
+            if (marker.type === MARKER_TYPE_CUBE_LIST && marker.points) {
                 console.log(`Processing CUBE_LIST: ${marker.points.length} points, Scale: ${marker.scale.x}, ${marker.scale.y}, ${marker.scale.z}`);
 
                 const geometry = new THREE.BoxGeometry(
-                    marker.scale.x * 0.95,
-                    marker.scale.y * 0.95,
-                    marker.scale.z * 0.95
+                    marker.scale.x * CONFIG.VOXEL_SCALE,
+                    marker.scale.y * CONFIG.VOXEL_SCALE,
+                    marker.scale.z * CONFIG.VOXEL_SCALE
                 );
 
                 const instancedMesh = new THREE.InstancedMesh(
@@ -117,8 +119,8 @@ class OctomapViewer {
                     // Update bounds
                     bounds.expandByPoint(new THREE.Vector3(p.x, p.y, p.z));
 
-                    // Always force Orange color, ignoring marker colors
-                    color.setHex(0xFFA500);
+                    // 使用配置中的颜色
+                    color.setHex(CONFIG.VOXEL_COLOR);
                     instancedMesh.setColorAt(i, color);
                 }
 
@@ -128,55 +130,60 @@ class OctomapViewer {
                 }
 
                 // Add wireframe edges (merged geometry for performance)
-                const pointCount = marker.points.length;
-                const edgeVertices = [];
-                const sx = marker.scale.x * 0.95 / 2;
-                const sy = marker.scale.y * 0.95 / 2;
-                const sz = marker.scale.z * 0.95 / 2;
-
-                // Relative coordinates for a cube's 12 edges (24 vertices)
-                const relC = [
-                    [-sx, -sy, -sz], [sx, -sy, -sz],
-                    [sx, -sy, -sz], [sx, sy, -sz],
-                    [sx, sy, -sz], [-sx, sy, -sz],
-                    [-sx, sy, -sz], [-sx, -sy, -sz],
-                    [-sx, -sy, sz], [sx, -sy, sz],
-                    [sx, -sy, sz], [sx, sy, sz],
-                    [sx, sy, sz], [-sx, sy, sz],
-                    [-sx, sy, sz], [-sx, -sy, sz],
-                    [-sx, -sy, -sz], [-sx, -sy, sz],
-                    [sx, -sy, -sz], [sx, -sy, sz],
-                    [sx, sy, -sz], [sx, sy, sz],
-                    [-sx, sy, -sz], [-sx, sy, sz]
-                ];
-
-                for (let i = 0; i < pointCount; i++) {
-                    const p = marker.points[i];
-                    for (let j = 0; j < 24; j++) {
-                        edgeVertices.push(p.x + relC[j][0]);
-                        edgeVertices.push(p.y + relC[j][1]);
-                        edgeVertices.push(p.z + relC[j][2]);
-                    }
-                }
-
-                const edgesGeo = new THREE.BufferGeometry();
-                edgesGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgeVertices, 3));
-                const edgesMat = new THREE.LineBasicMaterial({ color: 0x000000 });
-                const edgesObj = new THREE.LineSegments(edgesGeo, edgesMat);
-
+                // 通过 EDGE_SKIP_FACTOR 控制边缘绘制频率，优化性能
                 this.voxels.add(instancedMesh);
-                this.voxels.add(edgesObj);
-                totalVoxels += pointCount;
+                totalVoxels += marker.points.length;
+
+                if (CONFIG.RENDER_EDGES) {
+                    const pointCount = marker.points.length;
+                    const skipFactor = CONFIG.EDGE_SKIP_FACTOR || 1;
+                    const edgeVertices = [];
+                    const sx = marker.scale.x * CONFIG.VOXEL_SCALE / 2;
+                    const sy = marker.scale.y * CONFIG.VOXEL_SCALE / 2;
+                    const sz = marker.scale.z * CONFIG.VOXEL_SCALE / 2;
+
+                    // Relative coordinates for a cube's 12 edges (24 vertices)
+                    const relC = [
+                        [-sx, -sy, -sz], [sx, -sy, -sz],
+                        [sx, -sy, -sz], [sx, sy, -sz],
+                        [sx, sy, -sz], [-sx, sy, -sz],
+                        [-sx, sy, -sz], [-sx, -sy, -sz],
+                        [-sx, -sy, sz], [sx, -sy, sz],
+                        [sx, -sy, sz], [sx, sy, sz],
+                        [sx, sy, sz], [-sx, sy, sz],
+                        [-sx, sy, sz], [-sx, -sy, sz],
+                        [-sx, -sy, -sz], [-sx, -sy, sz],
+                        [sx, -sy, -sz], [sx, -sy, sz],
+                        [sx, sy, -sz], [sx, sy, sz],
+                        [-sx, sy, -sz], [-sx, sy, sz]
+                    ];
+
+                    // 仅对部分体素绘制边缘 (由 skipFactor 控制)
+                    for (let i = 0; i < pointCount; i += skipFactor) {
+                        const p = marker.points[i];
+                        for (let j = 0; j < 24; j++) {
+                            edgeVertices.push(p.x + relC[j][0]);
+                            edgeVertices.push(p.y + relC[j][1]);
+                            edgeVertices.push(p.z + relC[j][2]);
+                        }
+                    }
+
+                    const edgesGeo = new THREE.BufferGeometry();
+                    edgesGeo.setAttribute('position', new THREE.Float32BufferAttribute(edgeVertices, 3));
+                    const edgesMat = new THREE.LineBasicMaterial({ color: CONFIG.EDGE_COLOR });
+                    const edgesObj = new THREE.LineSegments(edgesGeo, edgesMat);
+                    this.voxels.add(edgesObj);
+                }
             }
             // Handle single CUBE markers (type 1)
-            else if (marker.type === 1) {
+            else if (marker.type === MARKER_TYPE_CUBE) {
                 const geometry = new THREE.BoxGeometry(
-                    marker.scale.x * 0.95,
-                    marker.scale.y * 0.95,
-                    marker.scale.z * 0.95
+                    marker.scale.x * CONFIG.VOXEL_SCALE,
+                    marker.scale.y * CONFIG.VOXEL_SCALE,
+                    marker.scale.z * CONFIG.VOXEL_SCALE
                 );
                 const material = new THREE.MeshBasicMaterial({
-                    color: 0xFFA500,
+                    color: CONFIG.VOXEL_COLOR,
                     opacity: marker.color.a,
                     transparent: marker.color.a < 1
                 });
@@ -188,11 +195,13 @@ class OctomapViewer {
                 );
                 this.voxels.add(mesh);
 
-                // Add wireframe edge for single cube
-                const edges = new THREE.EdgesGeometry(geometry);
-                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
-                line.position.copy(mesh.position);
-                this.voxels.add(line);
+                // Add wireframe edge for single cube (if enabled)
+                if (CONFIG.RENDER_EDGES) {
+                    const edges = new THREE.EdgesGeometry(geometry);
+                    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: CONFIG.EDGE_COLOR }));
+                    line.position.copy(mesh.position);
+                    this.voxels.add(line);
+                }
 
                 totalVoxels++;
                 bounds.expandByPoint(new THREE.Vector3(marker.pose.position.x, marker.pose.position.y, marker.pose.position.z));
@@ -243,11 +252,11 @@ class OctomapViewer {
 
     resetView() {
         // Look towards positive X-axis (from behind and above)
-        // Position: X=-3 (closer), Y=0 (centered), Z=2 (lower height)
-        this.camera.position.set(-3, 0, 2);
+        // 使用 CONFIG 中的相机重置位置
+        this.camera.position.set(CONFIG.CAMERA_RESET.x, CONFIG.CAMERA_RESET.y, CONFIG.CAMERA_RESET.z);
         this.camera.up.set(0, 0, 1);
-        this.camera.lookAt(5, 0, 0);
-        this.controls.target.set(3, 0, 0);
+        this.camera.lookAt(CONFIG.CAMERA_RESET_LOOKAT.x, CONFIG.CAMERA_RESET_LOOKAT.y, CONFIG.CAMERA_RESET_LOOKAT.z);
+        this.controls.target.set(CONFIG.CAMERA_RESET_TARGET.x, CONFIG.CAMERA_RESET_TARGET.y, CONFIG.CAMERA_RESET_TARGET.z);
         this.controls.update();
     }
 

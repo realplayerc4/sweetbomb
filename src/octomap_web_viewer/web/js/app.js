@@ -6,10 +6,6 @@
 (function () {
     'use strict';
 
-    // Configuration
-    const ROSBRIDGE_URL = 'ws://localhost:9090';
-    const MARKER_TOPIC = '/occupied_cells_vis_array';
-
     // DOM Elements
     const statusDot = document.querySelector('.status-dot');
     const statusText = document.getElementById('status-text');
@@ -17,6 +13,7 @@
     const fpsEl = document.getElementById('fps');
     const resetViewBtn = document.getElementById('reset-view');
     const toggleAxesBtn = document.getElementById('toggle-axes');
+    const toggleSubscribeBtn = document.getElementById('toggle-subscribe');
     const statsEl = document.getElementById('stats');
 
     // Initialize viewer
@@ -27,9 +24,10 @@
     let frameCount = 0;
     let lastFpsUpdate = Date.now();
 
-    // ROS connection
+    // ROS connection state
     let ros = null;
     let markerSubscriber = null;
+    let isSubscribed = false;
 
     function setStatus(status, text) {
         statusDot.className = 'status-dot ' + status;
@@ -57,14 +55,15 @@
     function connect() {
         setStatus('connecting', '连接中...');
 
-
+        // 使用 CONFIG 中的动态 URL，支持局域网访问
         ros = new ROSLIB.Ros({
-            url: ROSBRIDGE_URL
+            url: CONFIG.ROSBRIDGE_URL
         });
 
         ros.on('connection', () => {
-            console.log('Connected to rosbridge');
+            console.log('Connected to rosbridge at ' + CONFIG.ROSBRIDGE_URL);
             setStatus('connected', '已连接');
+            addDebugMsg('已连接: ' + CONFIG.ROSBRIDGE_URL);
 
             subscribeToMarkers();
         });
@@ -79,6 +78,8 @@
             console.log('Rosbridge connection closed');
             setStatus('disconnected', '已断开');
             addDebugMsg('WebSocket 连接断开');
+            isSubscribed = false;
+            updateSubscribeButton();
 
             // Auto reconnect after 3 seconds
             setTimeout(() => {
@@ -95,9 +96,9 @@
 
         markerSubscriber = new ROSLIB.Topic({
             ros: ros,
-            name: MARKER_TOPIC,
-            messageType: 'visualization_msgs/MarkerArray',
-            throttle_rate: 100  // Limit to 10 Hz max
+            name: CONFIG.MARKER_TOPIC,
+            messageType: CONFIG.MARKER_MESSAGE_TYPE,
+            throttle_rate: CONFIG.THROTTLE_RATE
         });
 
         markerSubscriber.subscribe((message) => {
@@ -105,8 +106,40 @@
             updateStats();
         });
 
-        console.log('Subscribed to ' + MARKER_TOPIC);
+        isSubscribed = true;
+        updateSubscribeButton();
+        console.log('Subscribed to ' + CONFIG.MARKER_TOPIC);
+    }
 
+    function unsubscribeFromMarkers() {
+        if (markerSubscriber) {
+            markerSubscriber.unsubscribe();
+            markerSubscriber = null;
+        }
+        isSubscribed = false;
+        updateSubscribeButton();
+        console.log('Unsubscribed from ' + CONFIG.MARKER_TOPIC);
+        addDebugMsg('已停止订阅');
+    }
+
+    function toggleSubscription() {
+        if (isSubscribed) {
+            unsubscribeFromMarkers();
+        } else {
+            if (ros && ros.isConnected) {
+                subscribeToMarkers();
+                addDebugMsg('已启动订阅');
+            } else {
+                addDebugMsg('未连接，无法订阅');
+            }
+        }
+    }
+
+    function updateSubscribeButton() {
+        if (toggleSubscribeBtn) {
+            toggleSubscribeBtn.textContent = isSubscribed ? '停止订阅' : '启动订阅';
+            toggleSubscribeBtn.style.background = isSubscribed ? '#c93838' : '#38c95a';
+        }
     }
 
     function updateStats() {
@@ -139,6 +172,10 @@
         });
     }
 
+    if (toggleSubscribeBtn) {
+        toggleSubscribeBtn.addEventListener('click', toggleSubscription);
+    }
+
     const gridHeightEl = document.getElementById('grid-height');
     if (gridHeightEl) {
         gridHeightEl.addEventListener('change', (event) => {
@@ -150,3 +187,4 @@
     connect();
 
 })();
+
