@@ -1,0 +1,24 @@
+Note: Unnecessary use of -X or --request, POST is already inferred.
+*   Trying 127.0.0.1:8000...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Connected to localhost (127.0.0.1) port 8000 (#0)
+> POST /api/devices/038122250462/stream/start HTTP/1.1
+> Host: localhost:8000
+> User-Agent: curl/7.81.0
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 615
+> 
+} [615 bytes data]
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< date: Sun, 08 Feb 2026 13:40:18 GMT
+< server: uvicorn
+< content-length: 116
+< content-type: application/json
+< 
+{ [116 bytes data]
+100   731  100   116  100   615   2570  13627 --:--:-- --:--:-- --:--:-- 16613
+* Connection #0 to host localhost left intact
+{"device_id":"038122250462","is_streaming":true,"active_streams":["color","depth"],"framerate":null,"duration":null}

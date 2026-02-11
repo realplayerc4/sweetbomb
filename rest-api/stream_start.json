@@ -1,0 +1,27 @@
+{
+    "configs": [
+        {
+            "sensor_id": "038122250462-sensor-0",
+            "stream_type": "depth",
+            "format": "z16",
+            "resolution": {
+                "width": 640,
+                "height": 480
+            },
+            "framerate": 30,
+            "enable": true
+        },
+        {
+            "sensor_id": "038122250462-sensor-1",
+            "stream_type": "color",
+            "format": "rgb8",
+            "resolution": {
+                "width": 640,
+                "height": 480
+            },
+            "framerate": 30,
+            "enable": true
+        }
+    ],
+    "align_to": "color"
+}

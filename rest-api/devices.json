@@ -1,0 +1,18 @@
+*   Trying 127.0.0.1:8000...
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* Connected to localhost (127.0.0.1) port 8000 (#0)
+> GET /api/devices HTTP/1.1
+> Host: localhost:8000
+> User-Agent: curl/7.81.0
+> Accept: */*
+> 
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 307 Temporary Redirect
+< date: Sun, 08 Feb 2026 13:39:00 GMT
+< server: uvicorn
+< content-length: 0
+< location: http://localhost:8000/api/devices/
+< 
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+* Connection #0 to host localhost left intact
