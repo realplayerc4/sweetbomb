@@ -6,6 +6,7 @@ import { PointCloudView } from './components/PointCloudView';
 import { ControlPanel } from './components/ControlPanel';
 import { StatusPanel } from './components/StatusPanel';
 import { CommandCenter } from './components/CommandCenter';
+import { TaskPanel } from './components/TaskPanel';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Toaster } from './components/ui/sonner';
@@ -140,8 +141,9 @@ export default function App() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="controls" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
                 <TabsTrigger value="controls">控制</TabsTrigger>
+                <TabsTrigger value="tasks">任务</TabsTrigger>
                 <TabsTrigger value="diagnostics">诊断</TabsTrigger>
               </TabsList>
 
@@ -156,6 +158,10 @@ export default function App() {
                   sensorsEnabled={sensorsEnabled}
                   onSensorsToggle={setSensorsEnabled}
                 />
+              </TabsContent>
+
+              <TabsContent value="tasks" className="space-y-4">
+                <TaskPanel deviceId={device?.device_id} />
               </TabsContent>
 
               <TabsContent value="diagnostics" className="space-y-4">
