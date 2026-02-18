@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings():
     API_V1_STR: str = "/api"
-    PROJECT_NAME: str = "RealSense REST API"
+    PROJECT_NAME: str = "restrealsenseMonitor"
 
     # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")  # Change in production

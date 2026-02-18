@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RealSense D455 视频流查看器</title>
+    <title>restrealsenseMonitor Viewer</title>
     <style>
         * {
             margin: 0;
@@ -181,7 +181,7 @@
 
 <body>
     <div class="container">
-        <h1>🎥 RealSense D455 视频流查看器</h1>
+        <h1>🎥 restrealsenseMonitor Viewer</h1>
 
         <div class="status-bar">
             <div class="status-indicator">
@@ -260,15 +260,15 @@
                         "sensor_id": `${DEVICE_ID}-sensor-0`,
                         "stream_type": "depth",
                         "format": "z16",
-                        "resolution": { "width": 640, "height": 480 },
-                        "framerate": 30,
+                        "resolution": { "width": 1280, "height": 720 },
+                        "framerate": 15,
                         "enable": true
                     },
                     {
                         "sensor_id": `${DEVICE_ID}-sensor-1`,
                         "stream_type": "color",
                         "format": "rgb8",
-                        "resolution": { "width": 640, "height": 480 },
+                        "resolution": { "width": 1280, "height": 720 },
                         "framerate": 30,
                         "enable": true
                     }

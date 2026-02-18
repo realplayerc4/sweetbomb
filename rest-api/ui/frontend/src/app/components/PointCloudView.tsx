@@ -24,7 +24,7 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
 
     const camera = new THREE.PerspectiveCamera(60, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 100);
     camera.up.set(0, 0, 1); // Set Z-up
-    camera.position.set(-3, -3, 2); // Initial vantage point
+    camera.position.set(-2.4, -2.4, 1.6); // Slightly closer to match 80% ROI feel
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });

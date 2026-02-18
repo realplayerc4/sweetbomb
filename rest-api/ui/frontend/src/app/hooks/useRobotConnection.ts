@@ -73,7 +73,7 @@ export function useRobotConnection() {
                         stream_type: "depth",
                         format: "z16",
                         resolution: { width: 1280, height: 720 },
-                        framerate: 30,
+                        framerate: 15,
                         enable: true
                     },
                     {

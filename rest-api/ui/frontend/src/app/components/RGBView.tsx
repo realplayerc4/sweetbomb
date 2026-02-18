@@ -29,7 +29,8 @@ export function RGBView({ isActive, stream }: RGBViewProps) {
         autoPlay
         playsInline
         muted
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover transition-transform duration-500"
+        style={{ transform: 'scale(1.25)', transformOrigin: 'center' }}
       />
     </div>
   );

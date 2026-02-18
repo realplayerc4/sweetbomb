@@ -29,7 +29,8 @@ export function DepthView({ isActive, stream }: DepthViewProps) {
         autoPlay
         playsInline
         muted
-        className="w-full h-full object-contain grayscale"
+        className="w-full h-full object-cover transition-transform duration-500 hover:scale-135"
+        style={{ transform: 'scale(1.25)', transformOrigin: 'center' }}
       />
     </div>
   );
