@@ -691,8 +691,9 @@ class RealSenseManager:
                     detail=f"No metadata available yet for stream '{stream_key}' on device {device_id}. Please wait.",
                 )
 
-            # Return the most recent metadata dictionary (last element)
-            return queue[-1]
+            # Return a deep copy of the most recent metadata to prevent mutation
+            import copy
+            return copy.deepcopy(queue[-1])
 
     def _collect_frames(self, device_id: str, align_processor=None):
         """Thread function to collect frames from the pipeline"""
