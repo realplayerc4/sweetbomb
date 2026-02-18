@@ -101,19 +101,34 @@ export function useRobotConnection() {
             });
             peerConnection.current = pc;
 
-            // 5. Handle Tracks
+            // 5. Handle Tracks - 使用计数器作为 fallback
+            let trackIndex = 0;
             pc.ontrack = (event) => {
                 const mid = event.transceiver.mid;
-                if (mid && offerData.stream_map) {
-                    const streamType = offerData.stream_map[mid];
-                    const newStream = new MediaStream([event.track]);
+                console.log(`[WebRTC] ontrack: mid=${mid}, track=${event.track.kind}, stream_map=`, offerData.stream_map);
 
-                    if (streamType === 'color') {
-                        setRgbStream(newStream);
-                    } else if (streamType === 'depth') {
-                        setDepthStream(newStream);
-                    }
+                let streamType: string | undefined;
+
+                // 优先通过 stream_map 匹配
+                if (mid && offerData.stream_map) {
+                    streamType = offerData.stream_map[mid];
                 }
+
+                // Fallback：如果 mid 匹配失败，按请求顺序分配
+                if (!streamType) {
+                    const requestedTypes = ['color', 'depth'];
+                    streamType = requestedTypes[trackIndex];
+                    console.warn(`[WebRTC] mid="${mid}" 未在 stream_map 中找到，fallback 使用: ${streamType}`);
+                }
+
+                const newStream = new MediaStream([event.track]);
+                if (streamType === 'color') {
+                    setRgbStream(newStream);
+                } else if (streamType === 'depth') {
+                    setDepthStream(newStream);
+                }
+
+                trackIndex++;
             };
 
             // 6. Handle ICE Candidates
@@ -153,22 +168,38 @@ export function useRobotConnection() {
     }, [device]);
 
     const stopConnection = useCallback(async () => {
-        if (!device) return;
+        // 1. 先关闭 PeerConnection 并停止所有 track
+        if (peerConnection.current) {
+            // 停止所有发送/接收的 track
+            peerConnection.current.getSenders().forEach(sender => {
+                sender.track?.stop();
+            });
+            peerConnection.current.getReceivers().forEach(receiver => {
+                receiver.track?.stop();
+            });
+            peerConnection.current.close();
+            peerConnection.current = null;
+        }
 
-        try {
-            if (peerConnection.current) {
-                peerConnection.current.close();
-                peerConnection.current = null;
+        // 2. 立即清空前端流状态，触发视图组件清除残留帧
+        setRgbStream(null);
+        setDepthStream(null);
+        setPointCloudData(null);
+        setIsStreaming(false);
+        sessionId.current = null;
+
+        // 3. 通知后端停止（即使失败也不影响前端清理）
+        if (device) {
+            try {
+                await api.stopStream(device.device_id);
+            } catch (e) {
+                console.warn("停止流时后端返回错误（可忽略）:", e);
             }
-            setRgbStream(null);
-            setDepthStream(null);
-            setPointCloudData(null);
-
-            await api.stopStream(device.device_id);
-            await api.deactivatePointCloud(device.device_id);
-            setIsStreaming(false);
-        } catch (e) {
-            console.error("Error stopping stream:", e);
+            try {
+                await api.deactivatePointCloud(device.device_id);
+            } catch (e) {
+                console.warn("停用点云时后端返回错误（可忽略）:", e);
+            }
         }
     }, [device]);
 

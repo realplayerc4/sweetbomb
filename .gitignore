@@ -36,3 +36,5 @@ devel/
 # AI Agent Skills
 .agent/
 
+
+.config/

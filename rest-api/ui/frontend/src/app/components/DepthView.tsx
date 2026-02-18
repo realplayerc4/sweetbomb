@@ -10,8 +10,14 @@ export function DepthView({ isActive, stream }: DepthViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    if (videoRef.current) {
+      if (stream) {
+        videoRef.current.srcObject = stream;
+      } else {
+        // 流断开时清除残留帧
+        videoRef.current.srcObject = null;
+        videoRef.current.load();
+      }
     }
   }, [stream]);
 
