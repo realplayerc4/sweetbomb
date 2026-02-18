@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RobotDisplay } from './components/RobotDisplay';
+
 import { RGBView } from './components/RGBView';
 import { DepthView } from './components/DepthView';
 import { PointCloudView } from './components/PointCloudView';
@@ -31,9 +31,7 @@ export default function App() {
   const [volume, setVolume] = useState(60);
   const [sensorsEnabled, setSensorsEnabled] = useState(true);
 
-  // Robot States
-  const [armRotation, setArmRotation] = useState(0);
-  const [headRotation, setHeadRotation] = useState(0);
+
 
   // Status States
   const [battery, setBattery] = useState(85);
@@ -50,24 +48,7 @@ export default function App() {
     }
   };
 
-  // Simulate robot movements only when streaming (or just simulating for now as feedback)
-  useEffect(() => {
-    if (!isStreaming || power === 0) return;
 
-    const interval = setInterval(() => {
-      setArmRotation((prev) => {
-        const newRotation = prev + (Math.random() - 0.5) * 10;
-        return Math.max(-30, Math.min(30, newRotation));
-      });
-
-      setHeadRotation((prev) => {
-        const newRotation = prev + (Math.random() - 0.5) * 8;
-        return Math.max(-25, Math.min(25, newRotation));
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isStreaming, power]);
 
   // Simulate status changes
   useEffect(() => {
@@ -89,8 +70,7 @@ export default function App() {
     setVolume(60);
     setSensorsEnabled(true);
     stopConnection();
-    setArmRotation(0);
-    setHeadRotation(0);
+
     setBattery(85);
     setCpu(45);
     setTemperature(38);
@@ -138,34 +118,20 @@ export default function App() {
           <PointCloudView isActive={isStreaming} points={pointCloudData} />
         </div>
 
-        {/* Main Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Robot Display */}
-          <Card className="lg:col-span-2 bg-slate-900/50 border-slate-800 backdrop-blur">
-            <CardContent className="p-6 h-[500px]">
-              <RobotDisplay
-                power={power}
-                armRotation={armRotation}
-                headRotation={headRotation}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Status Panel */}
-          <Card className="bg-slate-900/50 border-slate-800 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-lg">系统状态</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <StatusPanel
-                battery={battery}
-                cpu={cpu}
-                temperature={temperature}
-                signal={signal}
-              />
-            </CardContent>
-          </Card>
-        </div>
+        {/* Status Panel */}
+        <Card className="bg-slate-900/50 border-slate-800 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-lg">系统状态</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StatusPanel
+              battery={battery}
+              cpu={cpu}
+              temperature={temperature}
+              signal={signal}
+            />
+          </CardContent>
+        </Card>
 
         {/* Control Panel */}
         <Card className="bg-slate-900/50 border-slate-800 backdrop-blur">
