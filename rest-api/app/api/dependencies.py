@@ -1,13 +1,7 @@
-from fastapi.security import OAuth2PasswordBearer
-
-
 from app.services.rs_manager import RealSenseManager
 from app.services.webrtc_manager import WebRTCManager
 from app.services.task_manager import TaskManager
 from app.services.socketio import sio
-
-# OAuth2 setup
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Singleton instances
 _realsense_manager = None

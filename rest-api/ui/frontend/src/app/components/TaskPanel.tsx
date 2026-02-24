@@ -19,7 +19,7 @@ import {
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useTaskManager } from '../hooks/useTaskManager';
-import type { TaskInfo, TaskTypeInfo, TaskStatus } from '../services/taskApi';
+import type { TaskInfo, TaskStatus } from '../services/taskApi';
 
 interface TaskPanelProps {
   deviceId?: string | null;

@@ -12,7 +12,6 @@ router = APIRouter()
 async def create_offer(
     offer_request: WebRTCOffer,
     webrtc_manager: WebRTCManager = Depends(get_webrtc_manager),
-    # user: dict = Depends(get_current_user) # -> enable this if security is needed
 ):
     """
     Create a WebRTC offer for streaming from a RealSense device.

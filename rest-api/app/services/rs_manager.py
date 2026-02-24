@@ -41,7 +41,6 @@ class RealSenseManager:
         self.decimation_filter.set_option(rs.option.filter_magnitude, 3) # Increased from 2 to 3 for performance
         self.spatial_filter = rs.spatial_filter()
         self.temporal_filter = rs.temporal_filter()
-        self.hole_filling_filter = rs.hole_filling_filter()
         self.colorizer = rs.colorizer()
         self.colorizer.set_option(rs.option.color_scheme, 0) # 0 is Jet
         self.colorizer.set_option(rs.option.histogram_equalization_enabled, 1) # Enable histogram equalization
@@ -318,11 +317,50 @@ class RealSenseManager:
     def get_sensor_option(
         self, device_id: str, sensor_id: str, option_id: str
     ) -> OptionInfo:
-        """Get a specific option for a sensor"""
+        """Get a specific option for a sensor
+
+        先从批量获取中查找，若因 RuntimeError 被跳过，则直接通过
+        pyrealsense2 枚举单独读取目标 option，以提升可靠性。
+        """
+        # 尝试从批量获取中查找
         options = self.get_sensor_options(device_id, sensor_id)
         for option in options:
             if option.option_id == option_id:
                 return option
+
+        # 批量获取中可能因 RuntimeError 被跳过，直接通过 pyrealsense2 读取
+        if device_id not in self.devices:
+            raise RealSenseError(status_code=404, detail=f"Device {device_id} not found")
+
+        dev = self.devices[device_id]
+        try:
+            sensor_index = int(sensor_id.split("-")[-1])
+            sensor = dev.sensors[sensor_index]
+        except (ValueError, IndexError):
+            raise RealSenseError(status_code=404, detail=f"Sensor {sensor_id} not found")
+
+        for opt in sensor.get_supported_options():
+            if opt.name == option_id:
+                try:
+                    current_value = sensor.get_option(opt)
+                    option_range = sensor.get_option_range(opt)
+                    return OptionInfo(
+                        option_id=opt.name,
+                        name=opt.name.replace("_", " ").title(),
+                        description=sensor.get_option_description(opt),
+                        current_value=current_value,
+                        default_value=option_range.default,
+                        min_value=option_range.min,
+                        max_value=option_range.max,
+                        step=option_range.step,
+                        read_only=sensor.is_option_read_only(opt),
+                    )
+                except RuntimeError as e:
+                    raise RealSenseError(
+                        status_code=500,
+                        detail=f"Option {option_id} exists but cannot be read: {str(e)}",
+                    )
+
         raise RealSenseError(status_code=404, detail=f"Option {option_id} not found")
 
     def set_sensor_option(

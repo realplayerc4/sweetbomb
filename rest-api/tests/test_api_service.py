@@ -152,10 +152,11 @@ class TestRealSenseAPI:
                 "pc": pc,
             }
 
-            # Mock offer
+            # Mock offer（需要包含 stream_map 以匹配后端端点的期望）
             offer = {
                 "sdp": "v=0\r\no=- 0 0 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n",
                 "type": "offer",
+                "stream_map": {str(i): st for i, st in enumerate(stream_types)},
             }
 
             return session_id, offer

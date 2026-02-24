@@ -3,26 +3,13 @@ from typing import List
 
 from app.models.option import OptionInfo
 
-class SensorBase(BaseModel):
-    name: str
-    type: str  # color, depth, IMU, etc.
-
-class SensorCreate(SensorBase):
-    pass
-
-class Sensor(SensorBase):
-    sensor_id: str
-    supported_formats: List[str] = []
-    options: List[str] = []
-
-    class Config:
-        from_attributes = True
 
 class SupportedStreamProfile(BaseModel):
     stream_type: str
-    resolutions: List[tuple[int, int]] # List of tuples (width, height)
-    fps: List[int] # List of frames per second
-    formats: List[str] # List of supported formats
+    resolutions: List[tuple[int, int]]
+    fps: List[int]
+    formats: List[str]
+
 
 class SensorInfo(BaseModel):
     sensor_id: str

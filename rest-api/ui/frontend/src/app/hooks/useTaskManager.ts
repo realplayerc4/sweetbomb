@@ -7,10 +7,11 @@ import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config';
 import {
   taskApi,
+} from '../services/taskApi';
+import type {
   TaskInfo,
   TaskTypeInfo,
   TaskCreateRequest,
-  TaskStatus,
   TaskEvent,
   TaskListResponse,
 } from '../services/taskApi';

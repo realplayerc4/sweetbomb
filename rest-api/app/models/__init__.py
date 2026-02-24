@@ -1,13 +1,12 @@
 """Models package."""
 
-from app.models.device import Device, DeviceBase, DeviceInfo
+from app.models.device import DeviceInfo
 from app.models.stream import StreamConfig, StreamStart, StreamStatus, PointCloudStatus
 from app.models.task import (
     TaskStatus,
     TaskPriority,
     TaskConfig,
     TaskCreateRequest,
-    TaskUpdateRequest,
     TaskProgress,
     TaskResult,
     TaskInfo,
@@ -18,8 +17,6 @@ from app.models.task import (
 
 __all__ = [
     # Device models
-    "Device",
-    "DeviceBase",
     "DeviceInfo",
     # Stream models
     "StreamConfig",
@@ -31,7 +28,6 @@ __all__ = [
     "TaskPriority",
     "TaskConfig",
     "TaskCreateRequest",
-    "TaskUpdateRequest",
     "TaskProgress",
     "TaskResult",
     "TaskInfo",

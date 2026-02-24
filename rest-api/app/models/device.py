@@ -1,20 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
-class DeviceBase(BaseModel):
-    name: str
-    serial_number: str
-    firmware_version: Optional[str] = None
-    physical_port: Optional[str] = None
-
-
-class Device(DeviceBase):
-    device_id: str
-    sensors: List[str] = []
-    is_streaming: bool = False
-
-    class Config:
-        from_attributes = True
 
 class DeviceInfo(BaseModel):
     device_id: str
