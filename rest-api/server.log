@@ -241,3 +241,73 @@ INFO:     127.0.0.1:56498 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
 INFO:     127.0.0.1:56498 - "GET /api/webrtc/sessions/a375ace5-a1d6-4970-ba39-542d3d3324a3/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
 INFO:     127.0.0.1:56498 - "GET /api/webrtc/sessions/a375ace5-a1d6-4970-ba39-542d3d3324a3/ice-candidates HTTP/1.1" 200 OK
 Socket.IO client disconnected: usXoJ1XAjOQPCAWXAAAZ
+INFO:     127.0.0.1:33086 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33092 - "GET /assets/index-f69liTwk.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:33086 - "GET /assets/index-BP9ZbM08.css HTTP/1.1" 304 Not Modified
+INFO:     ('127.0.0.1', 33098) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:33086 - "GET /api/devices/ HTTP/1.1" 200 OK
+Socket.IO client connected: vlpp2nYH4WAp78BsAAAb
+INFO:     127.0.0.1:33086 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33086 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33086 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33086 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33092 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53654 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33092 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53654 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53654 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53654 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53654 - "GET /api/webrtc/sessions/0e06c3e0-f79e-49e0-a08b-beabacbb64db/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53654 - "GET /api/webrtc/sessions/0e06c3e0-f79e-49e0-a08b-beabacbb64db/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33092 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33086 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33092 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33092 - "GET /api/webrtc/sessions/bf644100-3538-4f06-846d-0cc33289a171/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:33092 - "GET /api/webrtc/sessions/bf644100-3538-4f06-846d-0cc33289a171/ice-candidates HTTP/1.1" 200 OK
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=13848.35879903 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/ros2realsense/rest-api/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=13853.792485406 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/ros2realsense/rest-api/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=13854.328405534 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/ros2realsense/rest-api/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=13859.719952191 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/ros2realsense/rest-api/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=13918.187541554 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/ros2realsense/rest-api/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state

@@ -1,421 +1,140 @@
+"""RealSense 管理器门面模块。
+
+作为原 rs_manager 的 Facade，将请求委托给四个职责单一的子模块：
+- DeviceDiscovery: 设备发现与枚举
+- SensorControl: 传感器参数读写
+- StreamController: 流启停与帧采集
+- PointCloudProcessor: 点云处理
+"""
+
 import threading
-import time
-from typing import Dict, List, Optional, Any, Set
-import pyrealsense2 as rs
+from typing import Any, Dict, List, Optional
+
 import numpy as np
-import cv2
-import traceback
-from app.core.errors import RealSenseError
-from app.models.device import DeviceInfo
-from app.models.sensor import SensorInfo, SupportedStreamProfile
-from app.models.option import OptionInfo
-from app.models.stream import PointCloudStatus, StreamConfig, StreamStatus
+import pyrealsense2 as rs
 import socketio
 
+from app.core.errors import RealSenseError
+from app.models.device import DeviceInfo
+from app.models.option import OptionInfo
+from app.models.sensor import SensorInfo
+from app.models.stream import PointCloudStatus, StreamConfig, StreamStatus
+
+from app.services.device_discovery import DeviceDiscovery
+from app.services.sensor_control import SensorControl
+from app.services.stream_controller import StreamController
+from app.services.point_cloud_processor import PointCloudProcessor
 from app.services.metadata_socket_server import MetadataSocketServer
 
 
 class RealSenseManager:
+    """RealSense 管理器门面。
+
+    对外保持与旧版完全一致的公开 API，内部将职责委托给
+    各个子模块。所有调用方（路由、依赖注入等）无需任何改动。
+    """
+
     def __init__(self, sio: socketio.AsyncServer):
         self.ctx = rs.context()
-        self.devices: Dict[str, rs.device] = {}
-        self.device_infos: Dict[str, DeviceInfo] = {}
-        self.pipelines: Dict[str, rs.pipeline] = {}
-        self.configs: Dict[str, rs.config] = {}
-        self.active_streams: Dict[str, Set[str]] = (
-            {}
-        )  # device_id -> set of stream types
-        self.frame_queues: Dict[str, Dict[str, List]] = (
-            {}
-        )  # device_id -> stream_type -> list of frames
-        self.metadata_queues: Dict[str, Dict[str, List[Dict]]] = (
-            {}
-        )  # device_id -> stream_type -> list of metadata dicts
         self.lock = threading.Lock()
-        self.max_queue_size = 5
-        self.is_pointcloud_enabled: Dict[str, bool] = {}
+
+        # 初始化滤波器（由 StreamController 共享）
+        decimation_filter = rs.decimation_filter()
+        decimation_filter.set_option(rs.option.filter_magnitude, 3)
+        spatial_filter = rs.spatial_filter()
+        temporal_filter = rs.temporal_filter()
+        colorizer = rs.colorizer()
+        colorizer.set_option(rs.option.color_scheme, 0)
+        colorizer.set_option(rs.option.histogram_equalization_enabled, 1)
+        colorizer.set_option(rs.option.min_distance, 0.2)
+        colorizer.set_option(rs.option.max_distance, 3.0)
+        threshold_filter = rs.threshold_filter()
+        threshold_filter.set_option(rs.option.min_distance, 0.5)
+        threshold_filter.set_option(rs.option.max_distance, 3.0)
+
+        self.filters = {
+            "decimation": decimation_filter,
+            "spatial": spatial_filter,
+            "temporal": temporal_filter,
+            "colorizer": colorizer,
+            "threshold": threshold_filter,
+        }
         self.pc = rs.pointcloud()
-        
-        # Initialize filters
-        self.decimation_filter = rs.decimation_filter()
-        self.decimation_filter.set_option(rs.option.filter_magnitude, 3) # Decimation level
-        self.spatial_filter = rs.spatial_filter()
-        self.temporal_filter = rs.temporal_filter()
-        self.colorizer = rs.colorizer()
-        self.colorizer.set_option(rs.option.color_scheme, 0) # 0 is Jet
-        self.colorizer.set_option(rs.option.histogram_equalization_enabled, 1) # Enable histogram equalization
-        self.colorizer.set_option(rs.option.min_distance, 0.2) # Minimum distance (meters)
-        self.colorizer.set_option(rs.option.max_distance, 3.0) # Maximum distance (meters)
 
-        self.threshold_filter = rs.threshold_filter()
-        self.threshold_filter.set_option(rs.option.min_distance, 0.5) # Min distance 0.5m
-        self.threshold_filter.set_option(rs.option.max_distance, 3.0) # Max distance 3.0m (reduced for performance)
+        # 子模块：设备发现
+        self._discovery = DeviceDiscovery(self.ctx, self.lock)
 
+        # 子模块：元数据服务
         self.metadata_socket_server = MetadataSocketServer(sio, self)
 
-        # Initialize devices
-        self.refresh_devices()
+        # 子模块：流控制（需要共享设备列表、设备信息字典、滤波器）
+        self._stream = StreamController(
+            ctx=self.ctx,
+            lock=self.lock,
+            devices=self._discovery.devices,
+            device_infos=self._discovery.device_infos,
+            filters=self.filters,
+            point_cloud_ref=self.pc,
+            metadata_socket_server=self.metadata_socket_server,
+        )
+
+        # 让 DeviceDiscovery 能感知到 pipelines 的存在
+        # 这样在刷新设备时不会误删正在流式传输的设备
+        self._discovery.pipelines = self._stream.pipelines
+
+        # 子模块：传感器控制
+        self._sensor = SensorControl(
+            devices=self._discovery.devices,
+            lock=self.lock,
+            refresh_fn=self._discovery.refresh_devices,
+        )
+
+        # 子模块：点云处理
+        self._pointcloud = PointCloudProcessor(
+            devices=self._discovery.devices,
+            is_pointcloud_enabled=self._stream.is_pointcloud_enabled,
+            refresh_fn=self._discovery.refresh_devices,
+        )
+
+        # 初始化设备列表
+        self._discovery.refresh_devices()
+
+    # ========== 设备管理 API ==========
 
     def refresh_devices(self) -> List[DeviceInfo]:
-        """Refresh the list of connected devices"""
-        with self.lock:
-            # Clear existing devices (that aren't streaming)
-            for device_id in list(self.devices.keys()):
-                if device_id not in self.pipelines:
-                    del self.devices[device_id]
-                    if device_id in self.device_infos:
-                        del self.device_infos[device_id]
-
-            # Discover connected devices
-            for dev in self.ctx.devices:
-                device_id = dev.get_info(rs.camera_info.serial_number)
-
-                # Skip already known devices
-                if device_id in self.devices:
-                    continue
-
-                self.devices[device_id] = dev
-
-                # Extract device information
-                try:
-                    name = dev.get_info(rs.camera_info.name)
-                except RuntimeError:
-                    name = "Unknown Device"
-
-                try:
-                    firmware_version = dev.get_info(rs.camera_info.firmware_version)
-                except RuntimeError:
-                    firmware_version = None
-
-                try:
-                    physical_port = dev.get_info(rs.camera_info.physical_port)
-                except RuntimeError:
-                    physical_port = None
-
-                try:
-                    usb_type = dev.get_info(rs.camera_info.usb_type_descriptor)
-                except RuntimeError:
-                    usb_type = None
-
-                try:
-                    product_id = dev.get_info(rs.camera_info.product_id)
-                except RuntimeError:
-                    product_id = None
-
-                # Get sensors
-                sensors = []
-                for sensor in dev.sensors:
-                    try:
-                        sensor_name = sensor.get_info(rs.camera_info.name)
-                        sensors.append(sensor_name)
-                    except RuntimeError:
-                        pass
-
-                # Create device info object
-                device_info = DeviceInfo(
-                    device_id=device_id,
-                    name=name,
-                    serial_number=device_id,
-                    firmware_version=firmware_version,
-                    physical_port=physical_port,
-                    usb_type=usb_type,
-                    product_id=product_id,
-                    sensors=sensors,
-                    is_streaming=device_id in self.pipelines,
-                )
-
-                self.device_infos[device_id] = device_info
-
-            return list(self.device_infos.values())
+        return self._discovery.refresh_devices()
 
     def get_devices(self) -> List[DeviceInfo]:
-        """Get all connected devices"""
-        return self.refresh_devices()
+        return self._discovery.get_devices()
 
     def get_device(self, device_id: str) -> DeviceInfo:
-        """Get a specific device by ID"""
-        devices = self.get_devices()
-        for device in devices:
-            if device.device_id == device_id:
-                return device
-        raise RealSenseError(status_code=404, detail=f"Device {device_id} not found")
+        return self._discovery.get_device(device_id)
 
     def reset_device(self, device_id: str) -> bool:
-        """Reset a specific device by ID"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
+        return self._discovery.reset_device(device_id)
 
-        dev = self.devices[device_id]
-        try:
-            dev.hardware_reset()
-            return True
-        except RuntimeError as e:
-            raise RealSenseError(
-                status_code=500, detail=f"Failed to reset device: {str(e)}"
-            )
+    # ========== 传感器管理 API ==========
 
     def get_sensors(self, device_id: str) -> List[SensorInfo]:
-        """Get all sensors for a device"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-        if device_id not in self.devices:
-            raise RealSenseError(
-                status_code=404, detail=f"Device {device_id} not found"
-            )
-
-        dev = self.devices[device_id]
-        sensors = []
-
-        for i, sensor in enumerate(dev.sensors):
-            sensor_id = f"{device_id}-sensor-{i}"
-            try:
-                name = sensor.get_info(rs.camera_info.name)
-            except RuntimeError:
-                name = f"Sensor {i}"
-
-            # Determine sensor type
-            sensor_type = sensor.name
-
-            # Get supported stream profiles
-            profiles = sensor.get_stream_profiles()
-            supported_stream_profiles = (
-                {}
-            )  # Dictionary to temporarily store profiles by stream_type
-
-            for profile in profiles:
-                if profile.is_video_stream_profile():
-                    video_profile = profile.as_video_stream_profile()
-                    fmt = str(profile.format()).split(".")[1]
-                    width, height = video_profile.width(), video_profile.height()
-                    fps = video_profile.fps()
-                else:
-                    # Provide default values for non-video stream profiles
-                    fmt = "combined_motion"
-                    width, height = 640, 480
-                    fps = 30
-                stream_type = profile.stream_type().name
-                if profile.stream_type() == rs.stream.infrared:
-                    stream_index = profile.stream_index()
-                    if stream_index == 0:
-                        continue
-                    else:
-                        stream_type = f"{profile.stream_type().name}-{stream_index}"
-
-                if stream_type not in supported_stream_profiles:
-                    supported_stream_profiles[stream_type] = {
-                        "stream_type": stream_type,
-                        "resolutions": [],
-                        "fps": [],
-                        "formats": [],
-                    }
-
-                # Add resolution if not already in the list
-                resolution = (width, height)
-                if (
-                    resolution
-                    not in supported_stream_profiles[stream_type]["resolutions"]
-                ):
-                    supported_stream_profiles[stream_type]["resolutions"].append(
-                        resolution
-                    )
-
-                # Add fps if not already in the list
-                if fps not in supported_stream_profiles[stream_type]["fps"]:
-                    supported_stream_profiles[stream_type]["fps"].append(fps)
-
-                # Add format if not already in the list
-                if fmt not in supported_stream_profiles[stream_type]["formats"]:
-                    supported_stream_profiles[stream_type]["formats"].append(fmt)
-
-            # Convert dictionary to list of SupportedStreamProfile objects
-            stream_profiles_list = []
-            for stream_data in supported_stream_profiles.values():
-                stream_profile = SupportedStreamProfile(
-                    stream_type=stream_data["stream_type"],
-                    resolutions=stream_data["resolutions"],
-                    fps=stream_data["fps"],
-                    formats=stream_data["formats"],
-                )
-                stream_profiles_list.append(stream_profile)
-
-            # Get options
-            options = self.get_sensor_options(device_id, sensor_id)
-
-            sensor_info = SensorInfo(
-                sensor_id=sensor_id,
-                name=name,
-                type=sensor_type,
-                supported_stream_profiles=stream_profiles_list,  # Use correct field name
-                options=options,
-            )
-
-            sensors.append(sensor_info)
-
-        return sensors
+        return self._sensor.get_sensors(device_id)
 
     def get_sensor(self, device_id: str, sensor_id: str) -> SensorInfo:
-        """Get a specific sensor by ID"""
-        sensors = self.get_sensors(device_id)
-        for sensor in sensors:
-            if sensor.sensor_id == sensor_id:
-                return sensor
-        raise RealSenseError(status_code=404, detail=f"Sensor {sensor_id} not found")
+        return self._sensor.get_sensor(device_id, sensor_id)
 
     def get_sensor_options(self, device_id: str, sensor_id: str) -> List[OptionInfo]:
-        """Get all options for a sensor"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
-
-        dev = self.devices[device_id]
-
-        # Parse sensor index from sensor_id
-        try:
-            sensor_index = int(sensor_id.split("-")[-1])
-            if sensor_index < 0 or sensor_index >= len(dev.sensors):
-                raise RealSenseError(
-                    status_code=404, detail=f"Sensor {sensor_id} not found"
-                )
-        except (ValueError, IndexError):
-            raise RealSenseError(
-                status_code=404, detail=f"Invalid sensor ID format: {sensor_id}"
-            )
-
-        sensor = dev.sensors[sensor_index]
-        options = []
-        for option in sensor.get_supported_options():
-            try:
-                opt_name = option.name
-                current_value = sensor.get_option(option)
-                option_range = sensor.get_option_range(option)
-
-                option_info = OptionInfo(
-                    option_id=opt_name,
-                    name=opt_name.replace("_", " ").title(),
-                    description=sensor.get_option_description(option),
-                    current_value=current_value,
-                    default_value=option_range.default,
-                    min_value=option_range.min,
-                    max_value=option_range.max,
-                    step=option_range.step,
-                    read_only=sensor.is_option_read_only(option),
-                )
-                options.append(option_info)
-            except RuntimeError:
-                # Skip options that can't be read
-                pass
-
-        return options
+        return self._sensor.get_sensor_options(device_id, sensor_id)
 
     def get_sensor_option(
         self, device_id: str, sensor_id: str, option_id: str
     ) -> OptionInfo:
-        """Get a specific option for a sensor
-
-        先从批量获取中查找，若因 RuntimeError 被跳过，则直接通过
-        pyrealsense2 枚举单独读取目标 option，以提升可靠性。
-        """
-        # 尝试从批量获取中查找
-        options = self.get_sensor_options(device_id, sensor_id)
-        for option in options:
-            if option.option_id == option_id:
-                return option
-
-        # 批量获取中可能因 RuntimeError 被跳过，直接通过 pyrealsense2 读取
-        if device_id not in self.devices:
-            raise RealSenseError(status_code=404, detail=f"Device {device_id} not found")
-
-        dev = self.devices[device_id]
-        try:
-            sensor_index = int(sensor_id.split("-")[-1])
-            sensor = dev.sensors[sensor_index]
-        except (ValueError, IndexError):
-            raise RealSenseError(status_code=404, detail=f"Sensor {sensor_id} not found")
-
-        for opt in sensor.get_supported_options():
-            if opt.name == option_id:
-                try:
-                    current_value = sensor.get_option(opt)
-                    option_range = sensor.get_option_range(opt)
-                    return OptionInfo(
-                        option_id=opt.name,
-                        name=opt.name.replace("_", " ").title(),
-                        description=sensor.get_option_description(opt),
-                        current_value=current_value,
-                        default_value=option_range.default,
-                        min_value=option_range.min,
-                        max_value=option_range.max,
-                        step=option_range.step,
-                        read_only=sensor.is_option_read_only(opt),
-                    )
-                except RuntimeError as e:
-                    raise RealSenseError(
-                        status_code=500,
-                        detail=f"Option {option_id} exists but cannot be read: {str(e)}",
-                    )
-
-        raise RealSenseError(status_code=404, detail=f"Option {option_id} not found")
+        return self._sensor.get_sensor_option(device_id, sensor_id, option_id)
 
     def set_sensor_option(
         self, device_id: str, sensor_id: str, option_id: str, value: Any
     ) -> bool:
-        """Set an option value for a sensor"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
+        return self._sensor.set_sensor_option(device_id, sensor_id, option_id, value)
 
-        dev = self.devices[device_id]
-
-        # Parse sensor index from sensor_id
-        try:
-            sensor_index = int(sensor_id.split("-")[-1])
-            if sensor_index < 0 or sensor_index >= len(dev.sensors):
-                raise RealSenseError(
-                    status_code=404, detail=f"Sensor {sensor_id} not found"
-                )
-        except (ValueError, IndexError):
-            raise RealSenseError(
-                status_code=404, detail=f"Invalid sensor ID format: {sensor_id}"
-            )
-
-        sensor = dev.sensors[sensor_index]
-
-        for option in sensor.get_supported_options():
-            if option.name == option_id:
-                option_value = option
-                break
-
-        if option_value is None:
-            raise RealSenseError(
-                status_code=404, detail=f"Option {option_id} not found"
-            )
-
-        # Check value range
-        option_range = sensor.get_option_range(option_value)
-        if value < option_range.min or value > option_range.max:
-            raise RealSenseError(
-                status_code=400,
-                detail=f"Value {value} is out of range [{option_range.min}, {option_range.max}] for option {option_id}",
-            )
-
-        # Set the option value
-        try:
-            sensor.set_option(option_value, value)
-            return True
-        except RuntimeError as e:
-            raise RealSenseError(
-                status_code=500, detail=f"Failed to set option: {str(e)}"
-            )
+    # ========== 流管理 API ==========
 
     def start_stream(
         self,
@@ -423,531 +142,60 @@ class RealSenseManager:
         configs: List[StreamConfig],
         align_to: Optional[str] = None,
     ) -> StreamStatus:
-        """Start streaming from a device"""
-        self.refresh_devices()
-        if device_id not in self.devices:
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
-
-        # Stop existing stream if running
-        if device_id in self.pipelines:
-            return StreamStatus(
-                device_id=device_id,
-                is_streaming=True,
-                active_streams=list(self.active_streams[device_id]),
-            )
-
-        # Initialize pipeline and config
-        pipeline = rs.pipeline(self.ctx)
-        config = rs.config()
-        config.enable_device(device_id)
-
-        # Track active stream types
-        active_streams: set[str] = set()
-
-        # Enable streams based on configuration
-        for stream_config in configs:
-            # Parse sensor index from sensor_id
-            try:
-                sensor_index = int(stream_config.sensor_id.split("-")[-1])
-                if sensor_index < 0 or sensor_index >= len(
-                    self.devices[device_id].sensors
-                ):
-                    raise RealSenseError(
-                        status_code=404,
-                        detail=f"Sensor {stream_config.sensor_id} not found",
-                    )
-            except (ValueError, IndexError):
-                raise RealSenseError(
-                    status_code=404,
-                    detail=f"Invalid sensor ID format: {stream_config.sensor_id}",
-                )
-
-            # Get stream type from string
-            stream_name_list = stream_config.stream_type.split("-")
-            stream_type = None
-            for name, val in rs.stream.__members__.items():
-                if name.lower() == stream_name_list[0].lower():
-                    stream_type = val
-                    break
-
-            if stream_type is None:
-                raise RealSenseError(
-                    status_code=400,
-                    detail=f"Invalid stream type: {stream_config.stream_type}",
-                )
-
-            # Get format from string
-            format_type = None
-            for name, val in rs.format.__members__.items():
-                if name.lower() == stream_config.format.lower():
-                    format_type = val
-                    break
-
-            if format_type is None:
-                raise RealSenseError(
-                    status_code=400, detail=f"Invalid format: {stream_config.format}"
-                )
-
-            if active_streams and stream_config.stream_type in active_streams:
-                continue
-
-            # Enable stream
-            try:
-                if len(stream_name_list) > 1:
-                    stream_index = int(stream_name_list[1])
-                    config.enable_stream(
-                        stream_type,
-                        stream_index,
-                        stream_config.resolution.width,
-                        stream_config.resolution.height,
-                        format_type,
-                        stream_config.framerate,
-                    )
-                elif format_type == rs.format.combined_motion:
-                    config.enable_stream(stream_type)
-                else:
-                    config.enable_stream(
-                        stream_type,
-                        stream_config.resolution.width,
-                        stream_config.resolution.height,
-                        format_type,
-                        stream_config.framerate,
-                    )
-
-                active_streams.add(stream_config.stream_type)
-
-            except RuntimeError as e:
-                raise RealSenseError(
-                    status_code=400, detail=f"Failed to enable stream: {str(e)}"
-                )
-
-        # Start streaming
-        try:
-            pipeline.start(config)
-
-            # Set up align if requested
-            align_processor = None
-            if align_to:
-                # Get stream type from string
-                align_stream = None
-                for name, val in rs.stream.__members__.items():
-                    if name.lower() == align_to.lower():
-                        align_stream = val
-                        break
-
-                if align_stream:
-                    align_processor = rs.align(align_stream)
-
-            # Store pipeline and config
-            with self.lock:
-                self.pipelines[device_id] = pipeline
-                self.configs[device_id] = config
-                self.active_streams[device_id] = active_streams
-                self.frame_queues[device_id] = {
-                    stream_type: [] for stream_type in active_streams
-                }
-                self.metadata_queues[device_id] = {
-                    stream_key: [] for stream_key in active_streams
-                }
-
-            # Start frame collection thread
-            threading.Thread(
-                target=self._collect_frames,
-                args=(device_id, align_processor),
-                daemon=True,
-            ).start()
-
-            # Update device info
-            if device_id in self.device_infos:
-                self.device_infos[device_id].is_streaming = True
-
-            threading.Thread(
-                target=self.metadata_socket_server.start_broadcast,
-                args=(device_id,),
-                daemon=True,
-            ).start()
-
-            return StreamStatus(
-                device_id=device_id,
-                is_streaming=True,
-                active_streams=list(active_streams),
-            )
-
-        except RuntimeError as e:
-            raise RealSenseError(
-                status_code=500, detail=f"Failed to start streaming: {str(e)}"
-            )
+        # 在启动流之前先刷新设备列表，确保设备存在
+        self._discovery.refresh_devices()
+        return self._stream.start_stream(device_id, configs, align_to)
 
     def stop_stream(self, device_id: str) -> StreamStatus:
-        """Stop streaming from a device"""
-        with self.lock:
-            if device_id not in self.pipelines:
-                return StreamStatus(
-                    device_id=device_id, is_streaming=False, active_streams=[]
-                )
-
-            try:
-                self.metadata_socket_server.stop_broadcast()
-                self.pipelines[device_id].stop()
-
-                # Clean up resources
-                del self.pipelines[device_id]
-                if device_id in self.configs:
-                    del self.configs[device_id]
-                if device_id in self.active_streams:
-                    active_streams = list(self.active_streams[device_id])
-                    del self.active_streams[device_id]
-                else:
-                    active_streams = []
-                if device_id in self.frame_queues:
-                    del self.frame_queues[device_id]
-                if device_id in self.metadata_queues:
-                    del self.metadata_queues[device_id]
-
-                # Update device info
-                if device_id in self.device_infos:
-                    self.device_infos[device_id].is_streaming = False
-
-                return StreamStatus(
-                    device_id=device_id,
-                    is_streaming=False,
-                    active_streams=active_streams,
-                )
-            except RuntimeError as e:
-                raise RealSenseError(
-                    status_code=500, detail=f"Failed to stop streaming: {str(e)}"
-                )
-
-    def activate_point_cloud(self, device_id: str, enable: bool) -> PointCloudStatus:
-        """Activate or deactivate point cloud processing"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
-
-        if enable:
-            self.is_pointcloud_enabled[device_id] = True
-        else:
-            self.is_pointcloud_enabled[device_id] = False
-
-        return PointCloudStatus(device_id=device_id, is_active=enable)
-
-    def get_point_cloud_status(self, device_id: str) -> PointCloudStatus:
-        """Get the point cloud status for a device"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
-
-        return PointCloudStatus(
-            device_id=device_id, is_active=self.is_pointcloud_enabled[device_id]
-        )
+        return self._stream.stop_stream(device_id)
 
     def get_stream_status(self, device_id: str) -> StreamStatus:
-        """Get the streaming status for a device"""
-        if device_id not in self.devices:
-            self.refresh_devices()
-            if device_id not in self.devices:
-                raise RealSenseError(
-                    status_code=404, detail=f"Device {device_id} not found"
-                )
-
-        is_streaming = device_id in self.pipelines
-        active_streams = list(self.active_streams.get(device_id, set()))
-
-        return StreamStatus(
-            device_id=device_id,
-            is_streaming=is_streaming,
-            active_streams=active_streams,
-        )
+        self._discovery._ensure_device_exists(device_id)
+        return self._stream.get_stream_status(device_id)
 
     def get_latest_frame(
         self, device_id: str, stream_type: str
     ) -> np.ndarray:
-        """Get the latest frame from a specific stream"""
-        with self.lock:
-            if device_id not in self.frame_queues:
-                raise RealSenseError(
-                    status_code=400, detail=f"Device {device_id} is not streaming"
-                )
-
-            if stream_type not in self.frame_queues[device_id]:
-                raise RealSenseError(
-                    status_code=400, detail=f"Stream type {stream_type} is not active"
-                )
-
-            if not self.frame_queues[device_id][stream_type]:
-                raise RealSenseError(
-                    status_code=503,
-                    detail=f"No frames available for stream {stream_type}",
-                )
-
-            # Return the most recent frame
-            return self.frame_queues[device_id][stream_type][-1]
+        return self._stream.get_latest_frame(device_id, stream_type)
 
     def get_latest_metadata(self, device_id: str, stream_type: str) -> Dict:
-        """Get the latest METADATA dictionary from a specific stream"""
-        stream_key = stream_type.lower()  # Use consistent key format
-        with self.lock:
-            # Check if device is supposed to be streaming
-            if device_id not in self.pipelines or device_id not in self.metadata_queues:
-                if (
-                    device_id not in self.pipelines
-                    and not self.get_stream_status(device_id).is_streaming
-                ):
-                    raise RealSenseError(
-                        status_code=400, detail=f"Device {device_id} is not streaming."
-                    )
-                else:
-                    raise RealSenseError(
-                        status_code=500,
-                        detail=f"Inconsistent state for device {device_id}. Assumed not streaming.",
-                    )
+        return self._stream.get_latest_metadata(device_id, stream_type)
 
-            # Check if the specific stream is active and has a queue
-            if stream_key not in self.metadata_queues.get(device_id, {}):
-                active_keys = list(self.active_streams.get(device_id, []))
-                raise RealSenseError(
-                    status_code=400,
-                    detail=f"Stream type '{stream_key}' is not active for device {device_id}. Active streams: {active_keys}",
-                )
+    # ========== 点云 API ==========
 
-            queue = self.metadata_queues[device_id][stream_key]
-            if queue.__len__() == 0:
-                return {}
-            if not queue:
-                # Stream is active, but no metadata arrived yet or queue was cleared
-                raise RealSenseError(
-                    status_code=503,
-                    detail=f"No metadata available yet for stream '{stream_key}' on device {device_id}. Please wait.",
-                )
+    def activate_point_cloud(self, device_id: str, enable: bool) -> PointCloudStatus:
+        return self._pointcloud.activate(device_id, enable)
 
-            # Return a deep copy of the most recent metadata to prevent mutation
-            import copy
-            return copy.deepcopy(queue[-1])
+    def get_point_cloud_status(self, device_id: str) -> PointCloudStatus:
+        return self._pointcloud.get_status(device_id)
 
-    def _collect_frames(self, device_id: str, align_processor=None):
-        """Thread function to collect frames from the pipeline"""
-        try:
-            while device_id in self.pipelines:
-                try:
-                    # Wait for a frameset
-                    frames = self.pipelines[device_id].wait_for_frames()
-                    # Apply alignment if requested
-                    if align_processor:
-                        frames = align_processor.process(frames)
+    # ========== 兼容性属性 ==========
+    # 某些外部模块（如 endpoints、webrtc_manager）可能直接访问属性
 
-                    # === 阶段1: 在锁内仅完成 RealSense 硬件滤波和原始数据提取 ===
-                    raw_frames = {}  # 存储原始帧数据，锁外处理
-                    active_streams_snapshot = []
-                    should_break = False
+    @property
+    def devices(self) -> Dict[str, rs.device]:
+        return self._discovery.devices
 
-                    with self.lock:
-                        if device_id not in self.frame_queues:
-                            should_break = True
-                        else:
-                            active_streams_snapshot = list(self.active_streams[device_id])
+    @property
+    def device_infos(self) -> Dict[str, DeviceInfo]:
+        return self._discovery.device_infos
 
-                            # RealSense 硬件滤波必须在帧有效期内完成
-                            depth_frame = frames.get_depth_frame()
-                            if depth_frame:
-                                depth_frame = self.decimation_filter.process(depth_frame)
-                                depth_frame = self.threshold_filter.process(depth_frame)
-                                depth_frame = self.spatial_filter.process(depth_frame)
-                                depth_frame = self.temporal_filter.process(depth_frame)
+    @property
+    def pipelines(self):
+        return self._stream.pipelines
 
-                            for stream_type in active_streams_snapshot:
-                                stream_name_list = stream_type.split("-")
-                                stype = stream_name_list[0]
+    @property
+    def active_streams(self):
+        return self._stream.active_streams
 
-                                try:
-                                    if stype.lower() == "depth":
-                                        frame_data = depth_frame if depth_frame else frames.get_depth_frame()
-                                        if frame_data is None:
-                                            continue
-                                        # 仅拷贝原始数据，锁外做 OpenCV 后处理
-                                        data_array = np.asanyarray(frame_data.get_data()).copy()
-                                        raw_frames[stream_type] = {
-                                            "type": "depth",
-                                            "data": data_array,
-                                            "timestamp": frame_data.get_timestamp(),
-                                            "frame_number": frame_data.get_frame_number(),
-                                            "width": data_array.shape[1],
-                                            "height": data_array.shape[0],
-                                            "frame_data": frame_data,  # 保留引用用于点云计算
-                                        }
-                                    elif stype.lower() == "color":
-                                        frame_data = frames.get_color_frame()
-                                        if frame_data is None:
-                                            continue
-                                        data_array = np.asanyarray(frame_data.get_data()).copy()
-                                        raw_frames[stream_type] = {
-                                            "type": "color",
-                                            "data": data_array,
-                                            "timestamp": frame_data.get_timestamp(),
-                                            "frame_number": frame_data.get_frame_number(),
-                                            "width": data_array.shape[1],
-                                            "height": data_array.shape[0],
-                                        }
-                                    elif stype.lower() == "infrared":
-                                        frame_data = frames.get_infrared_frame(
-                                            int(stream_name_list[1])
-                                        )
-                                        if frame_data is None:
-                                            continue
-                                        data_array = np.asanyarray(frame_data.get_data()).copy()
-                                        raw_frames[stream_type] = {
-                                            "type": "infrared",
-                                            "data": data_array,
-                                            "timestamp": frame_data.get_timestamp(),
-                                            "frame_number": frame_data.get_frame_number(),
-                                            "width": data_array.shape[1],
-                                            "height": data_array.shape[0],
-                                        }
-                                    elif (
-                                        stype == rs.stream.gyro.name
-                                        or stype == rs.stream.accel.name
-                                    ):
-                                        motion_data = None
-                                        frame_data = None
-                                        for f in frames:
-                                            if f.get_profile().stream_type().name == stype:
-                                                frame_data = f.as_motion_frame()
-                                                motion_data = frame_data.get_motion_data()
-                                        if motion_data is None:
-                                            continue
-                                        raw_frames[stream_type] = {
-                                            "type": "motion",
-                                            "motion_data": motion_data,
-                                            "timestamp": frame_data.get_timestamp(),
-                                            "frame_number": frame_data.get_frame_number(),
-                                            "width": 640,
-                                            "height": 480,
-                                        }
-                                    # 点云数据也在锁内计算（需要 frame_data 引用）
-                                    if stype.lower() == "depth" and self.is_pointcloud_enabled.get(device_id, False):
-                                        fd = raw_frames.get(stream_type, {}).get("frame_data")
-                                        if fd:
-                                            pts = self.pc.calculate(fd)
-                                            v = pts.get_vertices()
-                                            verts = np.asanyarray(v).view(np.float32).reshape(-1, 3).copy()
-                                            verts = verts[verts[:, 2] >= 0.03]
-                                            raw_frames[stream_type]["point_cloud"] = {
-                                                "vertices": verts,
-                                                "texture_coordinates": [],
-                                            }
-                                except RuntimeError:
-                                    pass
+    @property
+    def frame_queues(self):
+        return self._stream.frame_queues
 
-                    if should_break:
-                        break
+    @property
+    def metadata_queues(self):
+        return self._stream.metadata_queues
 
-                    # === 阶段2: 锁外完成所有 OpenCV 后处理与队列操作 ===
-                    for stream_type, raw in raw_frames.items():
-                        stream_name_list = stream_type.split("-")
-                        stype = stream_name_list[0]
-
-                        try:
-                            frame = None
-                            metadata = {
-                                "timestamp": raw["timestamp"],
-                                "frame_number": raw["frame_number"],
-                                "width": raw["width"],
-                                "height": raw["height"],
-                            }
-
-                            if raw["type"] == "depth":
-                                depth_image = raw["data"]
-                                # 归一化、伪彩色、边缘检测 — 全部无锁执行
-                                depth_normalized = cv2.normalize(depth_image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                                depth_colormap = cv2.applyColorMap(depth_normalized, cv2.COLORMAP_INFERNO)
-                                edges = cv2.Canny(depth_normalized, 25, 100)
-                                edges = cv2.dilate(edges, None)
-                                depth_colormap[edges > 0] = [0, 0, 0]
-                                frame = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
-
-                                if "point_cloud" in raw:
-                                    metadata["point_cloud"] = raw["point_cloud"]
-
-                            elif raw["type"] == "color":
-                                frame = raw["data"]
-
-                            elif raw["type"] == "infrared":
-                                frame = raw["data"]
-
-                            elif raw["type"] == "motion":
-                                motion_data = raw["motion_data"]
-                                motion_json_data = {
-                                    "x": float(motion_data.x),
-                                    "y": float(motion_data.y),
-                                    "z": float(motion_data.z),
-                                }
-                                metadata["motion_data"] = motion_json_data
-                                text = f"x: {motion_data.x:.6f}\ny: {motion_data.y:.6f}\nz: {motion_data.z:.6f}".split("\n")
-                                frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                                y0, dy = 50, 40
-                                for i, coord in enumerate(text):
-                                    y = y0 + dy * i
-                                    cv2.putText(
-                                        frame, coord, (10, y),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 1,
-                                        (255, 255, 255), 2, cv2.LINE_AA,
-                                    )
-
-                            if frame is None:
-                                continue
-
-                            frame = np.asanyarray(frame)
-
-                            # 队列操作（使用锁保护队列本身的一致性）
-                            with self.lock:
-                                if device_id not in self.frame_queues:
-                                    break
-                                stream_key = "-".join(stream_name_list)
-                                frame_queue = self.frame_queues[device_id][stream_key]
-                                frame_queue.append(frame)
-                                while len(frame_queue) > self.max_queue_size:
-                                    frame_queue.pop(0)
-
-                                metadata_queue = self.metadata_queues[device_id][stream_key]
-                                metadata_queue.append(metadata)
-                                while len(metadata_queue) > self.max_queue_size:
-                                    metadata_queue.pop(0)
-
-                        except Exception as e:
-                            print(f"[ERROR] Processing frame for {stream_type}: {e}")
-                            traceback.print_exc()
-
-                except Exception as e: # Catch all exceptions in the main loop
-                    # Handle timeout or other error
-                    print(f"Error collecting frames loop: {str(e)}")
-                    traceback.print_exc()
-                    time.sleep(0.1)
-
-        except Exception as e:
-            print(f"Frame collection thread exception: {str(e)}")
-            # Stop the pipeline if there's an error
-            try:
-                with self.lock:
-                    if device_id in self.pipelines:
-                        self.pipelines[device_id].stop()
-                        del self.pipelines[device_id]
-                        if device_id in self.configs:
-                            del self.configs[device_id]
-                        if device_id in self.active_streams:
-                            del self.active_streams[device_id]
-                        if device_id in self.frame_queues:
-                            del self.frame_queues[device_id]
-                        if device_id in self.metadata_queues:
-                            del self.metadata_queues[device_id]
-                        if device_id in self.device_infos:
-                            self.device_infos[device_id].is_streaming = False
-            except Exception:
-                pass
+    @property
+    def is_pointcloud_enabled(self):
+        return self._stream.is_pointcloud_enabled
