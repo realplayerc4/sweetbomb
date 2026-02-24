@@ -22,9 +22,9 @@ export function RGBView({ isActive, stream }: RGBViewProps) {
   }, [stream]);
 
   return (
-    <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden border border-slate-700">
+    <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden border-2 border-orange-500/50">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-md">
-        <Camera className="w-4 h-4 text-blue-400" />
+        <Camera className="w-4 h-4 text-orange-400" />
         <span className="text-xs text-white font-mono">RGB CAMERA</span>
         {isActive && (
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />

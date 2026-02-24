@@ -23,13 +23,13 @@ export interface StreamRequest {
 
 export const api = {
     async getDevices(): Promise<DeviceInfo[]> {
-        const res = await fetch(`${API_BASE}/devices`);
+        const res = await fetch(`${API_BASE}/devices/`);
         if (!res.ok) throw new Error('Failed to fetch devices');
         return res.json();
     },
 
     async startStream(deviceId: string, config: StreamRequest): Promise<void> {
-        const res = await fetch(`${API_BASE}/devices/${deviceId}/stream/start`, {
+        const res = await fetch(`${API_BASE}/devices/${deviceId}/stream/start/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config),
@@ -38,14 +38,14 @@ export const api = {
     },
 
     async stopStream(deviceId: string): Promise<void> {
-        const res = await fetch(`${API_BASE}/devices/${deviceId}/stream/stop`, {
+        const res = await fetch(`${API_BASE}/devices/${deviceId}/stream/stop/`, {
             method: 'POST',
         });
         if (!res.ok) throw new Error('Failed to stop stream');
     },
 
     async getWebRTCOffer(deviceId: string, streamTypes: string[]): Promise<any> {
-        const res = await fetch(`${API_BASE}/webrtc/offer`, {
+        const res = await fetch(`${API_BASE}/webrtc/offer/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_id: deviceId, stream_types: streamTypes }),
@@ -55,7 +55,7 @@ export const api = {
     },
 
     async sendIceCandidate(sessionId: string, candidate: RTCIceCandidate): Promise<void> {
-        await fetch(`${API_BASE}/webrtc/ice-candidates`, {
+        await fetch(`${API_BASE}/webrtc/ice-candidates/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -68,7 +68,7 @@ export const api = {
     },
 
     async sendAnswer(sessionId: string, answer: RTCSessionDescriptionInit): Promise<void> {
-        await fetch(`${API_BASE}/webrtc/answer`, {
+        await fetch(`${API_BASE}/webrtc/answer/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -80,20 +80,20 @@ export const api = {
     },
 
     async getIceCandidates(sessionId: string): Promise<RTCIceCandidateInit[]> {
-        const res = await fetch(`${API_BASE}/webrtc/sessions/${sessionId}/ice-candidates`);
+        const res = await fetch(`${API_BASE}/webrtc/sessions/${sessionId}/ice-candidates/`);
         if (!res.ok) throw new Error('Failed to get ICE candidates');
         return res.json();
     },
 
     async activatePointCloud(deviceId: string): Promise<void> {
-        const res = await fetch(`${API_BASE}/devices/${deviceId}/point_cloud/activate`, {
+        const res = await fetch(`${API_BASE}/devices/${deviceId}/point_cloud/activate/`, {
             method: 'POST'
         });
         if (!res.ok) throw new Error('Failed to activate point cloud');
     },
 
     async deactivatePointCloud(deviceId: string): Promise<void> {
-        const res = await fetch(`${API_BASE}/devices/${deviceId}/point_cloud/deactivate`, {
+        const res = await fetch(`${API_BASE}/devices/${deviceId}/point_cloud/deactivate/`, {
             method: 'POST'
         });
         if (!res.ok) throw new Error('Failed to deactivate point cloud');

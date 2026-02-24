@@ -19,7 +19,7 @@ interface StatusCardProps {
 // 颜色常量，直接使用 CSS 颜色值，绕过 Tailwind 动态类名问题
 const COLOR_RED = '#ef4444';
 const COLOR_YELLOW = '#eab308';
-const COLOR_GREEN = '#22c55e';
+const COLOR_GREEN = '#ff6600';
 
 // 根据数值和阈值返回对应颜色
 function getColor(value: number, thresholds = { low: 30, high: 70 }): string {
@@ -70,7 +70,7 @@ function StatusCard({ icon: Icon, label, value, unit, color }: StatusCardProps) 
 
 export function StatusPanel({ battery, cpu, temperature, signal }: StatusPanelProps) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-4 gap-3">
       <StatusCard
         icon={Battery}
         label="电池"

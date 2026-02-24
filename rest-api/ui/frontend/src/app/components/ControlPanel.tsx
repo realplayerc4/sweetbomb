@@ -33,7 +33,7 @@ export function ControlPanel({
             <Zap className="w-4 h-4 text-yellow-500" />
             Power Level
           </Label>
-          <span className="text-sm font-mono text-blue-400">{power}%</span>
+          <span className="text-sm font-mono text-orange-400">{power}%</span>
         </div>
         <Slider
           value={[power]}
@@ -51,7 +51,7 @@ export function ControlPanel({
             <Gauge className="w-4 h-4 text-green-500" />
             Movement Speed
           </Label>
-          <span className="text-sm font-mono text-blue-400">{speed}%</span>
+          <span className="text-sm font-mono text-orange-400">{speed}%</span>
         </div>
         <Slider
           value={[speed]}
@@ -69,7 +69,7 @@ export function ControlPanel({
             <Volume2 className="w-4 h-4 text-purple-500" />
             Audio Volume
           </Label>
-          <span className="text-sm font-mono text-blue-400">{volume}%</span>
+          <span className="text-sm font-mono text-orange-400">{volume}%</span>
         </div>
         <Slider
           value={[volume]}

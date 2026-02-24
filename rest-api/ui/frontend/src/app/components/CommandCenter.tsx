@@ -28,7 +28,7 @@ export function CommandCenter({ isRunning, onToggleRunning, onReset }: CommandCe
       <Button
         onClick={onToggleRunning}
         size="lg"
-        className={`h-12 px-6 ${isRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+        className={`h-12 px-6 ${isRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-500 hover:bg-orange-600'}`}
       >
         {isRunning ? (
           <>

@@ -47,8 +47,48 @@ export function useRobotConnection() {
                     for (let i = 0; i < len; i++) {
                         bytes[i] = binaryString.charCodeAt(i);
                     }
-                    const vertices = new Float32Array(bytes.buffer);
-                    setPointCloudData(vertices);
+                    const rawVertices = new Float32Array(bytes.buffer);
+
+                    // Coordinate transformation: RealSense -> Robot (Z-up)
+                    // RealSense: X=right, Y=down, Z=forward(depth)
+                    // Robot: X=forward(depth), Y=right, Z=up(height)
+                    // Transform: newX=Z, newY=-X (mirror fix), newZ=-Y
+                    const vertexCount = rawVertices.length / 3;
+
+                    // Height filter range: -1m to 2m (robot Z axis)
+                    const MIN_HEIGHT = -1.0;
+                    const MAX_HEIGHT = 2.0;
+
+                    // First pass: count valid points after height filter
+                    let validCount = 0;
+                    for (let i = 0; i < vertexCount; i++) {
+                        const idx = i * 3;
+                        const oldY = rawVertices[idx + 1];
+                        const newZ = -oldY; // height
+                        if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
+                            validCount++;
+                        }
+                    }
+
+                    // Second pass: transform and filter
+                    const transformedVertices = new Float32Array(validCount * 3);
+                    let writeIdx = 0;
+                    for (let i = 0; i < vertexCount; i++) {
+                        const idx = i * 3;
+                        const oldX = rawVertices[idx];
+                        const oldY = rawVertices[idx + 1];
+                        const oldZ = rawVertices[idx + 2];
+                        const newZ = -oldY; // height
+
+                        // Height filter
+                        if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
+                            transformedVertices[writeIdx++] = oldZ;      // newX = forward (depth)
+                            transformedVertices[writeIdx++] = -oldX;     // newY = -right (mirror fix)
+                            transformedVertices[writeIdx++] = newZ;      // newZ = up (height)
+                        }
+                    }
+
+                    setPointCloudData(transformedVertices);
                 } catch (e) {
                     console.error("Error parsing point cloud:", e);
                 }

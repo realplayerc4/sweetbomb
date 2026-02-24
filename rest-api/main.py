@@ -1,6 +1,9 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from app.api.router import api_router
 from app.core.errors import setup_exception_handlers
@@ -31,6 +34,32 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # Set up exception handlers
 setup_exception_handlers(app)
+
+# --- Serve Frontend Static Files ---
+FRONTEND_DIST = Path(__file__).parent / "ui" / "frontend" / "dist"
+if FRONTEND_DIST.exists():
+    # Mount assets directory
+    assets_dir = FRONTEND_DIST / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+# SPA fallback handler - must be added last, catches all non-API routes
+@app.middleware("http")
+async def spa_middleware(request: Request, call_next):
+    response = await call_next(request)
+
+    # If 404 and not an API or socket path, serve SPA
+    if response.status_code == 404:
+        path = request.url.path
+        if not path.startswith("/api") and not path.startswith("/socket") and FRONTEND_DIST.exists():
+            # Check if it's a file request
+            file_path = FRONTEND_DIST / path.lstrip("/")
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(str(file_path))
+            # Serve index.html for SPA routing
+            return FileResponse(str(FRONTEND_DIST / "index.html"))
+
+    return response
 
 
 # --- Combine FastAPI and Socket.IO into a single ASGI App ---

@@ -38,18 +38,18 @@ class RealSenseManager:
         
         # Initialize filters
         self.decimation_filter = rs.decimation_filter()
-        self.decimation_filter.set_option(rs.option.filter_magnitude, 3) # Increased from 2 to 3 for performance
+        self.decimation_filter.set_option(rs.option.filter_magnitude, 3) # Decimation level
         self.spatial_filter = rs.spatial_filter()
         self.temporal_filter = rs.temporal_filter()
         self.colorizer = rs.colorizer()
         self.colorizer.set_option(rs.option.color_scheme, 0) # 0 is Jet
         self.colorizer.set_option(rs.option.histogram_equalization_enabled, 1) # Enable histogram equalization
         self.colorizer.set_option(rs.option.min_distance, 0.2) # Minimum distance (meters)
-        self.colorizer.set_option(rs.option.max_distance, 6.0) # Maximum distance (meters)
-        
+        self.colorizer.set_option(rs.option.max_distance, 3.0) # Maximum distance (meters)
+
         self.threshold_filter = rs.threshold_filter()
         self.threshold_filter.set_option(rs.option.min_distance, 0.5) # Min distance 0.5m
-        self.threshold_filter.set_option(rs.option.max_distance, 6.0) # Max distance 6.0m
+        self.threshold_filter.set_option(rs.option.max_distance, 3.0) # Max distance 3.0m (reduced for performance)
 
         self.metadata_socket_server = MetadataSocketServer(sio, self)
 

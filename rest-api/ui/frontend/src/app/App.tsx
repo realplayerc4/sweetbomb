@@ -86,7 +86,7 @@ export default function App() {
         {/* Header with Command Center */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-600 rounded-xl">
+            <div className="p-3 bg-orange-500 rounded-xl">
               <Bot className="w-8 h-8" />
             </div>
             <div>
@@ -168,11 +168,11 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4 text-sm font-mono">
                   <div className="p-4 bg-slate-950/50 rounded-lg border border-slate-800">
                     <div className="text-slate-400 text-xs mb-1">运行时间</div>
-                    <div className="text-blue-400">02:34:18</div>
+                    <div className="text-orange-400">02:34:18</div>
                   </div>
                   <div className="p-4 bg-slate-950/50 rounded-lg border border-slate-800">
                     <div className="text-slate-400 text-xs mb-1">移动距离</div>
-                    <div className="text-blue-400">1.2 km</div>
+                    <div className="text-orange-400">1.2 km</div>
                   </div>
                   <div className="p-4 bg-slate-950/50 rounded-lg border border-slate-800">
                     <div className="text-slate-400 text-xs mb-1">电机状态</div>
