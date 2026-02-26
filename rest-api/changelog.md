@@ -9,11 +9,20 @@
 
 ### Added
 
+- 视觉控制台与数据拓展 (Phase 3):
+  - 接入真实的底层摄像头硬件 IMU 流 (`rs.stream.accel`, `rs.stream.gyro`)。
+  - 基于重力加速度向量 (`math.atan2`) 计算真实的 Roll 与 Pitch 姿态实时呈现。
+  - 在 BEV 切片图中追加基于正交相机的 1.0m~3.0m 物理距离距离刻度辅助浮标尺。
+  - 为所有的前台可视化控制滑动参数增加 `localStorage` 持久化记忆。
 - 四文件架构: `spec.md`, `knowledge.md`, `changelog.md`
 - 多 Agent 角色配置: `.agent/` 目录
 
 ### Changed
 
+- 视觉渲染重构:
+  - 缩减并硬编码 BEVSlice 图仅截取前向 `1.0m~3.0m` 区域且置中摄像机，丢弃（`discard`）容差区间外噪点。
+  - 修正 PointCloudView 因为使用 `THREE.AdditiveBlending` 导致粒子密集呈现高光过曝发白的问题，回退至 `NormalBlending`。
+  - 变更默认 3D 高亮散点颜色为紫色球体 (`#A855F7`)，且将外围控制组件标头全部重写为字重 `bold` 的石墨橙品牌色 (`#FD802E`)。
 - 清理无用代码:
   - 删除未完成的 `security.py`
   - 移除未使用的 OAuth2 依赖

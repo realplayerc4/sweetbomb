@@ -3,3 +3,9 @@ INFO:     Will watch for changes in these directories: ['/home/yq/ros2realsense/
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 INFO:     Started reloader process [246736] using StatReload
 ERROR:    Error loading ASGI app. Could not import module "app.main".
+WARNING:  StatReload detected changes in 'app/services/stream_controller.py'. Reloading...
+ERROR:    Error loading ASGI app. Could not import module "app.main".
+WARNING:  StatReload detected changes in 'app/services/metadata_socket_server.py'. Reloading...
+ERROR:    Error loading ASGI app. Could not import module "app.main".
+WARNING:  StatReload detected changes in 'app/services/metadata_socket_server.py'. Reloading...
+ERROR:    Error loading ASGI app. Could not import module "app.main".

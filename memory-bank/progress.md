@@ -7,12 +7,20 @@
 ## Current Status
 
 **Phase**: 开发迭代中
-**Last Milestone**: 任务管理系统上线
-**Next Milestone**: 性能优化
+**Last Milestone**: 视觉控制台与 IMU 数据拓展上线
+**Next Milestone**: 自动化测试与 CI/CD 引入
 
 ---
 
 ## Completed Milestones
+
+### 2026-02-26: 视觉控制台与数据拓展
+
+- [x] 后台集成 `psutil` 并抓取真实硬件 IMU 加速度流
+- [x] 基于数学解算真实由于底盘重力产生的 Roll、Pitch 物理量
+- [x] 重写 WebGL Shader 限定 1~3m 切片正交裁切与深度标尺浮层
+- [x] 前台引入基于紫、石墨橙 (#FD802E/#A855F7) 的赛博 UI 涂装
+- [x] `localStorage` 并入控制面板，实现参数缓存持久化
 
 ### 2025-02-24: 项目结构重组
 
@@ -48,9 +56,11 @@
 - [ ] 方向 B: 补齐缺失的内置任务实现 (点云分析、数据采集)
 - [ ] 方向 D: 为后端服务层补充全面的单元测试
 
-### Phase 3: 工程化收尾
+### Phase 3: 工程化收尾与视觉体验增强
 
-- [ ] 方向 E: DevOps 与文档对齐 (CI流、Docker化)
+- [x] 界面品牌化调优 (方向 D): 着色器重写、响应式间距与缓存持久化
+- [x] 物联网硬件映射 (方向 E): 读取物理底层并实现状态栏动态物理量展示 (CPU负载、IMU位姿)
+- [ ] DevOps 与文档对齐: CI流、Docker化、单元测试覆盖
 
 ---
 

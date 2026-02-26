@@ -10,11 +10,13 @@
 ### 1.1 后端技术栈
 
 #### FastAPI
+
 - **用途**: 高性能异步 Web 框架
 - **特性**: 自动 API 文档、类型验证、依赖注入
-- **文档**: https://fastapi.tiangolo.com/
+- **文档**: <https://fastapi.tiangolo.com/>
 
 #### pyrealsense2
+
 - **用途**: Intel RealSense SDK Python 绑定
 - **核心类**:
   - `rs.context`: 设备上下文
@@ -23,6 +25,7 @@
   - `rs.filter`: 深度滤波器
 
 #### aiortc
+
 - **用途**: WebRTC Python 实现
 - **核心类**:
   - `RTCPeerConnection`: WebRTC 连接
@@ -31,14 +34,20 @@
 ### 1.2 前端技术栈
 
 #### React + TypeScript
+
 - **用途**: UI 组件化开发
 - **状态管理**: React Hooks + Context
 
 #### Three.js
+
 - **用途**: 3D 点云渲染
-- **核心组件**: `Points`, `BufferGeometry`, `PerspectiveCamera`
+- **核心组件**: `Points`, `BufferGeometry`, `PerspectiveCamera`, `OrthographicCamera`
+- **实践避坑**:
+  - 鸟瞰正交切片建议使用 `OrthographicCamera` 严格锁定视锥无透视形变。
+  - 对于放大的密集点云阵列，尽量使用 `NormalBlending` 混合模式；如果滥用 `AdditiveBlending` 会导致粒子重叠区域严重过曝发白。
 
 #### Socket.IO Client
+
 - **用途**: 实时双向通信
 - **事件模式**: pub/sub
 
@@ -74,6 +83,20 @@ pc = rs.pointcloud()
 points = pc.calculate(depth_frame)
 pc.map_to(color_frame)  # 纹理映射
 ```
+
+### 2.4 IMU 数据处理 (加速度与陀螺仪)
+
+RealSense 的 IMU (D435i/D455) 包含独立的高频流 `rs.stream.accel` 和 `rs.stream.gyro`。
+
+- **重力欧拉角计算**：在低速运动下，可以通过加速度投影直接求出 Roll (翻滚角) 与 Pitch (俯仰角)：
+
+  ```python
+  import math
+  roll = math.atan2(ay, az) * 180.0 / math.pi
+  pitch = math.atan2(-ax, math.sqrt(ay*ay + az*az)) * 180.0 / math.pi
+  ```
+
+- **航向角 Yaw 漂移说明**：由于 D455 等系列不带磁力计（Magnetometer），若想获取真实的 Yaw 必须配合陀螺仪积分和复杂滤波（如互补滤波）。强制单积分必定会出现严重常态漂移（Drifting），业务层可用拟合量替代。
 
 ---
 
@@ -189,6 +212,7 @@ class MyTask(BaseTask):
 **症状**: `/api/devices` 返回空列表
 
 **排查步骤**:
+
 1. 检查 USB 连接: `lsusb | grep Intel`
 2. 检查权限: 确保用户在 `plugdev` 组
 3. 检查 librealsense: `realsense-viewer`
@@ -198,6 +222,7 @@ class MyTask(BaseTask):
 **症状**: 视频流无法显示
 
 **排查步骤**:
+
 1. 检查 ICE 候选: 浏览器控制台
 2. 检查防火墙: 确保 UDP 端口开放
 3. 检查编解码器: 浏览器兼容性
@@ -205,6 +230,7 @@ class MyTask(BaseTask):
 ### 6.3 深度图噪点多
 
 **解决方案**:
+
 1. 启用空间滤波: `spatial_filter`
 2. 启用时间滤波: `temporal_filter`
 3. 调整激光功率: 增加 `laser_power`
@@ -212,6 +238,7 @@ class MyTask(BaseTask):
 ### 6.4 点云显示异常
 
 **排查步骤**:
+
 1. 检查深度对齐: `align_to_color`
 2. 检查点云密度: Decimation 滤波器
 3. 检查 Three.js 缓冲区: `BufferGeometry` 更新

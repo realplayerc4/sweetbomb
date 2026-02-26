@@ -14,6 +14,15 @@ export default {
             fontFamily: {
                 mono: ['JetBrains Mono', 'monospace'],
             },
+            animation: {
+                'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+                pulseGlow: {
+                    '0%, 100%': { boxShadow: '0 0 15px rgba(253, 128, 46, 0.4)', borderColor: 'rgba(253, 128, 46, 0.8)' },
+                    '50%': { boxShadow: '0 0 5px rgba(253, 128, 46, 0.1)', borderColor: 'rgba(253, 128, 46, 0.3)' },
+                }
+            }
         },
     },
     plugins: [],

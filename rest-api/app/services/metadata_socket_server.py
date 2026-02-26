@@ -7,6 +7,7 @@ import psutil
 import socket
 import random
 import cv2
+import math
 
 
 class MetadataSocketServer:
@@ -110,6 +111,22 @@ class MetadataSocketServer:
                 last_cpu_load = psutil.cpu_percent()
                 last_cpu_time = current_time
 
+            # Calculate IMU from real accel data if available
+            roll = 2.1 + random.uniform(-0.05, 0.05)
+            pitch = -1.4 + random.uniform(-0.05, 0.05)
+            yaw = 45.0 + random.uniform(-0.5, 0.5)
+
+            if "accel" in all_metadata and "motion_data" in all_metadata["accel"]:
+                # motion_data={x,y,z} in m/s^2 for Realsense accelerometer
+                ax = all_metadata["accel"]["motion_data"]["x"]
+                ay = all_metadata["accel"]["motion_data"]["y"]
+                az = all_metadata["accel"]["motion_data"]["z"]
+                # Roll and Pitch approximation directly from gravity vector
+                roll = math.atan2(ay, az) * 180.0 / math.pi
+                pitch = math.atan2(-ax, math.sqrt(ay*ay + az*az)) * 180.0 / math.pi
+                # D455 IMU lacks magnetometer. Keep yaw simulated or integrate gyro (hard).
+                yaw = 0.0
+
             system_stats = {
                 "cpu_load": last_cpu_load,
                 "battery": 85.0, # Simulated
@@ -117,9 +134,9 @@ class MetadataSocketServer:
                 "signal": 92.0, # Simulated
                 "hostname": socket.gethostname(),
                 "imu": {
-                    "roll": 2.1 + random.uniform(-0.05, 0.05),
-                    "pitch": -1.4 + random.uniform(-0.05, 0.05),
-                    "yaw": 45.0 + random.uniform(-0.5, 0.5)
+                    "roll": roll,
+                    "pitch": pitch,
+                    "yaw": yaw
                 }
             }
 

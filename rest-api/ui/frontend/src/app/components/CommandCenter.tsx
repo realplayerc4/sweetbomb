@@ -1,154 +1,47 @@
-import { useState } from 'react';
-import { Button } from './ui/button';
-import {
-  Play,
-  Pause,
-  RotateCcw,
-  Home,
-  MapPin,
-  Camera,
-  Shield,
-  AlertCircle,
-  Loader2,
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { useTaskManager } from '../hooks/useTaskManager';
+import { Play, Pause, RotateCcw, Power, ShieldCheck, Wifi } from 'lucide-react';
 
 interface CommandCenterProps {
   isRunning: boolean;
   onToggleRunning: () => void;
   onReset: () => void;
-  deviceId?: string | null;
 }
 
-export function CommandCenter({
-  isRunning,
-  onToggleRunning,
-  onReset,
-  deviceId,
-}: CommandCenterProps) {
-  const { createTask, startTask, stopTask, tasks, addWaypoint, canStartMore } =
-    useTaskManager({ deviceId });
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleCommand = async (command: string) => {
-    setIsProcessing(true);
-    try {
-      if (command === '返回原点') {
-        const task = await createTask({
-          task_type: 'return_to_origin',
-          device_id: deviceId,
-        });
-        await startTask(task.task_id);
-        toast.success('已启动“返回原点”任务');
-      } else if (command === '设置路径点') {
-        const name = window.prompt('请输入路径点名称:', `WP_${new Date().getTime()}`);
-        if (name) {
-          await addWaypoint({
-            name,
-            pos: [0, 0, 0], // In real case, this would be current robot pos
-            created_at: new Date().toISOString(),
-          });
-          toast.success(`路径点 “${name}” 已保存`);
-        }
-      } else if (command === '紧急停止') {
-        const runningTasks = tasks.filter((t) => t.status === 'running');
-        await Promise.all(runningTasks.map((t) => stopTask(t.task_id)));
-        toast.error('已紧急停止所有运行中任务');
-      } else {
-        toast.info(`模拟执行命令: ${command}`);
-      }
-    } catch (e: any) {
-      toast.error(`执行失败: ${e.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
+export function CommandCenter({ isRunning, onToggleRunning, onReset }: CommandCenterProps) {
   return (
-    <div className="flex items-center gap-[3px]">
-      {/* Primary Controls */}
-      <Button
-        onClick={onToggleRunning}
-        size="lg"
-        className="h-12 px-6 bg-[#FD802E] hover:bg-orange-600 text-white border-none shadow-[0_0_15px_rgba(253,128,46,0.2)]"
-        disabled={isProcessing}
-      >
-        {isRunning ? (
-          <>
-            <Pause className="w-5 h-5 mr-2" />
-            暂停视频
-          </>
-        ) : (
-          <>
-            <Play className="w-5 h-5 mr-2" />
-            启动视频
-          </>
-        )}
-      </Button>
+    <div className="flex items-center gap-4">
+      {/* Network Status Badge */}
+      <div className="hidden lg:flex items-center gap-2 px-4 py-2 bg-black/20 rounded-xl border border-white/5 mr-4">
+        <Wifi className="w-4 h-4 text-green-500" />
+        <span className="text-[10px] font-bold tracking-widest text-slate-400">NET: STABLE</span>
+      </div>
 
-      <Button
-        onClick={onReset}
-        size="lg"
-        className="h-12 px-6 bg-[#FD802E] hover:bg-orange-600 text-white border-none shadow-[0_0_15px_rgba(253,128,46,0.2)]"
-        disabled={isProcessing}
-      >
-        <RotateCcw className="w-5 h-5 mr-2" />
-        重置
-      </Button>
+      <div className="flex items-center gap-2 p-1.5 bg-[#2c2c2e] rounded-2xl border border-white/5 shadow-inner">
+        <button
+          onClick={onToggleRunning}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs tracking-widest transition-all ${isRunning
+              ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20'
+              : 'bg-orange-500 text-black hover:bg-orange-400 shadow-lg shadow-orange-500/20'
+            }`}
+        >
+          {isRunning ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+          {isRunning ? '停止骨干网' : '启动骨干网'}
+        </button>
 
-      {/* Navigation Commands */}
-      <Button
-        onClick={() => handleCommand('返回原点')}
-        size="lg"
-        className="h-12 px-6 bg-[#FD802E] hover:bg-orange-600 text-white border-none shadow-[0_0_15px_rgba(253,128,46,0.2)]"
-        disabled={isProcessing || !canStartMore}
-      >
-        {isProcessing ? (
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        ) : (
-          <Home className="w-5 h-5 mr-2" />
-        )}
-        原点
-      </Button>
+        <button
+          onClick={onReset}
+          className="p-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+          title="Reset System"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </button>
+      </div>
 
-      <Button
-        onClick={() => handleCommand('设置路径点')}
-        size="lg"
-        className="h-12 px-6 bg-[#FD802E] hover:bg-orange-600 text-white border-none shadow-[0_0_15px_rgba(253,128,46,0.2)]"
-        disabled={isProcessing}
-      >
-        <MapPin className="w-5 h-5 mr-2" />
-        路径点
-      </Button>
+      <div className="h-8 w-px bg-white/5 mx-2" />
 
-      {/* Action Commands */}
-      <Button
-        onClick={() => handleCommand('拍摄图像')}
-        className="h-12 px-4 bg-[#FD802E] hover:bg-orange-600 text-white border-none shadow-[0_0_15px_rgba(253,128,46,0.2)]"
-        size="lg"
-        disabled={isProcessing}
-      >
-        <Camera className="w-5 h-5" />
-      </Button>
-
-      <Button
-        onClick={() => handleCommand('启用防护')}
-        className="h-12 px-4 bg-[#FD802E] hover:bg-orange-600 text-white border-none shadow-[0_0_15px_rgba(253,128,46,0.2)]"
-        size="lg"
-        disabled={isProcessing}
-      >
-        <Shield className="w-5 h-5" />
-      </Button>
-
-      <Button
-        onClick={() => handleCommand('紧急停止')}
-        className="h-12 px-4 bg-[#FF4500] hover:bg-[#E63E00] text-white border-none shadow-[0_0_15px_rgba(255,69,0,0.2)]"
-        size="lg"
-        disabled={isProcessing}
-      >
-        <AlertCircle className="w-5 h-5" />
-      </Button>
+      <button className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all font-bold text-xs tracking-widest">
+        <Power className="w-4 h-4" />
+        紧急停机
+      </button>
     </div>
   );
 }

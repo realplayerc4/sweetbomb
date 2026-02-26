@@ -10,7 +10,7 @@ interface BEVSliceViewProps {
     cameraHeight: number;
 }
 
-// Shader for circular particles with green BEV slice highlight
+// Shader for circular particles with background context mapping
 const vertexShader = `
   attribute float aSize;
   uniform float uTargetHeight;
@@ -19,13 +19,13 @@ const vertexShader = `
 
   varying vec2 vUv;
   varying float vOpacity;
-  varying float vPointType; // 0.0 for target (green), 1.0 for camera (blue)
+  varying float vPointType; // 0.0: Target(Green), 1.0: Camera(Blue), 2.0: Background
 
   void main() {
     vUv = uv;
     
-    // Discard points outside 0-3m forward range (car front bounds)
-    if (position.x < 0.0 || position.x > 3.0) {
+    // Discard points completely outside 1-3m forward range
+    if (position.x < 1.0 || position.x > 3.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vOpacity = 0.0;
       return;
@@ -35,14 +35,18 @@ const vertexShader = `
     float diffTarget = abs(realHeight - uTargetHeight);
     float diffCamera = abs(realHeight - uCameraHeight);
     
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+
+    // Use absolute realHeight (post-compensation) to determine slicing coloring
     if (diffTarget > uTolerance && diffCamera > uTolerance) {
-      gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // Move out of view
-      vOpacity = 0.0;
+      // Points outside of target slice height: dim background markers
+      vPointType = 2.0; 
+      vOpacity = 0.20;
+      gl_PointSize = aSize * 4.0;
     } else {
-      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-      gl_Position = projectionMatrix * mvPosition;
-      // Fixed size for orthographic lock
-      gl_PointSize = aSize * 8.0;
+      // Highlighted specific slices inside Tolerance range
+      gl_PointSize = aSize * 10.0;
       vOpacity = 1.0;
       
       if (diffCamera <= uTolerance) {
@@ -60,7 +64,7 @@ const fragmentShader = `
   varying float vPointType;
 
   void main() {
-    if(vOpacity < 0.5) discard;
+    if(vOpacity < 0.05) discard;
 
     // Calculate distance from center of point
     vec2 center = gl_PointCoord - vec2(0.5);
@@ -72,7 +76,11 @@ const fragmentShader = `
     vec3 fillColor;
     vec3 borderColor;
     
-    if (vPointType > 0.5) {
+    if (vPointType > 1.5) {
+       // Background points
+       fillColor = vec3(0.4, 0.4, 0.4);
+       borderColor = vec3(0.2, 0.2, 0.2);
+    } else if (vPointType > 0.5) {
        // Camera height slice -> Blue
        fillColor = vec3(0.0, 0.5, 1.0);
        borderColor = vec3(0.0, 0.1, 0.5);
@@ -86,8 +94,8 @@ const fragmentShader = `
     float t = smoothstep(0.3, 0.45, dist);
     vec3 color = mix(fillColor, borderColor, t);
 
-    // Soft edge
-    float alpha = 1.0 - smoothstep(0.45, 0.5, dist);
+    // Soft edge combined with base opacity
+    float alpha = vOpacity * (1.0 - smoothstep(0.45, 0.5, dist));
 
     gl_FragColor = vec4(color, alpha);
   }
@@ -107,48 +115,41 @@ export function BEVSliceView({ isActive, points, targetHeight, tolerance, camera
         const container = containerRef.current;
         if (!container) return;
 
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        if (width === 0 || height === 0) {
-            if (!initAttemptedRef.current) {
-                initAttemptedRef.current = true;
-                const retryId = setTimeout(() => {
-                    initAttemptedRef.current = false;
-                }, 100);
-                return () => clearTimeout(retryId);
-            }
-            return;
-        }
+        let width = container.clientWidth || 300;
+        let height = container.clientHeight || 300;
 
-        // Scene setup
+        // Scene setup - Transparent to let Cyberpunk parent CSS shine through
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color('#403D39');
         sceneRef.current = scene;
 
         // Strictly Locked Orthographic Bird's Eye View
         const aspect = width / height;
-        const viewSizeX = 3.0; // The screen height will exactly map to 3 meters in X
+        const viewSizeX = 2.0; // Show a 2m window (from X=1m to X=3m)
 
+        // We want Z (Upwards) to be squashed orthographically into view.
+        // So we just look top-down. 
+        // Setting Near to negative and Far to positive so cutting planes don't clip the cloud
         const camera = new THREE.OrthographicCamera(
             -viewSizeX * aspect / 2, // Left
             viewSizeX * aspect / 2, // Right
             viewSizeX / 2,          // Top
             -viewSizeX / 2,          // Bottom
-            0.1,
-            100
+            -20, // Negative near plane to capture everything under camera unconditionally
+            20
         );
 
         // Set X+ direction as screen "North" (Forward/Car Head). 
         // This requires `up` vector to be (1, 0, 0) since Z is vertical up.
         camera.up.set(1, 0, 0);
 
-        // We only show X from 0 to 3m. Absolute center of our X field is 1.5.
-        camera.position.set(1.5, 0, 10);
-        camera.lookAt(1.5, 0, 0);
+        // Pointing straight down from Z=10 to origin, with North facing +X.
+        camera.position.set(2.0, 0, 10);
+        camera.lookAt(2.0, 0, 0);
 
         cameraRef.current = camera;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+        renderer.setClearColor(0x000000, 0); // Allow glassmorphism
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         renderer.setSize(width, height);
         renderer.domElement.style.display = 'block';
@@ -189,8 +190,10 @@ export function BEVSliceView({ isActive, points, targetHeight, tolerance, camera
         pointsObj.frustumCulled = false; // Need this since points teleport out of frame in shader
         scene.add(pointsObj);
 
-        // Visual Helpers (same as PointCloud)
-        const gridHelper = new THREE.GridHelper(10, 20, 0x303040, 0x202030);
+        // Visual Helpers - Reduced opacity to fit cyberpunk neon grid vibe
+        const gridHelper = new THREE.GridHelper(10, 20, 0x444455, 0x222233);
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.5;
         gridHelper.rotation.x = Math.PI / 2; // Rotate to X-Y plane (Z-up)
         scene.add(gridHelper);
 
@@ -210,6 +213,7 @@ export function BEVSliceView({ isActive, points, targetHeight, tolerance, camera
             if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
             const w = containerRef.current.clientWidth;
             const h = containerRef.current.clientHeight;
+            if (w === 0 || h === 0) return;
             const currentAspect = w / h;
 
             const cam = cameraRef.current as THREE.OrthographicCamera;
@@ -220,7 +224,9 @@ export function BEVSliceView({ isActive, points, targetHeight, tolerance, camera
             cam.updateProjectionMatrix();
             rendererRef.current.setSize(w, h);
         };
-        window.addEventListener('resize', handleResize);
+
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(container);
 
         // Cleanup
         return () => {
@@ -228,7 +234,7 @@ export function BEVSliceView({ isActive, points, targetHeight, tolerance, camera
                 cancelAnimationFrame(animationIdRef.current);
                 animationIdRef.current = null;
             }
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.innerHTML = '';
                 rendererRef.current.dispose();
@@ -275,25 +281,33 @@ export function BEVSliceView({ isActive, points, targetHeight, tolerance, camera
 
 
     return (
-        <div className="relative w-full h-full bg-[#403D39] rounded-lg overflow-hidden border-2 border-[#FD802E]">
-            <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
-                <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-md">
-                    <Layers className="w-4 h-4 text-green-400" />
-                    <span className="text-xs font-mono font-bold text-green-400">
+        <div className="relative w-full h-full bg-[#1c1c1e] rounded-2xl overflow-hidden border border-white/5 shadow-md group">
+            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                <div className="flex items-center gap-1.5 bg-[#2c2c2e]/90 border border-white/10 backdrop-blur-md px-2 py-1 rounded shadow-sm">
+                    <Layers className="w-3.5 h-3.5 text-green-500" />
+                    <span className="text-[10px] text-green-400 font-semibold tracking-wider uppercase font-mono">
                         TGT SLICE ({targetHeight.toFixed(2)}m)
                     </span>
-                    {isActive && (
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    )}
                 </div>
-                <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-md">
-                    <Layers className="w-4 h-4 text-blue-400" />
-                    <span className="text-xs font-mono font-bold text-blue-400">
+                <div className="flex items-center gap-1.5 bg-[#2c2c2e]/90 border border-white/10 backdrop-blur-md px-2 py-1 rounded shadow-sm">
+                    <Layers className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase font-mono">
                         CAM SLICE ({cameraHeight.toFixed(2)}m)
                     </span>
                 </div>
             </div>
-            <div ref={containerRef} className="w-full h-full" style={{ pointerEvents: 'auto' }} />
+
+            {/* Canvas Container */}
+            <div ref={containerRef} className="absolute inset-0 z-0" style={{ pointerEvents: 'auto' }} />
+
+            {/* Grid Distance Rulers */}
+            <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none z-10 opacity-70">
+                <div className="absolute top-[0%] right-2 text-[11px] font-mono font-bold text-slate-400 translate-y-1">3.0m -</div>
+                <div className="absolute top-[25%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">2.5m -</div>
+                <div className="absolute top-[50%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">2.0m -</div>
+                <div className="absolute top-[75%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">1.5m -</div>
+                <div className="absolute top-[100%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-[calc(100%+4px)]">1.0m -</div>
+            </div>
         </div>
     );
 }

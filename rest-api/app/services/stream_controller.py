@@ -78,6 +78,15 @@ class StreamController:
         for stream_config in configs:
             self._enable_single_stream(device_id, config, stream_config, active_streams)
 
+        # 尝试自动开启 IMU
+        try:
+            config.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 250)
+            config.enable_stream(rs.stream.gyro, rs.format.motion_xyz32f, 200)
+            active_streams.add("accel")
+            active_streams.add("gyro")
+        except RuntimeError:
+            print("[Warning] Could not enable IMU streams. Device might not support it.")
+
         try:
             pipeline.start(config)
 
