@@ -449,7 +449,18 @@ class StreamController:
                                 .reshape(-1, 3)
                                 .copy()
                             )
+                            # 过滤太近的点
                             verts = verts[verts[:, 2] >= 0.03]
+
+                            # RealSense -> Robot (Z-up) 坐标变换
+                            # 原始: X右, Y下, Z前
+                            # 目标: X前, Y左, Z上
+                            # 变换: new_x=old_z, new_y=-old_x, new_z=-old_y
+                            verts = np.stack([
+                                verts[:, 2],    # X = Z (前)
+                                -verts[:, 0],   # Y = -X (左)
+                                -verts[:, 1],   # Z = -Y (上)
+                            ], axis=1)
                             
                             # 降采样，防止前端卡死和 WebSocket OOM (不超过 5000 个点)
                             if len(verts) > 5000:

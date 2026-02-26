@@ -46,7 +46,7 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
 
     // Grid Helper - XY 平面作为地面 (Z-up 坐标系)
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-    // GridHelper 默认在 XZ 平面，无需旋转即可作为 XY 地面
+    grid.rotation.x = Math.PI / 2; // 将默认的 XZ 平面翻转至 XY 平面
     scene.add(grid);
 
     // Points Geometry
