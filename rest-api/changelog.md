@@ -7,15 +7,16 @@
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- 视觉控制台与数据拓展 (Phase 3):
-  - 接入真实的底层摄像头硬件 IMU 流 (`rs.stream.accel`, `rs.stream.gyro`)。
-  - 基于重力加速度向量 (`math.atan2`) 计算真实的 Roll 与 Pitch 姿态实时呈现。
-  - 在 BEV 切片图中追加基于正交相机的 1.0m~3.0m 物理距离距离刻度辅助浮标尺。
-  - 为所有的前台可视化控制滑动参数增加 `localStorage` 持久化记忆。
-- 四文件架构: `spec.md`, `knowledge.md`, `changelog.md`
-- 多 Agent 角色配置: `.agent/` 目录
+- **紧急恢复与 UI 重塑 (Golden Restore)**:
+  - 修复了由于 `git checkout` 导致的 UI 代码回退与编译冲突问题。
+  - **点云稳定性修复**: 重新启用 `frustumCulled: false` 机制，彻底解决视角拉远时点云消失的问题。
+  - **坐标系对齐**: 重新注入 RealSense -> Robot (Z-up) 坐标变换逻辑。
+  - **CSS 修复**: 修正 `index.css` 指令排序，解决 Vite 构建报错。
+  - **风格同步**: 将 UI 完全恢复至最新的 Formant 工业风（极简圆角、大间距、Full-bleed 视窗）。
+
+### Added
 
 ### Changed
 
