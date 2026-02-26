@@ -38,3 +38,7 @@ devel/
 
 
 .config/
+
+# Logs
+logs/
+rest-api/logs/
