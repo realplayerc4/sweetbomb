@@ -129,13 +129,13 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                         const oldZ = rawVertices[idx + 2];
                         const newZ = -oldY + cameraHeight;
 
-                        // Strict Z-Up Coordinates:
-                        // X = Right (oldX)
-                        // Y = Forward (oldZ)
+                        // Strict ROS FLU Right-Handed Coordinates:
+                        // X = Forward (oldZ)
+                        // Y = Left (-oldX)
                         // Z = Up (newZ)
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
-                            transformedVertices[writeIdx++] = oldX;      // newX = Right
-                            transformedVertices[writeIdx++] = oldZ;      // newY = Forward
+                            transformedVertices[writeIdx++] = oldZ;      // newX = Forward
+                            transformedVertices[writeIdx++] = -oldX;     // newY = Left
                             transformedVertices[writeIdx++] = newZ;      // newZ = Up
                         }
                     }
