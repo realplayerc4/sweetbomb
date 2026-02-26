@@ -6,20 +6,28 @@
 
 ## Current Status
 
-**Phase**: 开发迭代中
-**Last Milestone**: 视觉控制台与 IMU 数据拓展上线
-**Next Milestone**: 自动化测试与 CI/CD 引入
+**Phase**: 系统架构稳定性增强 与 UI 黄金版本打磨 (Phase 6)
+**Last Milestone**: 工程目录全链路物理分离 (v2) 与点云粒子显示彻底修复
+**Next Milestone**: 自动化集成测试与远程部署流程标准化
 
 ---
 
 ## Completed Milestones
 
-### 2026-02-26: 视觉控制台与数据拓展
+### 2026-02-26: 工程目录重构与全链路分离 (Phase 6 - v2)
 
-- [x] 后台集成 `psutil` 并抓取真实硬件 IMU 加速度流
-- [x] 基于数学解算真实由于底盘重力产生的 Roll、Pitch 物理量
-- [x] 重写 WebGL Shader 限定 1~3m 切片正交裁切与深度标尺浮层
-- [x] 前台引入基于紫、石墨橙 (#FD802E/#A855F7) 的赛博 UI 涂装
+- [x] **[应用层独立]**: 彻底打散 `rest-api` 包裹层，将 `app/` 和 `tests/` 提升至项目根目录。
+- [x] **[运维层归档]**: 创建 `deploy/` 目录，收容所有分布在根目录的部署与远程修复脚本。
+- [x] **[规范对齐]**: 将 API 规范 (`spec.md`, `knowledge.md`) 整合至 `docs/api/`。
+- [x] **[Bug 修复]**: 彻底解决 Three.js 点云粒子由于深度测试 (`depthWrite`) 冲突导致的不显示问题。
+- [x] **[环境治理]**: 修正 `.gitignore` 并清洗历史提交，剔除误录入的 `venv` 等巨型依赖包。
+
+### 2026-02-26: 视觉控制台与数据拓展 (Phase 5)
+
+- [x] 后台集成 `psutil` 并抓取真实硬件 IMU 数据流
+- [x] 基于数学解算实时 Roll、Pitch 姿态
+- [x] 重写 WebGL Shader 实现正交鸟瞰投影 (BEV Context)
+- [x] 应用极简工业风 (Formant-style) UI 视觉重构
 - [x] `localStorage` 并入控制面板，实现参数缓存持久化
 
 ### 2025-02-24: 项目结构重组
@@ -89,4 +97,4 @@
 
 ---
 
-*Last Updated: 2026-02-26*
+*Last Updated: 2026-02-26 (Post-Refactoring v2)*

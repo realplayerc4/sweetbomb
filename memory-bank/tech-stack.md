@@ -59,6 +59,7 @@
 ### DR-001: 选择 WebRTC 而非 MJPEG
 
 **原因**:
+
 - WebRTC 延迟 < 100ms，MJPEG 通常 > 200ms
 - WebRTC 支持双向通信，便于扩展
 - 浏览器原生支持，无需插件
@@ -66,6 +67,7 @@
 ### DR-002: 选择 FastAPI 而非 Flask
 
 **原因**:
+
 - 原生异步支持，适合 I/O 密集场景
 - 自动生成 OpenAPI 文档
 - Pydantic 集成，类型安全
@@ -73,11 +75,12 @@
 ### DR-003: 选择 Three.js 而非原生 WebGL
 
 **原因**:
+
 - 更高层次的抽象，开发效率高
 - 社区活跃，文档完善
 - 内置相机控制、着色器支持
 
 ---
 
-*Version: v1.0*
-*Last Updated: 2025-02-24*
+*Version: v1.1*
+*Last Updated: 2026-02-26*

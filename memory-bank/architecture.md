@@ -98,16 +98,18 @@ ros2realsense/
 │   └── progress.md
 ├── docs/
 │   ├── agent/             # Agent 角色配置
-│   └── guides/            # 使用指南
-├── rest-api/              # 后端服务
-│   ├── app/
-│   │   ├── routers/       # API 路由
-│   │   ├── services/      # 业务逻辑
-│   │   └── models/        # 数据模型
-│   ├── spec.md            # API 规范
-│   ├── knowledge.md       # 技术知识
+│   ├── guides/            # 使用指南
+│   ├── api/               # API 规范与文档 (spec.md, knowledge.md)
 │   └── changelog.md       # 变更日志
-└── ui/                    # 前端应用
+├── app/                   # 后端核心业务服务 (原 rest-api/app)
+│   ├── routers/           # API 路由
+│   ├── services/          # 业务逻辑
+│   └── models/            # 数据模型
+├── tests/                 # 单元与全链路集成测试
+├── deploy/                # 运维与远程节点部署脚本集合
+├── ui/                    # 前端 React 源码与编译产物
+├── tools/                 # 脱机独立静态 HTML 调试器
+└── logs/                  # 系统日志归档仓
 ```
 
 ---

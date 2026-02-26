@@ -65,5 +65,5 @@
 
 ---
 
-*Version: v1.0*
-*Last Updated: 2025-02-24*
+*Version: v1.1 (Industrial Redesign)*
+*Last Updated: 2026-02-26*
