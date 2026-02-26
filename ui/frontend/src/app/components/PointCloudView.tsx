@@ -51,11 +51,13 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     // Points Geometry
     const geometry = new THREE.BufferGeometry();
     const material = new THREE.PointsMaterial({
-      size: 0.035,
+      size: 0.1, // Increased size for visibility test
       vertexColors: false,
       color: 0xA855F7, // Purple
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9,
+      depthWrite: false, // Fix potential depth testing issues with transparent points
+      blending: THREE.AdditiveBlending // Enhance glow visibility
     });
 
     const pointsObj = new THREE.Points(geometry, material);

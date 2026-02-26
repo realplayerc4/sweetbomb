@@ -1,4 +1,4 @@
-import { Battery, Cpu, Thermometer, Signal, Zap, Gauge } from 'lucide-react';
+import { Battery, Cpu, Thermometer, Signal } from 'lucide-react';
 
 interface StatusPanelProps {
   battery: number;

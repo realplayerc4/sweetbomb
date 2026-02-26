@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Bot, Terminal, Activity, Settings2, BarChart3, ShieldAlert } from 'lucide-react';
+import { Bot, Activity, Settings2, BarChart3, ShieldAlert } from 'lucide-react';
 import { useRobotConnection } from './hooks/useRobotConnection';
 
 import { RGBView } from './components/RGBView';
 import { DepthView } from './components/DepthView';
 import { PointCloudView } from './components/PointCloudView';
-import { ControlPanel } from './components/ControlPanel';
 import { StatusPanel } from './components/StatusPanel';
 import { CommandCenter } from './components/CommandCenter';
-import { TaskPanel } from './components/TaskPanel';
 import { Toaster } from './components/ui/sonner';
 import { BEVSliceView } from './components/BEVSliceView';
 
@@ -21,7 +19,6 @@ export default function App() {
     depthStream,
     pointCloudData,
     streamMetrics,
-    systemStats,
     error,
     startConnection,
     stopConnection
@@ -29,9 +26,6 @@ export default function App() {
 
   // Control States (Local for now, until backend has control API)
   const [power, setPower] = useState(75);
-  const [speed, setSpeed] = useState(50);
-  const [volume, setVolume] = useState(60);
-  const [sensorsEnabled, setSensorsEnabled] = useState(true);
 
 
 
@@ -40,7 +34,6 @@ export default function App() {
   const [cpu, setCpu] = useState(45);
   const [temperature, setTemperature] = useState(38);
   const [signal, setSignal] = useState(92);
-  const [imu, setImu] = useState({ roll: 0, pitch: 0, yaw: 0 });
 
   // Robot Configuration & PointCloud View Control
   const [cameraHeight, setCameraHeight] = useState(0.65);
@@ -76,9 +69,6 @@ export default function App() {
 
   const handleReset = () => {
     setPower(75);
-    setSpeed(50);
-    setVolume(60);
-    setSensorsEnabled(true);
     stopConnection();
 
     setBattery(85);

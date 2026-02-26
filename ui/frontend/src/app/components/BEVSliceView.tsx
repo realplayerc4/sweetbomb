@@ -101,7 +101,7 @@ const fragmentShader = `
   }
 `;
 
-export function BEVSliceView({ isActive, points, targetHeight, tolerance, cameraHeight }: BEVSliceViewProps) {
+export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: BEVSliceViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const geometryRef = useRef<THREE.BufferGeometry | null>(null);

@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Power, ShieldCheck, Wifi } from 'lucide-react';
+import { Play, Pause, RotateCcw, Power, Wifi } from 'lucide-react';
 
 interface CommandCenterProps {
   isRunning: boolean;
