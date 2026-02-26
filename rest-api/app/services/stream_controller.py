@@ -45,6 +45,7 @@ class StreamController:
         self.metadata_queues: Dict[str, Dict[str, List[Dict]]] = {}
         self.max_queue_size = 5
         self.is_pointcloud_enabled: Dict[str, bool] = {}
+        self._last_pc_calc_time: Dict[str, float] = {}
 
         self.metadata_socket_server = metadata_socket_server
 
@@ -425,21 +426,31 @@ class StreamController:
                 if stype.lower() == "depth" and self.is_pointcloud_enabled.get(
                     device_id, False
                 ):
-                    fd = raw_frames.get(stream_type, {}).get("frame_data")
-                    if fd:
-                        pts = self.pc.calculate(fd)
-                        v = pts.get_vertices()
-                        verts = (
-                            np.asanyarray(v)
-                            .view(np.float32)
-                            .reshape(-1, 3)
-                            .copy()
-                        )
-                        verts = verts[verts[:, 2] >= 0.03]
-                        raw_frames[stream_type]["point_cloud"] = {
-                            "vertices": verts,
-                            "texture_coordinates": [],
-                        }
+                    import time
+                    now = time.time()
+                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
+                        self._last_pc_calc_time[device_id] = now
+                        fd = raw_frames.get(stream_type, {}).get("frame_data")
+                        if fd:
+                            pts = self.pc.calculate(fd)
+                            v = pts.get_vertices()
+                            verts = (
+                                np.asanyarray(v)
+                                .view(np.float32)
+                                .reshape(-1, 3)
+                                .copy()
+                            )
+                            verts = verts[verts[:, 2] >= 0.03]
+                            
+                            # 降采样，防止前端卡死和 WebSocket OOM (不超过 5000 个点)
+                            if len(verts) > 5000:
+                                step = len(verts) // 5000
+                                verts = verts[::step]
+                                
+                            raw_frames[stream_type]["point_cloud"] = {
+                                "vertices": verts,
+                                "texture_coordinates": [],
+                            }
             except RuntimeError:
                 pass
 
