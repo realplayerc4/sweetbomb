@@ -67,6 +67,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isStreaming, power]);
 
+  // Auto-start stream when device is discovered and not currently streaming
+  useEffect(() => {
+    if (device && !isStreaming && !error) {
+      startConnection();
+    }
+  }, [device, isStreaming, error, startConnection]);
+
   const handleReset = () => {
     setPower(75);
     stopConnection();
@@ -90,10 +97,6 @@ export default function App() {
             </div>
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold tracking-tight text-white">制糖工程智能技术创新中心</h1>
-              <p className="text-slate-500 text-sm font-medium">
-                AIROS - 自主智能机器人操作系统 // ID: 250337
-                {device && <span className="text-orange-500 ml-2">● {device.name}</span>}
-              </p>
             </div>
           </div>
 
