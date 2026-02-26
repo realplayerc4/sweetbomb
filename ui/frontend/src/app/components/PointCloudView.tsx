@@ -70,11 +70,11 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     scene.background = new THREE.Color('#1c1c1e');
     sceneRef.current = scene;
 
-    // Camera - 适应机器人Z-up坐标系 (X=前, Y=左, Z=上 - FLU 右手系)
+    // Camera - 适应Z-up视角 (X=左右, Y=前后, Z=上)
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
     camera.up.set(0, 0, 1);        // 设Z轴向上
-    camera.position.set(camX, 0, camZ); // 位于X轴偏后方(负值)，高度camZ
-    camera.lookAt(0, 0, 0);        // 恢复: 看向原点(以获得最佳的正向透视纵深感)
+    camera.position.set(camX, -5, camZ); // 位于Y轴偏后方(负值视角)，X取值为camX水平偏侧
+    camera.lookAt(0, 0, 0);        // 看向原点
     cameraRef.current = camera;
 
     // Renderer
@@ -165,7 +165,7 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
   // Update Camera View dynamically
   useEffect(() => {
     if (cameraRef.current) {
-      cameraRef.current.position.set(camX, 0, camZ);
+      cameraRef.current.position.set(camX, -5, camZ);
       cameraRef.current.lookAt(0, 0, 0);
     }
   }, [camX, camZ]);
