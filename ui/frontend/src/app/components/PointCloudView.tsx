@@ -30,10 +30,11 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     scene.background = new THREE.Color('#1c1c1e');
     sceneRef.current = scene;
 
-    // Camera
+    // Camera - 适应机器人Z-up坐标系
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
-    camera.position.set(camX, 2, camZ);
-    camera.lookAt(2, 0, 0);
+    camera.up.set(0, 0, 1);        // 设Z轴向上
+    camera.position.set(camX, 0, camZ);
+    camera.lookAt(2, 0, 0);        // 看向机器人前方
     cameraRef.current = camera;
 
     // Renderer
@@ -43,21 +44,21 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Grid Helper
+    // Grid Helper - XY 平面作为地面 (Z-up 坐标系)
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-    grid.rotation.x = Math.PI / 2;
+    // GridHelper 默认在 XZ 平面，无需旋转即可作为 XY 地面
     scene.add(grid);
 
     // Points Geometry
     const geometry = new THREE.BufferGeometry();
     const material = new THREE.PointsMaterial({
-      size: 0.1, // Increased size for visibility test
+      size: 0.1,
       vertexColors: false,
-      color: 0xA855F7, // Purple
+      color: 0xFD802E, // 石墨橙品牌色
       transparent: true,
       opacity: 0.9,
-      depthWrite: false, // Fix potential depth testing issues with transparent points
-      blending: THREE.AdditiveBlending // Enhance glow visibility
+      depthWrite: false,
+      blending: THREE.NormalBlending
     });
 
     const pointsObj = new THREE.Points(geometry, material);
@@ -99,6 +100,14 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     };
   }, []);
 
+  // Update Camera View dynamically
+  useEffect(() => {
+    if (cameraRef.current) {
+      cameraRef.current.position.set(camX, 0, camZ);
+      cameraRef.current.lookAt(2, 0, 0);
+    }
+  }, [camX, camZ]);
+
   // Update Points content
   useEffect(() => {
     if (points && pointsRef.current) {
@@ -113,7 +122,7 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     <div className="relative w-full h-full bg-[#1c1c1e] rounded-2xl overflow-hidden border border-white/5 shadow-md group">
       {/* 悬浮状态胶囊 */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-        <Box className="w-3.5 h-3.5 text-purple-500" />
+        <Box className="w-3.5 h-3.5 text-[#FD802E]" />
         <span className="text-[10px] text-slate-100 font-bold tracking-widest uppercase">Point Cloud</span>
         {metrics && isActive && (
           <span className="text-[10px] text-slate-400 border-l border-white/20 pl-2 ml-1 font-medium">
