@@ -11,12 +11,52 @@ interface PointCloudViewProps {
   camX?: number;
 }
 
+// Custom shader for circular particles with border
+const vertexShader = `
+  attribute float aSize;
+  varying vec2 vUv;
+
+  void main() {
+    vUv = uv;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = aSize * (3.0 / -mvPosition.z);
+  }
+`;
+
+const fragmentShader = `
+  varying vec2 vUv;
+
+  void main() {
+    // Calculate distance from center of point
+    vec2 center = gl_PointCoord - vec2(0.5);
+    float dist = length(center);
+
+    // Discard pixels outside circle
+    if (dist > 0.5) discard;
+
+    // Graphite Orange fill, dark border
+    vec3 fillColor = vec3(0.99, 0.50, 0.18); // 0xFD802E
+    vec3 borderColor = vec3(0.3, 0.1, 0.0);
+
+    // Border region (outer ring)
+    float t = smoothstep(0.3, 0.45, dist);
+    vec3 color = mix(fillColor, borderColor, t);
+
+    // Soft edge
+    float alpha = 0.9 - smoothstep(0.45, 0.5, dist);
+
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
 export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -5.0 }: PointCloudViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const pointsRef = useRef<THREE.Points | null>(null);
+  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
   const animationIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -54,16 +94,29 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     const axesHelper = new THREE.AxesHelper(3);
     scene.add(axesHelper);
 
-    // Points Geometry
+    // Points Geometry & Custom Shader Material
     const geometry = new THREE.BufferGeometry();
-    const material = new THREE.PointsMaterial({
-      size: 0.1,
-      vertexColors: false,
-      color: 0xFD802E, // 石墨橙品牌色
+    const maxPoints = 1280 * 720;
+    const positions = new Float32Array(maxPoints * 3);
+    const sizes = new Float32Array(maxPoints);
+
+    // Initialize all sizes
+    for (let i = 0; i < maxPoints; i++) {
+      sizes[i] = 4.5; // Point size (enlarged)
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geometry.setDrawRange(0, 0);
+    geometryRef.current = geometry;
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {},
+      vertexShader,
+      fragmentShader,
       transparent: true,
-      opacity: 0.9,
       depthWrite: false,
-      blending: THREE.NormalBlending
+      blending: THREE.AdditiveBlending,
     });
 
     const pointsObj = new THREE.Points(geometry, material);
@@ -113,13 +166,22 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     }
   }, [camX, camZ]);
 
-  // Update Points content
+  // Update points - optimized for performance
   useEffect(() => {
-    if (points && pointsRef.current) {
-      const geometry = pointsRef.current.geometry;
-      geometry.setAttribute('position', new THREE.BufferAttribute(points, 3));
-      geometry.attributes.position.needsUpdate = true;
-      geometry.computeBoundingSphere();
+    if (points && geometryRef.current) {
+      const positions = geometryRef.current.attributes.position.array as Float32Array;
+
+      if (positions.length < points.length) {
+        geometryRef.current.setAttribute('position', new THREE.BufferAttribute(points, 3));
+      } else {
+        positions.set(points);
+        geometryRef.current.attributes.position.needsUpdate = true;
+      }
+      const drawCount = points.length / 3;
+      geometryRef.current.setDrawRange(0, drawCount);
+      // Update bounding sphere manually because frustumCulled is false anyway, 
+      // but good practice if we ever turn it back on
+      geometryRef.current.computeBoundingSphere();
     }
   }, [points]);
 
