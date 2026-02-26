@@ -41,4 +41,12 @@ devel/
 
 # Logs
 logs/
+.config/
+
+# Logs
+logs/
 rest-api/logs/
+
+# Environments
+venv/
+.venv/
