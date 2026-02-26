@@ -30,11 +30,11 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     scene.background = new THREE.Color('#1c1c1e');
     sceneRef.current = scene;
 
-    // Camera - 适应机器人Z-up坐标系
+    // Camera - 适应机器人Z-up坐标系 (X=右, Y=前, Z=上)
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
     camera.up.set(0, 0, 1);        // 设Z轴向上
-    camera.position.set(camX, 0, camZ);
-    camera.lookAt(2, 0, 0);        // 看向机器人前方
+    camera.position.set(camX, -5, camZ); // 位于Y轴偏后方(负值)，高度camZ
+    camera.lookAt(0, 2, 0);        // 看向正前方2米处的点云聚集区
     cameraRef.current = camera;
 
     // Renderer
@@ -74,7 +74,7 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(2, 0, 0);
+    controls.target.set(0, 2, 0); // 轨道旋转中心对应 lookAt
 
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
@@ -108,8 +108,8 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
   // Update Camera View dynamically
   useEffect(() => {
     if (cameraRef.current) {
-      cameraRef.current.position.set(camX, 0, camZ);
-      cameraRef.current.lookAt(2, 0, 0);
+      cameraRef.current.position.set(camX, -5, camZ);
+      cameraRef.current.lookAt(0, 2, 0);
     }
   }, [camX, camZ]);
 

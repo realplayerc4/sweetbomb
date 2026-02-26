@@ -127,13 +127,16 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                         const oldX = rawVertices[idx];
                         const oldY = rawVertices[idx + 1];
                         const oldZ = rawVertices[idx + 2];
-                        const newZ = -oldY + cameraHeight; // offset by robot mount height
+                        const newZ = -oldY + cameraHeight;
 
-                        // Height filter
+                        // Strict Z-Up Coordinates:
+                        // X = Right (oldX)
+                        // Y = Forward (oldZ)
+                        // Z = Up (newZ)
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
-                            transformedVertices[writeIdx++] = oldZ;      // newX = forward (depth)
-                            transformedVertices[writeIdx++] = -oldX;     // newY = -right (mirror fix)
-                            transformedVertices[writeIdx++] = newZ;      // newZ = up (height)
+                            transformedVertices[writeIdx++] = oldX;      // newX = Right
+                            transformedVertices[writeIdx++] = oldZ;      // newY = Forward
+                            transformedVertices[writeIdx++] = newZ;      // newZ = Up
                         }
                     }
 
