@@ -14,7 +14,9 @@ import type {
   TaskCreateRequest,
   TaskEvent,
   TaskListResponse,
+  Waypoint,
 } from '../services/taskApi';
+import { waypointApi } from '../services/taskApi';
 
 interface UseTaskManagerOptions {
   autoConnect?: boolean;
@@ -46,6 +48,13 @@ interface UseTaskManagerReturn {
   stopTask: (taskId: string) => Promise<TaskInfo>;
   deleteTask: (taskId: string) => Promise<void>;
 
+  // Waypoints
+  waypoints: Waypoint[];
+  isLoadingWaypoints: boolean;
+  refreshWaypoints: () => Promise<void>;
+  addWaypoint: (waypoint: Waypoint) => Promise<void>;
+  deleteWaypoint: (name: string) => Promise<void>;
+
   // Error handling
   error: string | null;
   clearError: () => void;
@@ -66,6 +75,9 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
 
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [isLoadingWaypoints, setIsLoadingWaypoints] = useState(false);
 
   // Refs
   const socketRef = useRef<Socket | null>(null);
@@ -147,6 +159,43 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
 
   // --- Data Fetching ---
 
+  const refreshWaypoints = useCallback(async () => {
+    setIsLoadingWaypoints(true);
+    try {
+      const wps = await waypointApi.listWaypoints();
+      setWaypoints(wps);
+    } catch (e: any) {
+      console.error('[TaskManager] Failed to fetch waypoints:', e);
+      setError(e.message);
+    } finally {
+      setIsLoadingWaypoints(false);
+    }
+  }, []);
+
+  const addWaypoint = useCallback(async (waypoint: Waypoint) => {
+    setError(null);
+    try {
+      await waypointApi.createWaypoint(waypoint);
+      await refreshWaypoints();
+    } catch (e: any) {
+      console.error('[TaskManager] Failed to add waypoint:', e);
+      setError(e.message);
+      throw e;
+    }
+  }, [refreshWaypoints]);
+
+  const deleteWaypoint = useCallback(async (name: string) => {
+    setError(null);
+    try {
+      await waypointApi.deleteWaypoint(name);
+      await refreshWaypoints();
+    } catch (e: any) {
+      console.error('[TaskManager] Failed to delete waypoint:', e);
+      setError(e.message);
+      throw e;
+    }
+  }, [refreshWaypoints]);
+
   const refreshTaskTypes = useCallback(async () => {
     setIsLoadingTypes(true);
     setError(null);
@@ -184,7 +233,8 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
   useEffect(() => {
     refreshTaskTypes();
     refreshTasks();
-  }, [refreshTaskTypes, refreshTasks]);
+    refreshWaypoints();
+  }, [refreshTaskTypes, refreshTasks, refreshWaypoints]);
 
   // --- Task Actions ---
 
@@ -302,6 +352,11 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
     resumeTask,
     stopTask,
     deleteTask,
+    waypoints,
+    isLoadingWaypoints,
+    refreshWaypoints,
+    addWaypoint,
+    deleteWaypoint,
     error,
     clearError,
   };

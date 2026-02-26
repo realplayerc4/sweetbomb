@@ -6,3 +6,4 @@ aiortc==1.11.0
 opencv-python==4.11.0.86
 numpy==2.2.4
 python-socketio==5.13.0
+psutil

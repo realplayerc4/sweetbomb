@@ -5,17 +5,32 @@ import { api } from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config';
 
-export function useRobotConnection() {
+export function useRobotConnection(cameraHeight: number = 1.0) {
     const [device, setDevice] = useState<DeviceInfo | null>(null);
     const [isStreaming, setIsStreaming] = useState(false);
     const [rgbStream, setRgbStream] = useState<MediaStream | null>(null);
     const [depthStream, setDepthStream] = useState<MediaStream | null>(null);
     const [pointCloudData, setPointCloudData] = useState<Float32Array | null>(null);
+    const [streamMetrics, setStreamMetrics] = useState<{
+        rgb: { width: number; height: number; fps: number } | null;
+        depth: { width: number; height: number; fps: number } | null;
+        pointCount: number;
+    }>({ rgb: null, depth: null, pointCount: 0 });
+    const [systemStats, setSystemStats] = useState<{
+        cpu_load: number;
+        battery: number;
+        temperature: number;
+        signal: number;
+        hostname: string;
+        imu?: { roll: number; pitch: number; yaw: number };
+    } | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const sessionId = useRef<string | null>(null);
     const socket = useRef<Socket | null>(null);
+    const autoStartAttempted = useRef(false);
+    const lastMetricsUpdateTime = useRef<number>(0);
 
     // Auto-connect to first available device
     useEffect(() => {
@@ -38,6 +53,40 @@ export function useRobotConnection() {
         });
 
         socket.current.on('metadata_update', (data: any) => {
+            if (data.system_stats) {
+                setSystemStats(data.system_stats);
+            }
+
+            // Update Stream Metrics - Throttled to 1 sec
+            const now = Date.now();
+            if (now - lastMetricsUpdateTime.current >= 1000) {
+                lastMetricsUpdateTime.current = now;
+                const newMetrics = { rgb: null as any, depth: null as any, pointCount: 0 };
+
+                if (data.metadata_streams?.color) {
+                    newMetrics.rgb = {
+                        width: data.metadata_streams.color.width || 0,
+                        height: data.metadata_streams.color.height || 0,
+                        fps: data.metadata_streams.color.frame_number ? Math.round(data.metadata_streams.color.frame_number / Math.max(1, data.metadata_streams.color.timestamp)) : 30 // Approximate or fallback
+                    };
+                    // Since RealSense wrapper might not easily provide exact instantaneous FPS here without historical tracking, 
+                    // we'll rely on our requested framerate config (30) or backend calculation if available.
+                    // Assuming we fallback to 30/15 depending on requested config until the backend sends explicit fps.
+                    // For now, hardcode to 30/15 as configured or parse from metadata if backend adds it.
+                    newMetrics.rgb.fps = 30; // using configured 30 FPS
+                }
+
+                if (data.metadata_streams?.depth) {
+                    newMetrics.depth = {
+                        width: data.metadata_streams.depth.width || 0,
+                        height: data.metadata_streams.depth.height || 0,
+                        fps: 15 // using configured 15 FPS
+                    };
+                }
+
+                setStreamMetrics(prev => ({ ...prev, rgb: newMetrics.rgb || prev.rgb, depth: newMetrics.depth || prev.depth }));
+            }
+
             if (data.metadata_streams?.depth?.point_cloud?.vertices) {
                 try {
                     const base64Vertices = data.metadata_streams.depth.point_cloud.vertices;
@@ -64,7 +113,7 @@ export function useRobotConnection() {
                     for (let i = 0; i < vertexCount; i++) {
                         const idx = i * 3;
                         const oldY = rawVertices[idx + 1];
-                        const newZ = -oldY; // height
+                        const newZ = -oldY + cameraHeight; // offset by robot mount height
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
                             validCount++;
                         }
@@ -78,7 +127,7 @@ export function useRobotConnection() {
                         const oldX = rawVertices[idx];
                         const oldY = rawVertices[idx + 1];
                         const oldZ = rawVertices[idx + 2];
-                        const newZ = -oldY; // height
+                        const newZ = -oldY + cameraHeight; // offset by robot mount height
 
                         // Height filter
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
@@ -89,6 +138,12 @@ export function useRobotConnection() {
                     }
 
                     setPointCloudData(transformedVertices);
+
+                    // Update Point Cloud Metrics (throttled along with the 1s check is better, but since it's dependent on parsing here, we append it)
+                    if (now - lastMetricsUpdateTime.current < 100 || now - lastMetricsUpdateTime.current >= 1000) {
+                        setStreamMetrics(prev => ({ ...prev, pointCount: validCount }));
+                    }
+
                 } catch (e) {
                     console.error("Error parsing point cloud:", e);
                 }
@@ -243,12 +298,35 @@ export function useRobotConnection() {
         }
     }, [device]);
 
+    // Auto-start streaming once device is ready
+    useEffect(() => {
+        let mounted = true;
+        if (device && !isStreaming && !autoStartAttempted.current) {
+            autoStartAttempted.current = true;
+            // Add a short delay to ensure component is stably mounted
+            // and bypass React 18 Strict Mode double-mount aborts.
+            setTimeout(() => {
+                if (mounted) {
+                    console.log("[AutoStart] Initiating automatic stream connection...");
+                    startConnection();
+                } else {
+                    autoStartAttempted.current = false; // Reset if unmounted before execution
+                }
+            }, 1000);
+        }
+        return () => {
+            mounted = false;
+        };
+    }, [device, isStreaming, startConnection]);
+
     return {
         device,
         isStreaming,
         rgbStream,
         depthStream,
         pointCloudData,
+        streamMetrics,
+        systemStats,
         error,
         startConnection,
         stopConnection

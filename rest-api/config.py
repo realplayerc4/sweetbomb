@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings:
     API_V1_STR: str = "/api"
-    PROJECT_NAME: str = "restrealsenseMonitor"
+    PROJECT_NAME: str = "制糖工程智能技术创新中心"
 
     # CORS
     CORS_ORIGINS: list = ["*"]

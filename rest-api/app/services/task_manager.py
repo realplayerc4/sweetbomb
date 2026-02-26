@@ -43,19 +43,22 @@ class TaskManager:
 
     _instance: Optional["TaskManager"] = None
 
-    def __new__(cls, sio: Optional[socketio.AsyncServer] = None) -> "TaskManager":
+    def __new__(cls, sio: Optional[socketio.AsyncServer] = None, rs_manager=None) -> "TaskManager":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, sio: Optional[socketio.AsyncServer] = None):
+    def __init__(self, sio: Optional[socketio.AsyncServer] = None, rs_manager=None):
         if self._initialized:
             if sio is not None:
                 self._sio = sio
+            if rs_manager is not None:
+                self._rs_manager = rs_manager
             return
 
         self._sio = sio
+        self._rs_manager = rs_manager
         self._tasks: Dict[str, TaskInfo] = {}
         self._task_instances: Dict[str, BaseTask] = {}
         self._running_tasks: Dict[str, asyncio.Task] = {}
@@ -67,9 +70,9 @@ class TaskManager:
         logger.info("TaskManager initialized")
 
     @classmethod
-    def get_instance(cls, sio: Optional[socketio.AsyncServer] = None) -> "TaskManager":
+    def get_instance(cls, sio: Optional[socketio.AsyncServer] = None, rs_manager=None) -> "TaskManager":
         """Get the singleton TaskManager instance."""
-        return cls(sio)
+        return cls(sio, rs_manager)
 
     def set_socketio(self, sio: socketio.AsyncServer):
         """Set the Socket.IO server instance."""
@@ -148,6 +151,10 @@ class TaskManager:
             params=request.params,
             device_id=request.device_id
         )
+        
+        # Inject hardware dependencies if instance supports it
+        if hasattr(task_instance, "rs_manager"):
+            task_instance.rs_manager = self._rs_manager
 
         # Store task
         self._tasks[task_id] = task_info

@@ -7,6 +7,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 interface PointCloudViewProps {
   isActive: boolean;
   points: Float32Array | null;
+  metrics?: { pointCount: number };
+  camZ?: number;
+  camX?: number;
 }
 
 // Custom shader for circular particles with border
@@ -48,7 +51,7 @@ const fragmentShader = `
   }
 `;
 
-export function PointCloudView({ isActive, points }: PointCloudViewProps) {
+export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -5.0 }: PointCloudViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const geometryRef = useRef<THREE.BufferGeometry | null>(null);
@@ -79,12 +82,12 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a0f);
+    scene.background = new THREE.Color('#403D39');
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
     camera.up.set(0, 0, 1); // Set Z-up (height)
-    camera.position.set(-5, 0, 3); // Behind (negative X), slightly above
+    camera.position.set(camX, 0, camZ); // Dynamic X & Z
     camera.lookAt(0, 0, 0); // Look at origin
     cameraRef.current = camera;
 
@@ -111,7 +114,7 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
 
     // Initialize all sizes
     for (let i = 0; i < maxPoints; i++) {
-      sizes[i] = 1.5; // Point size (smaller for cleaner look)
+      sizes[i] = 7.5; // Point size (enlarged 5x)
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -193,7 +196,17 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
       cameraRef.current = null;
       initAttemptedRef.current = false;
     };
-  }, []);
+  }, []); // Run on mount
+
+  // Watch for Dynamic Camera Changes from Settings Panel
+  useEffect(() => {
+    if (cameraRef.current && controlsRef.current && (camZ !== undefined || camX !== undefined)) {
+      const currentY = cameraRef.current.position.y;
+      cameraRef.current.position.set(camX ?? -5.0, currentY, camZ ?? 3.0);
+      cameraRef.current.lookAt(0, 0, 0);
+      controlsRef.current.update();
+    }
+  }, [camX, camZ]);
 
   // Update points - optimized for performance
   useEffect(() => {
@@ -212,10 +225,13 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
   }, [points]);
 
   return (
-    <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden border-2 border-orange-500/50">
+    <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden border-2 border-[#FD802E]">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-md">
-        <Box className="w-4 h-4 text-orange-400" />
-        <span className="text-xs text-white font-mono">POINT CLOUD</span>
+        <Box className="w-4 h-4 text-[#FD802E]" />
+        <span className="text-xs text-white font-mono">
+          POINT CLOUD
+          {metrics && isActive && metrics.pointCount > 0 && ` (${metrics.pointCount} 粒子)`}
+        </span>
         {isActive && (
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
         )}

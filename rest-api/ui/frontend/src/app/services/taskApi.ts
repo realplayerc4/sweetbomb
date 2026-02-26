@@ -90,6 +90,14 @@ export interface TaskEvent {
   timestamp: string;
 }
 
+// --- Waypoint Types ---
+
+export interface Waypoint {
+  name: string;
+  pos: [number, number, number];
+  created_at?: string;
+}
+
 // --- API Client ---
 
 class TaskApiClient {
@@ -184,5 +192,55 @@ class TaskApiClient {
   }
 }
 
-// Export singleton instance
+// Export singleton instances
 export const taskApi = new TaskApiClient();
+
+class WaypointApiClient {
+  private baseUrl: string;
+
+  constructor() {
+    this.baseUrl = `${API_BASE}/waypoints`;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options?: RequestInit
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    return response.json();
+  }
+
+  async listWaypoints(): Promise<Waypoint[]> {
+    return this.request<Waypoint[]>('/');
+  }
+
+  async createWaypoint(waypoint: Waypoint): Promise<Waypoint> {
+    return this.request<Waypoint>('/', {
+      method: 'POST',
+      body: JSON.stringify(waypoint),
+    });
+  }
+
+  async deleteWaypoint(name: string): Promise<void> {
+    return this.request<void>(`/${name}`, { method: 'DELETE' });
+  }
+}
+
+export const waypointApi = new WaypointApiClient();

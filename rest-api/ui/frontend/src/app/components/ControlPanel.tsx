@@ -79,7 +79,6 @@ export function ControlPanel({
           className="w-full"
         />
       </div>
-
       {/* Sensors Toggle */}
       <div className="flex items-center justify-between pt-4 border-t border-slate-700">
         <Label className="text-sm">Environmental Sensors</Label>

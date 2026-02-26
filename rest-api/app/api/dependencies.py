@@ -24,5 +24,5 @@ def get_task_manager() -> TaskManager:
     """Get the singleton TaskManager instance."""
     global _task_manager
     if _task_manager is None:
-        _task_manager = TaskManager.get_instance(sio)
+        _task_manager = TaskManager.get_instance(sio, get_realsense_manager())
     return _task_manager

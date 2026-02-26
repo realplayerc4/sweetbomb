@@ -1,10 +1,11 @@
-import { Battery, Cpu, Thermometer, WifiHigh, type LucideIcon } from 'lucide-react';
+import { Battery, Cpu, Thermometer, WifiHigh, Compass, type LucideIcon } from 'lucide-react';
 
 interface StatusPanelProps {
   battery: number;
   cpu: number;
   temperature: number;
   signal: number;
+  imu?: { roll: number; pitch: number; yaw: number };
 }
 
 // 单个状态卡片的通用属性
@@ -19,7 +20,7 @@ interface StatusCardProps {
 // 颜色常量，直接使用 CSS 颜色值，绕过 Tailwind 动态类名问题
 const COLOR_RED = '#ef4444';
 const COLOR_YELLOW = '#eab308';
-const COLOR_GREEN = '#ff6600';
+const COLOR_GREEN = '#FD802E';
 
 // 根据数值和阈值返回对应颜色
 function getColor(value: number, thresholds = { low: 30, high: 70 }): string {
@@ -35,71 +36,68 @@ function getTempColor(temp: number): string {
   return COLOR_GREEN;
 }
 
-// 通用小格子卡片组件
-function StatusCard({ icon: Icon, label, value, unit, color }: StatusCardProps) {
-  const blocks = 5;
-  const filledBlocks = Math.ceil((Math.min(value, 100) / 100) * blocks);
-
+// 横向排列的单行项
+function StatusItem({ icon: Icon, label, value, unit, color }: StatusCardProps) {
   return (
-    <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 flex flex-col items-center gap-2 hover:border-slate-700 transition-colors">
-      {/* 图标 + 标签 */}
+    <div className="flex items-center gap-3">
       <div className="flex items-center gap-1.5">
         <Icon className="w-4 h-4" style={{ color }} />
         <span className="text-xs font-medium text-slate-400">{label}</span>
       </div>
-
-      {/* 数值 */}
-      <div className="text-xl font-mono font-bold leading-none" style={{ color }}>
+      <div className="text-sm font-mono font-bold" style={{ color }}>
         {value.toFixed(1)}
         <span className="text-xs font-normal ml-0.5">{unit}</span>
-      </div>
-
-      {/* 迷你方块进度条 */}
-      <div className="flex gap-0.5 w-full">
-        {Array.from({ length: blocks }).map((_, i) => (
-          <div
-            key={i}
-            className="h-1.5 flex-1 rounded-full transition-all"
-            style={{ backgroundColor: i < filledBlocks ? color : '#1e293b' }}
-          />
-        ))}
       </div>
     </div>
   );
 }
 
-export function StatusPanel({ battery, cpu, temperature, signal }: StatusPanelProps) {
+export function StatusPanel({ battery, cpu, temperature, signal, imu }: StatusPanelProps) {
   return (
-    <div className="grid grid-cols-4 gap-3">
-      <StatusCard
+    <div className="flex items-center gap-8">
+      <StatusItem
         icon={Battery}
-        label="电池"
+        label="电池： "
         value={battery}
         unit="%"
         color={getColor(battery)}
       />
-      <StatusCard
+      <StatusItem
         icon={Cpu}
-        label="CPU负载"
+        label="CPU负载： "
         value={cpu}
         unit="%"
-        // CPU负载越高越危险，反转阈值判断
         color={getColor(100 - cpu)}
       />
-      <StatusCard
+      <StatusItem
         icon={Thermometer}
-        label="温度"
+        label="温度： "
         value={temperature}
-        unit="°C"
+        unit="°C "
         color={getTempColor(temperature)}
       />
-      <StatusCard
+      <StatusItem
         icon={WifiHigh}
         label="信号"
         value={signal}
         unit="%"
         color={getColor(signal)}
       />
+
+      {/* IMU 数据显示 */}
+      {imu && (
+        <div className="flex items-center gap-3 ml-2 pl-4 border-l border-slate-700/50">
+          <div className="flex items-center gap-1.5">
+            <Compass className="w-4 h-4" style={{ color: COLOR_GREEN }} />
+            <span className="text-xs font-medium text-slate-400">IMU姿态</span>
+          </div>
+          <div className="text-xs font-mono font-bold text-orange-400 flex gap-2">
+            <span>ROLL: {imu.roll.toFixed(1)}</span>
+            <span>PITCH:{imu.pitch.toFixed(1)}</span>
+            <span>YAW:{imu.yaw.toFixed(1)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,10 @@ import time
 import threading
 from typing import Optional, Dict
 import asyncio
+import psutil
+import socket
+import random
+import cv2
 
 
 class MetadataSocketServer:
@@ -45,6 +49,9 @@ class MetadataSocketServer:
         if not self._async_loop:
             self._async_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._async_loop)
+
+        last_cpu_load = 0.0
+        last_cpu_time = 0.0
 
         while self._is_broadcasting and not self._thread_stop_event.is_set():
             start_time = time.monotonic()
@@ -97,12 +104,32 @@ class MetadataSocketServer:
                                 "error": f"Unexpected: {str(e)}"
                             }
 
+            # --- Fetch System Stats ---
+            current_time = time.time()
+            if current_time - last_cpu_time >= 1.0:
+                last_cpu_load = psutil.cpu_percent()
+                last_cpu_time = current_time
+
+            system_stats = {
+                "cpu_load": last_cpu_load,
+                "battery": 85.0, # Simulated
+                "temperature": 38.5, # Simulated
+                "signal": 92.0, # Simulated
+                "hostname": socket.gethostname(),
+                "imu": {
+                    "roll": 2.1 + random.uniform(-0.05, 0.05),
+                    "pitch": -1.4 + random.uniform(-0.05, 0.05),
+                    "yaw": 45.0 + random.uniform(-0.5, 0.5)
+                }
+            }
+
             # --- Emit via the provided sio instance ---
             payload = {
                 "device_id": self._target_device_id,
                 "is_streaming": is_streaming,
                 "timestamp_server": time.time(),
                 "metadata_streams": all_metadata,
+                "system_stats": system_stats,
             }
             try:
                 # Use helper method to handle emit appropriately

@@ -4,9 +4,10 @@ import { Camera } from 'lucide-react';
 interface RGBViewProps {
   isActive: boolean;
   stream: MediaStream | null;
+  metrics?: { width: number; height: number; fps: number } | null;
 }
 
-export function RGBView({ isActive, stream }: RGBViewProps) {
+export function RGBView({ isActive, stream, metrics }: RGBViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -22,10 +23,13 @@ export function RGBView({ isActive, stream }: RGBViewProps) {
   }, [stream]);
 
   return (
-    <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden border-2 border-orange-500/50">
+    <div className="relative w-full h-full bg-slate-950 rounded-lg overflow-hidden border-2 border-[#FD802E]">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-md">
-        <Camera className="w-4 h-4 text-orange-400" />
-        <span className="text-xs text-white font-mono">RGB CAMERA</span>
+        <Camera className="w-4 h-4 text-[#FD802E]" />
+        <span className="text-xs text-white font-mono">
+          RGB CAMERA
+          {metrics && isActive && ` (${metrics.width}x${metrics.height}@${metrics.fps}FPS)`}
+        </span>
         {isActive && (
           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
         )}
