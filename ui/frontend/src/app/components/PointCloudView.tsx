@@ -71,10 +71,10 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     sceneRef.current = scene;
 
     // Camera - 适应机器人Z-up坐标系 (X=前, Y=左, Z=上 - FLU 右手系)
-    const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
     camera.up.set(0, 0, 1);        // 设Z轴向上
     camera.position.set(camX, 0, camZ); // 位于X轴偏后方(负值)，高度camZ
-    camera.lookAt(2, 0, 0);        // 看向正前方(X轴正向)2米处的点云聚集区
+    camera.lookAt(0, 0, 0);        // 恢复: 看向原点(以获得最佳的正向透视纵深感)
     cameraRef.current = camera;
 
     // Renderer
@@ -127,7 +127,11 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(2, 0, 0); // 轨道旋转中心对应 lookAt
+    controls.dampingFactor = 0.05;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
+    controls.enablePan = true;
+    controls.target.set(0, 0, 0); // 轨道旋转中心对应 lookAt原点
 
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
@@ -162,7 +166,7 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
   useEffect(() => {
     if (cameraRef.current) {
       cameraRef.current.position.set(camX, 0, camZ);
-      cameraRef.current.lookAt(2, 0, 0);
+      cameraRef.current.lookAt(0, 0, 0);
     }
   }, [camX, camZ]);
 
