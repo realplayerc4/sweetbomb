@@ -49,6 +49,11 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     grid.rotation.x = Math.PI / 2; // 将默认的 XZ 平面翻转至 XY 平面
     scene.add(grid);
 
+    // Axes Helper - 添加坐标轴以排查方位与原点
+    // X轴为红色, Y轴为绿色, Z轴为蓝色
+    const axesHelper = new THREE.AxesHelper(3);
+    scene.add(axesHelper);
+
     // Points Geometry
     const geometry = new THREE.BufferGeometry();
     const material = new THREE.PointsMaterial({
