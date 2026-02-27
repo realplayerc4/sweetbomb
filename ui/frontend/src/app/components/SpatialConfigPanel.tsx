@@ -26,7 +26,7 @@ export function SpatialConfigPanel({
     setTolerance,
 }: SpatialConfigProps) {
     return (
-        <div className="bg-[#1c1c1e] rounded-2xl shadow-md relative h-full overflow-hidden">
+        <div className="bg-[#1c1c1e] rounded-[10px] shadow-md relative h-full overflow-hidden">
             {/* 悬浮状态胶囊 - 放置在容器顶部，不受 padding 影响 */}
             <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-10 flex items-center justify-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-6 py-2 rounded-full border border-[#FD802E]/60 shadow-[0_0_10px_rgba(253,128,46,0.2)]">
                 <Settings2 className="w-3.5 h-3.5 text-[#FD802E]" />
