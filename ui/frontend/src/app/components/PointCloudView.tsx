@@ -70,10 +70,10 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
     scene.background = new THREE.Color('#1c1c1e');
     sceneRef.current = scene;
 
-    // Camera - 适应Z-up视角 (X=左右, Y=前后, Z=上)
+    // Camera - 适应73系原版对齐
     const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
     camera.up.set(0, 0, 1);        // 设Z轴向上
-    camera.position.set(camX, -5, camZ); // 位于Y轴偏后方(负值视角)，X取值为camX水平偏侧
+    camera.position.set(-5, 0, 3); // 固定观测点: 从X轴负向后方往回看
     camera.lookAt(0, 0, 0);        // 看向原点
     cameraRef.current = camera;
 
@@ -102,7 +102,7 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
 
     // Initialize all sizes
     for (let i = 0; i < maxPoints; i++) {
-      sizes[i] = 4.5; // Point size (enlarged)
+      sizes[i] = 1.5; // 对齐73粒子大小（原本为4.5，缩减带来更精细画面）
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -164,8 +164,8 @@ export function PointCloudView({ isActive, points, metrics, camZ = 3.0, camX = -
 
   // Update Camera View dynamically
   useEffect(() => {
-    if (cameraRef.current) {
-      cameraRef.current.position.set(camX, -5, camZ);
+    if (cameraRef.current && (camX !== -5.0 || camZ !== 3.0)) {
+      cameraRef.current.position.set(camX, 0, camZ);
       cameraRef.current.lookAt(0, 0, 0);
     }
   }, [camX, camZ]);

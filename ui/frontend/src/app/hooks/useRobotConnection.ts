@@ -129,14 +129,14 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                         const oldZ = rawVertices[idx + 2];
                         const newZ = -oldY + cameraHeight;
 
-                        // User-Preferred Right-Handed Coordinates (Math standard/Three.js adapted):
-                        // X = Right/Left Horizontal (-oldX)
-                        // Y = Forward/Depth (oldZ)
-                        // Z = Up (newZ)
+                        // Reference 73 Mapping:
+                        // X = forward (depth: oldZ)
+                        // Y = -right (mirror fix: -oldX)
+                        // Z = up (height: -oldY)
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
-                            transformedVertices[writeIdx++] = -oldX;     // newX = Horizontal Left
-                            transformedVertices[writeIdx++] = oldZ;      // newY = Forward Depth
-                            transformedVertices[writeIdx++] = newZ;      // newZ = Up
+                            transformedVertices[writeIdx++] = oldZ;      // newX = forward
+                            transformedVertices[writeIdx++] = -oldX;     // newY = -right
+                            transformedVertices[writeIdx++] = newZ;      // newZ = height
                         }
                     }
 
