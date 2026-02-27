@@ -1,0 +1,74 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/home/yq/ros2realsense']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [19510] using StatReload
+/usr/lib/python3/dist-packages/requests/__init__.py:87: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (4.0.0) doesn't match a supported version!
+  warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
+INFO:     Started server process [19512]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     ('127.0.0.1', 56524) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+Socket.IO client connected: ca5bZrFEIIkKxQ9AAAAB
+INFO:     127.0.0.1:34958 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: ca5bZrFEIIkKxQ9AAAAB
+INFO:     127.0.0.1:34974 - "GET /assets/index-DmpuW85o.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34958 - "GET /assets/index-WwusMAdq.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34958 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 34988) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:34974 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34974 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: 2P7kEu_8pVD-7fnyAAAD
+INFO:     127.0.0.1:34974 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+[MetadataBroadcaster] Starting broadcast loop...
+[MetadataBroadcaster] Broadcast loop started for device: 029522250337
+INFO:     127.0.0.1:34958 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:34958 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34994 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:34994 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34994 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:34958 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:34994 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34958 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+Error getting frame: 
+INFO:     127.0.0.1:34958 - "GET /api/webrtc/sessions/3b0feef8-7237-461f-b184-d11875c8459f/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:34958 - "GET /api/webrtc/sessions/3b0feef8-7237-461f-b184-d11875c8459f/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35000 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35000 - "GET /assets/index-WwusMAdq.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35014 - "GET /assets/index-DmpuW85o.css HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 35024) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:35000 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35014 - "GET /vite.svg HTTP/1.1" 200 OK
+Socket.IO client connected: qmpzNdb0YikkP1nDAAAF
+INFO:     127.0.0.1:35000 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35000 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35014 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35014 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35026 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35026 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35026 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35014 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35026 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35014 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35014 - "GET /api/webrtc/sessions/af389774-2fba-4edd-8345-0f7552f1a79c/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35014 - "GET /api/webrtc/sessions/af389774-2fba-4edd-8345-0f7552f1a79c/ice-candidates HTTP/1.1" 200 OK

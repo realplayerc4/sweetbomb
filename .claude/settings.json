@@ -1,3 +1,8 @@
 {
-  "model": "glm-5"
+  "model": "glm-5",
+  "permissions": {
+    "allow": [
+      "mcp__zai-mcp-server__ui_to_artifact"
+    ]
+  }
 }

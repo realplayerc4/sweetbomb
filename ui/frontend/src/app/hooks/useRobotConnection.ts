@@ -129,13 +129,13 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                         const oldZ = rawVertices[idx + 2];
                         const newZ = -oldY + cameraHeight;
 
-                        // Swap Red (X) and Blue (Z) Data based on User Feedback:
-                        // X = up (height: newZ)
-                        // Y = -right (mirror fix: -oldX)
+                        // Un-negate X (Red) as requested, keep Y (Green) negated:
+                        // X = height (newZ)
+                        // Y = right (oldX)
                         // Z = forward (depth: oldZ)
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
                             transformedVertices[writeIdx++] = newZ;      // newX (Red) = height
-                            transformedVertices[writeIdx++] = -oldX;     // newY (Green) = -right
+                            transformedVertices[writeIdx++] = oldX;      // newY (Green) = right
                             transformedVertices[writeIdx++] = oldZ;      // newZ (Blue) = forward
                         }
                     }
