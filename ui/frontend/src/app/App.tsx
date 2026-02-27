@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Bot, Activity, Settings2, BarChart3, ShieldAlert } from 'lucide-react';
+import { Bot, Activity, ShieldAlert } from 'lucide-react';
 import { useRobotConnection } from './hooks/useRobotConnection';
 
 import { RGBView } from './components/RGBView';
 import { DepthView } from './components/DepthView';
 import { PointCloudView } from './components/PointCloudView';
-import { StatusPanel } from './components/StatusPanel';
 import { CommandCenter } from './components/CommandCenter';
 import { Toaster } from './components/ui/sonner';
 import { BEVSliceView } from './components/BEVSliceView';
+import { SpatialConfigPanel } from './components/SpatialConfigPanel';
+import { MapPanel } from './components/MapPanel';
 
 export default function App() {
   // Connection Hook
@@ -90,13 +91,13 @@ export default function App() {
 
       <div className="max-w-[1900px] mx-auto p-6 lg:p-10 flex flex-col gap-8">
         {/* Header - Industrial Card Style */}
-        <header className="flex items-center justify-between p-6 bg-[#1c1c1e] rounded-2xl border border-white/5 shadow-md">
+        <header className="flex items-center justify-between p-6 bg-[#1c1c1e] rounded-2xl shadow-md">
           <div className="flex items-center gap-6">
-            <div className="p-4 bg-orange-500 rounded-2xl shadow-lg shadow-orange-500/20">
+            <div className="p-4 bg-[#FD802E] rounded-2xl shadow-lg shadow-[#FD802E]/20">
               <Bot className="w-8 h-8 text-black" />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold tracking-tight text-white">制糖工程智能技术创新中心</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-[#FD802E]">制糖工程智能技术创新中心</h1>
             </div>
           </div>
 
@@ -113,10 +114,20 @@ export default function App() {
           </div>
         )}
 
-        {/* Image Views Row - RGB, Depth, Point Cloud */}
-        <div className="grid grid-cols-3 gap-8 h-[350px] w-full">
+        {/* Image Views Row - RGB, Slice, Point Cloud */}
+        <div className="grid grid-cols-3 gap-[30px] h-[350px] w-full mb-[30px]">
           <RGBView isActive={isStreaming} stream={rgbStream} metrics={streamMetrics?.rgb} />
-          <DepthView isActive={isStreaming} stream={depthStream} metrics={streamMetrics?.depth} />
+
+          <div className="w-full h-full bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-md">
+            <BEVSliceView
+              isActive={isStreaming}
+              points={pointCloudData}
+              targetHeight={bucketHeight}
+              tolerance={tolerance}
+              cameraHeight={cameraHeight}
+            />
+          </div>
+
           <PointCloudView
             isActive={isStreaming}
             points={pointCloudData}
@@ -127,77 +138,59 @@ export default function App() {
         </div>
 
         {/* Bottom Area */}
-        <div className="grid grid-cols-3 gap-8 min-h-[400px]">
-          {/* Left Column (Col 1): BEV Canvas + Control Panel Tabs Exactly Under RGB */}
-          <div className="col-span-1 flex flex-col gap-8">
-            <div className="w-full h-[350px] shrink-0 bg-[#1c1c1e] rounded-2xl overflow-hidden border border-white/5 shadow-md">
-              <BEVSliceView
-                isActive={isStreaming}
-                points={pointCloudData}
-                targetHeight={bucketHeight}
-                tolerance={tolerance}
-                cameraHeight={cameraHeight}
-              />
-            </div>
-          </div>
+        <div className="grid grid-cols-3 gap-[30px] min-h-[400px]">
+          {/* Col 1: Depth View */}
+          <DepthView isActive={isStreaming} stream={depthStream} metrics={streamMetrics?.depth} />
 
-          <div className="col-span-2 grid grid-cols-2 gap-8">
-            {/* System Status Panel */}
-            <div className="bg-[#1c1c1e] rounded-2xl border border-white/5 shadow-md p-6 flex flex-col gap-6">
-              <div className="flex items-center gap-3 mb-2">
-                <BarChart3 className="w-5 h-5 text-orange-500" />
-                <h2 className="text-sm font-bold tracking-widest uppercase text-slate-100">系统状态 // Telemetry</h2>
-              </div>
-              <StatusPanel
-                battery={battery}
-                cpu={cpu}
-                temperature={temperature}
-                signal={signal}
-              />
-            </div>
+          {/* Col 2: Spatial Config */}
+          <SpatialConfigPanel
+            pcCamZ={pcCamZ}
+            setPcCamZ={setPcCamZ}
+            pcCamX={pcCamX}
+            setPcCamX={setPcCamX}
+            cameraHeight={cameraHeight}
+            setCameraHeight={setCameraHeight}
+            bucketHeight={bucketHeight}
+            setBucketHeight={setBucketHeight}
+            tolerance={tolerance}
+            setTolerance={setTolerance}
+          />
 
-            {/* CommandCenter & Actions Panel */}
-            <div className="bg-[#1c1c1e] rounded-2xl border border-white/5 shadow-md p-6 flex flex-col gap-6">
-              <div className="flex items-center gap-3 mb-2">
-                <Settings2 className="w-5 h-5 text-purple-500" />
-                <h2 className="text-sm font-bold tracking-widest uppercase text-slate-100">空间配置 // Spatial Config</h2>
-              </div>
-              <div className="flex flex-col gap-5">
-                {[
-                  { label: "观测高度 (Z)", value: pcCamZ, unit: "m", min: 1.0, max: 10.0, step: 0.1, onChange: setPcCamZ },
-                  { label: "观测位置 (X)", value: pcCamX, unit: "m", min: -10.0, max: 10.0, step: 0.1, onChange: setPcCamX },
-                  { label: "相机高度基准", value: cameraHeight, unit: "m", min: 0.0, max: 2.0, step: 0.01, onChange: setCameraHeight },
-                  { label: "铲斗高度基准", value: bucketHeight, unit: "m", min: 0.0, max: 1.0, step: 0.01, onChange: setBucketHeight },
-                  { label: "切面厚度 (容差)", value: tolerance, unit: "±m", min: 0.05, max: 1.0, step: 0.01, onChange: setTolerance },
-                ].map((cfg) => (
-                  <div key={cfg.label} className="flex flex-col gap-2">
-                    <div className="flex justify-between text-[11px] font-mono">
-                      <span className="text-slate-500">{cfg.label}</span>
-                      <span className="text-orange-500 font-bold">{cfg.value.toFixed(2)}{cfg.unit}</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={cfg.min}
-                      max={cfg.max}
-                      step={cfg.step}
-                      value={cfg.value}
-                      onChange={(e) => cfg.onChange(parseFloat(e.target.value))}
-                      className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Col 3: Map Placeholder */}
+          <MapPanel />
         </div>
 
         {/* Global Footer Status Bar */}
-        <footer className="mt-4 flex items-center justify-between px-6 py-3 bg-black/20 rounded-xl border border-white/5 text-[10px] font-mono tracking-wider text-slate-500">
-          <div className="flex gap-6">
+        <footer className="mt-4 flex flex-col md:flex-row items-center justify-between px-6 py-4 bg-black/20 rounded-xl text-[10px] font-mono tracking-wider text-slate-500 gap-4">
+          <div className="flex flex-wrap items-center gap-6">
             <span className="flex items-center gap-2"><Activity className="w-3 h-3" /> 延迟: 1.2ms</span>
-            <span className="flex items-center gap-2 text-green-500/80"><ShieldAlert className="w-3 h-3" /> 系统状态: 标定良好</span>
+            <span className="flex items-center gap-2 text-green-500/80 mr-2"><ShieldAlert className="w-3 h-3" /> 系统状态: 标定良好</span>
+
+            {/* System Status Metrics Moved to Footer */}
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-white font-bold tracking-widest">{battery.toFixed(1)}%</span>
+                <span>电池电量</span>
+                <span className="text-green-500 font-medium">Stable</span>
+              </div>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-white font-bold tracking-widest">{cpu.toFixed(1)}%</span>
+                <span>CPU 负载</span>
+                <span className="text-green-500 font-medium">Stable</span>
+              </div>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-white font-bold tracking-widest">{temperature.toFixed(1)}°C</span>
+                <span>环境温度</span>
+                <span className="text-green-500 font-medium">Stable</span>
+              </div>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="text-white font-bold tracking-widest">{signal.toFixed(1)}%</span>
+                <span>信号强度</span>
+                <span className="text-green-500 font-medium">Stable</span>
+              </div>
+            </div>
           </div>
-          <div>© 2026 AIROS ROBOTICS // KERNEL v4.12.0-STABLE</div>
+          <div className="shrink-0">© 2026 AIROS ROBOTICS // KERNEL v4.12.0-STABLE</div>
         </footer>
       </div>
     </div>

@@ -24,8 +24,8 @@ const vertexShader = `
   void main() {
     vUv = uv;
     
-    // Discard points completely outside 1-3m forward range (Z is forward after data swap)
-    if (position.z < 1.0 || position.z > 3.0) {
+    // Discard points completely outside 1-6m forward range (Using Y as forward based on user request)
+    if (position.y < 1.0 || position.y > 6.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vOpacity = 0.0;
       return;
@@ -124,27 +124,27 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
 
         // Strictly Locked Orthographic Bird's Eye View
         const aspect = width / height;
-        const viewSizeX = 2.0; // Show a 2m window (from X=1m to X=3m)
+        const viewSizeX = 5.0; // Show a 5m window (from Y=1m to Y=6m)
 
         // We want Z (Upwards) to be squashed orthographically into view.
         // So we just look top-down. 
         // Setting Near to negative and Far to positive so cutting planes don't clip the cloud
         const camera = new THREE.OrthographicCamera(
             -viewSizeX * aspect / 2, // Left
-            viewSizeX * aspect / 2, // Right
-            viewSizeX / 2,          // Top
+            viewSizeX * aspect / 2,  // Right
+            viewSizeX / 2,           // Top
             -viewSizeX / 2,          // Bottom
             -20, // Negative near plane to capture everything under camera unconditionally
             20
         );
 
-        // Set Z+ direction as screen "North" (Forward/Car Head). 
-        // This requires `up` vector to be (0, 0, 1) since X is vertical up (Height).
-        camera.up.set(0, 0, 1);
+        // Set Y+ direction (Forward) as screen "Up" (North). 
+        // This makes the 1.0m-6.0m display vertical on screen matching the UI rulers.
+        camera.up.set(0, 1, 0);
 
-        // Pointing straight down from X=10 to origin, with North facing +Z.
-        camera.position.set(10.0, 0, 2.0);
-        camera.lookAt(0, 0, 2.0);
+        // Pointing straight down from Z=10 to origin, centered at Y=3.5m (middle of 1 to 6)
+        camera.position.set(0, 3.5, 10.0);
+        camera.lookAt(0, 3.5, 0);
 
         cameraRef.current = camera;
 
@@ -281,18 +281,22 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
 
 
     return (
-        <div className="relative w-full h-full bg-[#1c1c1e] rounded-2xl overflow-hidden border border-white/5 shadow-md group">
-            <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                <div className="flex items-center gap-1.5 bg-[#2c2c2e]/90 border border-white/10 backdrop-blur-md px-2 py-1 rounded shadow-sm">
-                    <Layers className="w-3.5 h-3.5 text-green-500" />
-                    <span className="text-[10px] text-green-400 font-semibold tracking-wider uppercase font-mono">
-                        TGT SLICE ({targetHeight.toFixed(2)}m)
+        <div className="relative w-full h-full bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-md group">
+            {/* 悬浮状态胶囊 */}
+            <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-10 flex gap-4">
+                <div className="flex items-center justify-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-6 py-2 rounded-full border border-[#FD802E]/60 shadow-[0_0_10px_rgba(253,128,46,0.2)]">
+                    <Layers className="w-3.5 h-3.5 text-[#FD802E]" />
+                    <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono">
+                        TGT SLICE
                     </span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-[#2c2c2e]/90 border border-white/10 backdrop-blur-md px-2 py-1 rounded shadow-sm">
-                    <Layers className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="text-[10px] text-blue-400 font-semibold tracking-wider uppercase font-mono">
-                        CAM SLICE ({cameraHeight.toFixed(2)}m)
+                    <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-3 ml-2 mr-6 font-mono font-bold">
+                        | {targetHeight.toFixed(2)}m
+                    </span>
+                    <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono">
+                        CAM SLICE
+                    </span>
+                    <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 ml-1 font-mono font-bold">
+                        | {cameraHeight.toFixed(2)}m
                     </span>
                 </div>
             </div>
@@ -302,10 +306,11 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
 
             {/* Grid Distance Rulers */}
             <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none z-10 opacity-70">
-                <div className="absolute top-[0%] right-2 text-[11px] font-mono font-bold text-slate-400 translate-y-1">3.0m -</div>
-                <div className="absolute top-[25%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">2.5m -</div>
-                <div className="absolute top-[50%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">2.0m -</div>
-                <div className="absolute top-[75%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">1.5m -</div>
+                <div className="absolute top-[0%] right-2 text-[11px] font-mono font-bold text-slate-400 translate-y-1">6.0m -</div>
+                <div className="absolute top-[20%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">5.0m -</div>
+                <div className="absolute top-[40%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">4.0m -</div>
+                <div className="absolute top-[60%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">3.0m -</div>
+                <div className="absolute top-[80%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-[calc(100%+4px)]">2.0m -</div>
                 <div className="absolute top-[100%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-[calc(100%+4px)]">1.0m -</div>
             </div>
         </div>

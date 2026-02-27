@@ -1,4 +1,4 @@
-#!/home/yq/librealsense/wrappers/rest-api/venv/bin/python3
+#!/home/yq/sweetbomb/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

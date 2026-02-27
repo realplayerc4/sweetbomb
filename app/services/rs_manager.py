@@ -46,11 +46,11 @@ class RealSenseManager:
         colorizer = rs.colorizer()
         colorizer.set_option(rs.option.color_scheme, 0)
         colorizer.set_option(rs.option.histogram_equalization_enabled, 1)
-        colorizer.set_option(rs.option.min_distance, 0.2)
-        colorizer.set_option(rs.option.max_distance, 3.0)
+        colorizer.set_option(rs.option.min_distance, 1.0)
+        colorizer.set_option(rs.option.max_distance, 6.0)
         threshold_filter = rs.threshold_filter()
-        threshold_filter.set_option(rs.option.min_distance, 0.5)
-        threshold_filter.set_option(rs.option.max_distance, 3.0)
+        threshold_filter.set_option(rs.option.min_distance, 1.0)
+        threshold_filter.set_option(rs.option.max_distance, 6.0)
 
         self.filters = {
             "decimation": decimation_filter,
