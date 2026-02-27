@@ -24,8 +24,8 @@ const vertexShader = `
   void main() {
     vUv = uv;
     
-    // Discard points completely outside 1-3m forward range (X is forward in 73 mapping)
-    if (position.x < 1.0 || position.x > 3.0) {
+    // Discard points completely outside 1-3m forward range (Z is forward after data swap)
+    if (position.z < 1.0 || position.z > 3.0) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vOpacity = 0.0;
       return;
@@ -138,13 +138,13 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
             20
         );
 
-        // Set X+ direction as screen "North" (Forward/Car Head). 
-        // This requires `up` vector to be (1, 0, 0) since Z is vertical up.
-        camera.up.set(1, 0, 0);
+        // Set Z+ direction as screen "North" (Forward/Car Head). 
+        // This requires `up` vector to be (0, 0, 1) since X is vertical up (Height).
+        camera.up.set(0, 0, 1);
 
-        // Pointing straight down from Z=10 to origin, with North facing +X.
-        camera.position.set(2.0, 0, 10);
-        camera.lookAt(2.0, 0, 0);
+        // Pointing straight down from X=10 to origin, with North facing +Z.
+        camera.position.set(10.0, 0, 2.0);
+        camera.lookAt(0, 0, 2.0);
 
         cameraRef.current = camera;
 

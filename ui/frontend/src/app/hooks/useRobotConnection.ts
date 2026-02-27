@@ -129,14 +129,14 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                         const oldZ = rawVertices[idx + 2];
                         const newZ = -oldY + cameraHeight;
 
-                        // Reference 73 Mapping:
-                        // X = forward (depth: oldZ)
+                        // Swap Red (X) and Blue (Z) Data based on User Feedback:
+                        // X = up (height: newZ)
                         // Y = -right (mirror fix: -oldX)
-                        // Z = up (height: -oldY)
+                        // Z = forward (depth: oldZ)
                         if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
-                            transformedVertices[writeIdx++] = oldZ;      // newX = forward
-                            transformedVertices[writeIdx++] = -oldX;     // newY = -right
-                            transformedVertices[writeIdx++] = newZ;      // newZ = height
+                            transformedVertices[writeIdx++] = newZ;      // newX (Red) = height
+                            transformedVertices[writeIdx++] = -oldX;     // newY (Green) = -right
+                            transformedVertices[writeIdx++] = oldZ;      // newZ (Blue) = forward
                         }
                     }
 
