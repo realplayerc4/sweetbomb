@@ -489,9 +489,10 @@ class StreamController:
                     edges = cv2.dilate(edges, None)
                     depth_colormap[edges > 0] = [0, 0, 0]
                     frame = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
-                    # 点云数据已禁用，不添加到元数据
-                    # if "point_cloud" in raw:
-                    #     metadata["point_cloud"] = raw["point_cloud"]
+
+                # 点云数据已启用 - 添加到元数据
+                if "point_cloud" in raw:
+                    metadata["point_cloud"] = raw["point_cloud"]
 
                 elif raw["type"] == "color":
                     frame = raw["data"]

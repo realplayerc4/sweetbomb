@@ -51,7 +51,7 @@ async def spa_middleware(request: Request, call_next):
     # If 404 and not an API or socket path, serve SPA
     if response.status_code == 404:
         path = request.url.path
-        if not path.startswith("/api") and not path.startswith("/socket") and FRONTEND_DIST.exists():
+        if not path.startswith("/api") and not path.startswith("/socket.io") and FRONTEND_DIST.exists():
             # Check if it's a file request
             file_path = FRONTEND_DIST / path.lstrip("/")
             if file_path.exists() and file_path.is_file():
@@ -65,7 +65,8 @@ async def spa_middleware(request: Request, call_next):
 # --- Combine FastAPI and Socket.IO into a single ASGI App ---
 # Mount the Socket.IO app (`sio`) onto the FastAPI app (`app`)
 # The result `combined_app` is what Uvicorn will run.
-combined_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app, socketio_path='socket')
+# Note: socketio_path must match the client's path option
+combined_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app, socketio_path='/socket.io')
 
 @app.on_event("startup")
 async def startup_event():

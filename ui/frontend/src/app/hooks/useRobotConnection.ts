@@ -44,7 +44,7 @@ export function useRobotConnection() {
     // Initialize Socket.IO
     useEffect(() => {
         socket.current = io(SOCKET_URL, {
-            path: '/socket',
+            path: '/socket.io',
             transports: ['websocket'],
         });
 
@@ -53,6 +53,15 @@ export function useRobotConnection() {
         });
 
         socket.current.on('metadata_update', (data: any) => {
+            // Debug log to check if point cloud data is in the metadata
+            if (data.metadata_streams?.depth) {
+                const hasPointCloud = !!data.metadata_streams.depth.point_cloud?.vertices;
+                console.log('[RobotConnection] metadata_update - depth stream has point_cloud:', hasPointCloud);
+                if (!hasPointCloud) {
+                    console.log('[RobotConnection] depth metadata keys:', Object.keys(data.metadata_streams.depth));
+                }
+            }
+
             if (data.system_stats) {
                 setSystemStats(data.system_stats);
             }
@@ -98,6 +107,8 @@ export function useRobotConnection() {
                         bytes[i] = binaryString.charCodeAt(i);
                     }
                     const rawVertices = new Float32Array(bytes.buffer);
+
+                    console.log('[RobotConnection] Received REAL point cloud data:', rawVertices.length / 3, 'points');
 
                     // Backend already transformed coordinates to ROS coordinate system
                     // Just pass through directly - no further transformation needed

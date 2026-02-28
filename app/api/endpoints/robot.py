@@ -384,16 +384,22 @@ async def start_sugar_harvest_cycle(
         )
 
         # 启动循环任务
+        engine_ref = _sugar_harvest_engine
+
         async def run_harvest():
             try:
-                await _sugar_harvest_engine.start()
+                await engine_ref.start()
             except Exception as e:
                 logger.error(f"铲糖循环执行失败: {e}", exc_info=True)
-            finally:
-                global _sugar_harvest_engine
-                _sugar_harvest_engine = None
 
         _harvest_task = asyncio.create_task(run_harvest())
+
+        # 任务完成后清理
+        def cleanup_task(task):
+            global _sugar_harvest_engine
+            _sugar_harvest_engine = None
+
+        _harvest_task.add_done_callback(cleanup_task)
 
         return {
             "success": True,

@@ -88,7 +88,7 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
     if (!autoConnect) return;
 
     socketRef.current = io(SOCKET_URL, {
-      path: '/socket',
+      path: '/socket.io',
       transports: ['websocket'],
     });
 
