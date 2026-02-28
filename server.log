@@ -3556,3 +3556,27 @@ Traceback (most recent call last):
   File "/home/yq/sweetbomb/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
     self.__future.set_exception(TransactionTimeout())
 asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=36963.735395082 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/sweetbomb/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=37072.23572235 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/sweetbomb/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
+Exception in callback Transaction.__retry()
+handle: <TimerHandle when=37074.258538938 Transaction.__retry()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/asyncio/events.py", line 80, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/yq/sweetbomb/venv/lib/python3.10/site-packages/aioice/stun.py", line 330, in __retry
+    self.__future.set_exception(TransactionTimeout())
+asyncio.exceptions.InvalidStateError: invalid state
