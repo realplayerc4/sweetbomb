@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Layers } from 'lucide-react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 interface BEVSliceViewProps {
     isActive: boolean;
@@ -24,8 +25,9 @@ const vertexShader = `
   void main() {
     vUv = uv;
     
-    // Discard points completely outside 1-6m forward range (Using Y as forward based on user request)
-    if (position.y < 1.0 || position.y > 6.0) {
+    // In 3D Slice View, we don't clip forward ranges to allow zooming in/out freely
+    // Just clip camera noise at the origin (radius < 0.03m)
+    if (length(position.xy) < 0.03) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vOpacity = 0.0;
       return;
@@ -55,6 +57,9 @@ const vertexShader = `
          vPointType = 0.0; // green
       }
     }
+
+    // Perspective point size attenuation (matches PointCloudView)
+    gl_PointSize = gl_PointSize * (3.0 / -mvPosition.z);
   }
 `;
 
@@ -107,7 +112,7 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
     const geometryRef = useRef<THREE.BufferGeometry | null>(null);
     const materialRef = useRef<THREE.ShaderMaterial | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
-    const cameraRef = useRef<THREE.OrthographicCamera | null>(null);
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const animationIdRef = useRef<number | null>(null);
     const initAttemptedRef = useRef(false);
 
@@ -122,29 +127,11 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
         const scene = new THREE.Scene();
         sceneRef.current = scene;
 
-        // Strictly Locked Orthographic Bird's Eye View
-        const aspect = width / height;
-        const viewSizeX = 5.0; // Show a 5m window (from Y=1m to Y=6m)
-
-        // We want Z (Upwards) to be squashed orthographically into view.
-        // So we just look top-down. 
-        // Setting Near to negative and Far to positive so cutting planes don't clip the cloud
-        const camera = new THREE.OrthographicCamera(
-            -viewSizeX * aspect / 2, // Left
-            viewSizeX * aspect / 2,  // Right
-            viewSizeX / 2,           // Top
-            -viewSizeX / 2,          // Bottom
-            -20, // Negative near plane to capture everything under camera unconditionally
-            20
-        );
-
-        // Set Y+ direction (Forward) as screen "Up" (North). 
-        // This makes the 1.0m-6.0m display vertical on screen matching the UI rulers.
-        camera.up.set(0, 1, 0);
-
-        // Pointing straight down from Z=10 to origin, centered at Y=3.5m (middle of 1 to 6)
-        camera.position.set(0, 3.5, 10.0);
-        camera.lookAt(0, 3.5, 0);
+        // 3D Perspective Camera (Matching PointCloudView coordinates)
+        const camera = new THREE.PerspectiveCamera(60, width / height, 0.01, 1000);
+        camera.up.set(0, 0, 1);        // Z axis points up
+        camera.position.set(-5, 0, 3); // Start slightly behind and above, looking forward over slice
+        camera.lookAt(0, 0, 0);
 
         cameraRef.current = camera;
 
@@ -163,7 +150,7 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
         const sizes = new Float32Array(maxPoints);
 
         for (let i = 0; i < maxPoints; i++) {
-            sizes[i] = 1.5; // same size as PointCloud
+            sizes[i] = 4.5; // Match PointCloud particle size for consistency in 3D
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -200,9 +187,19 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
         const axesHelper = new THREE.AxesHelper(1);
         scene.add(axesHelper);
 
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.enableZoom = true;
+        controls.enableRotate = true;
+        controls.enablePan = true;
+        controls.target.set(0, 0, 0); // Orbit center
+
         // Animation loop
         const animate = () => {
             animationIdRef.current = requestAnimationFrame(animate);
+            controls.update();
             if (rendererRef.current && sceneRef.current && cameraRef.current) {
                 rendererRef.current.render(sceneRef.current, cameraRef.current);
             }
@@ -214,17 +211,13 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
             const w = containerRef.current.clientWidth;
             const h = containerRef.current.clientHeight;
             if (w === 0 || h === 0) return;
-            const currentAspect = w / h;
 
-            const cam = cameraRef.current as THREE.OrthographicCamera;
-            cam.left = -viewSizeX * currentAspect / 2;
-            cam.right = viewSizeX * currentAspect / 2;
-            cam.top = viewSizeX / 2;
-            cam.bottom = -viewSizeX / 2;
+            const cam = cameraRef.current as THREE.PerspectiveCamera;
+            cam.aspect = w / h;
             cam.updateProjectionMatrix();
             rendererRef.current.setSize(w, h);
         };
-
+        // Use ResizeObserver for more robust resizing over simple window 'resize' event
         const resizeObserver = new ResizeObserver(handleResize);
         resizeObserver.observe(container);
 
@@ -303,16 +296,6 @@ export function BEVSliceView({ points, targetHeight, tolerance, cameraHeight }: 
 
             {/* Canvas Container */}
             <div ref={containerRef} className="absolute inset-0 z-0" style={{ pointerEvents: 'auto' }} />
-
-            {/* Grid Distance Rulers */}
-            <div className="absolute right-0 top-0 bottom-0 w-12 pointer-events-none z-10 opacity-70">
-                <div className="absolute top-[0%] right-2 text-[11px] font-mono font-bold text-slate-400 translate-y-1">6.0m -</div>
-                <div className="absolute top-[20%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">5.0m -</div>
-                <div className="absolute top-[40%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">4.0m -</div>
-                <div className="absolute top-[60%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-1/2">3.0m -</div>
-                <div className="absolute top-[80%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-[calc(100%+4px)]">2.0m -</div>
-                <div className="absolute top-[100%] right-2 text-[11px] font-mono font-bold text-slate-400 -translate-y-[calc(100%+4px)]">1.0m -</div>
-            </div>
         </div>
     );
 }
