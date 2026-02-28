@@ -4,10 +4,9 @@ import { useRobotConnection } from './hooks/useRobotConnection';
 
 import { RGBView } from './components/RGBView';
 import { DepthView } from './components/DepthView';
-import { PointCloudView } from './components/PointCloudView';
+import { PointCloudDataCard } from './components/PointCloudDataCard';
 import { CommandCenter } from './components/CommandCenter';
 import { Toaster } from './components/ui/sonner';
-import { BEVSliceView } from './components/BEVSliceView';
 import { SpatialConfigPanel } from './components/SpatialConfigPanel';
 import { MapPanel } from './components/MapPanel';
 
@@ -36,12 +35,10 @@ export default function App() {
   const [temperature, setTemperature] = useState(38);
   const [signal, setSignal] = useState(92);
 
-  // Robot Configuration & PointCloud View Control
+  // Robot Configuration (暂时保留，后续可能需要)
   const [cameraHeight, setCameraHeight] = useState(0.65);
   const [bucketHeight, setBucketHeight] = useState(0.25);
   const [tolerance, setTolerance] = useState(0.33);
-  const [pcCamZ, setPcCamZ] = useState(3.0);
-  const [pcCamX, setPcCamX] = useState(-5.0);
 
   // Toggle Streaming
   const handleToggleRunning = () => {
@@ -114,26 +111,13 @@ export default function App() {
           </div>
         )}
 
-        {/* Image Views Row - RGB, Slice, Point Cloud */}
-        <div className="grid grid-cols-3 gap-[30px] h-[350px] w-full mb-[30px]">
+        {/* Image Views Row - RGB, Point Cloud Data Card */}
+        <div className="grid grid-cols-2 gap-[30px] h-[350px] w-full mb-[30px]">
           <RGBView isActive={isStreaming} stream={rgbStream} metrics={streamMetrics?.rgb} />
 
-          <div className="w-full h-full bg-[#1c1c1e] rounded-2xl overflow-hidden shadow-md">
-            <BEVSliceView
-              isActive={isStreaming}
-              points={pointCloudData}
-              targetHeight={bucketHeight}
-              tolerance={tolerance}
-              cameraHeight={cameraHeight}
-            />
-          </div>
-
-          <PointCloudView
+          <PointCloudDataCard
             isActive={isStreaming}
-            points={pointCloudData}
-            metrics={{ pointCount: streamMetrics?.pointCount }}
-            camZ={pcCamZ}
-            camX={pcCamX}
+            pointCount={streamMetrics?.pointCount}
           />
         </div>
 
@@ -144,10 +128,6 @@ export default function App() {
 
           {/* Col 2: Spatial Config */}
           <SpatialConfigPanel
-            pcCamZ={pcCamZ}
-            setPcCamZ={setPcCamZ}
-            pcCamX={pcCamX}
-            setPcCamX={setPcCamX}
             cameraHeight={cameraHeight}
             setCameraHeight={setCameraHeight}
             bucketHeight={bucketHeight}

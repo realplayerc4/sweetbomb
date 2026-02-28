@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { DeviceInfo } from '../services/api';
 import { api } from '../services/api';
@@ -69,9 +68,9 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                         height: data.metadata_streams.color.height || 0,
                         fps: data.metadata_streams.color.frame_number ? Math.round(data.metadata_streams.color.frame_number / Math.max(1, data.metadata_streams.color.timestamp)) : 30 // Approximate or fallback
                     };
-                    // Since RealSense wrapper might not easily provide exact instantaneous FPS here without historical tracking, 
+                    // Since RealSense wrapper might not easily provide exact instantaneous FPS here without historical tracking,
                     // we'll rely on our requested framerate config (30) or backend calculation if available.
-                    // Assuming we fallback to 30/15 depending on requested config until the backend sends explicit fps.
+                    // Assuming we fallback to 30/15 depending on requested config until backend sends explicit fps.
                     // For now, hardcode to 30/15 as configured or parse from metadata if backend adds it.
                     newMetrics.rgb.fps = 30; // using configured 30 FPS
                 }
@@ -87,70 +86,32 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                 setStreamMetrics(prev => ({ ...prev, rgb: newMetrics.rgb || prev.rgb, depth: newMetrics.depth || prev.depth }));
             }
 
-            if (data.metadata_streams?.depth?.point_cloud?.vertices) {
-                try {
-                    const base64Vertices = data.metadata_streams.depth.point_cloud.vertices;
-                    const binaryString = window.atob(base64Vertices);
-                    const len = binaryString.length;
-                    const bytes = new Uint8Array(len);
-                    for (let i = 0; i < len; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                    }
-                    const rawVertices = new Float32Array(bytes.buffer);
-
-                    // Coordinate transformation: RealSense -> Robot (Z-up)
-                    // RealSense: X=right, Y=down, Z=forward(depth)
-                    // Robot: X=forward(depth), Y=right, Z=up(height)
-                    // Transform: newX=Z, newY=-X (mirror fix), newZ=-Y
-                    const vertexCount = rawVertices.length / 3;
-
-                    // Height filter range: -1m to 2m (robot Z axis)
-                    const MIN_HEIGHT = -1.0;
-                    const MAX_HEIGHT = 2.0;
-
-                    // First pass: count valid points after height filter
-                    let validCount = 0;
-                    for (let i = 0; i < vertexCount; i++) {
-                        const idx = i * 3;
-                        const oldY = rawVertices[idx + 1];
-                        const newZ = -oldY + cameraHeight; // offset by robot mount height
-                        if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
-                            validCount++;
-                        }
-                    }
-
-                    // Second pass: transform and filter
-                    const transformedVertices = new Float32Array(validCount * 3);
-                    let writeIdx = 0;
-                    for (let i = 0; i < vertexCount; i++) {
-                        const idx = i * 3;
-                        const oldX = rawVertices[idx];
-                        const oldY = rawVertices[idx + 1];
-                        const oldZ = rawVertices[idx + 2];
-                        const newZ = -oldY + cameraHeight;
-
-                        // Un-negate X (Red) as requested, keep Y (Green) negated:
-                        // X = height (newZ)
-                        // Y = right (oldX)
-                        // Z = forward (depth: oldZ)
-                        if (newZ >= MIN_HEIGHT && newZ <= MAX_HEIGHT) {
-                            transformedVertices[writeIdx++] = newZ;      // newX (Red) = height
-                            transformedVertices[writeIdx++] = oldX;      // newY (Green) = right
-                            transformedVertices[writeIdx++] = oldZ;      // newZ (Blue) = forward
-                        }
-                    }
-
-                    setPointCloudData(transformedVertices);
-
-                    // Update Point Cloud Metrics (throttled along with the 1s check is better, but since it's dependent on parsing here, we append it)
-                    if (now - lastMetricsUpdateTime.current < 100 || now - lastMetricsUpdateTime.current >= 1000) {
-                        setStreamMetrics(prev => ({ ...prev, pointCount: validCount }));
-                    }
-
-                } catch (e) {
-                    console.error("Error parsing point cloud:", e);
-                }
-            }
+            // 点云数据处理 - 已禁用，后端不再发送点云数据
+            // if (data.metadata_streams?.depth?.point_cloud?.vertices) {
+            //     try {
+            //         const base64Vertices = data.metadata_streams.depth.point_cloud.vertices;
+            //         const binaryString = window.atob(base64Vertices);
+            //         const len = binaryString.length;
+            //         const bytes = new Uint8Array(len);
+            //         for (let i = 0; i < len; i++) {
+            //             bytes[i] = binaryString.charCodeAt(i);
+            //         }
+            //         const rawVertices = new Float32Array(bytes.buffer);
+            //
+            //         // Backend already transformed coordinates to Robot (Z-up) coordinate system
+            //         // Just pass through directly - no further transformation needed
+            //         setPointCloudData(rawVertices);
+            //
+            //         // Update Point Cloud Metrics (throttled along with 1s check is better, but since it's dependent on parsing here, we append it)
+            //         const vertexCount = rawVertices.length / 3;
+            //         if (now - lastMetricsUpdateTime.current < 100 || now - lastMetricsUpdateTime.current >= 1000) {
+            //             setStreamMetrics(prev => ({ ...prev, pointCount: vertexCount }));
+            //         }
+            //
+            //     } catch (e) {
+            //         console.error("Error parsing point cloud:", e);
+            //     }
+            // }
         });
 
         return () => {
@@ -186,8 +147,8 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                 align_to: "color"
             });
 
-            // 2. Activate Point Cloud
-            await api.activatePointCloud(device.device_id);
+            // 2. Activate Point Cloud - 已禁用，跳过
+            // await api.activatePointCloud(device.device_id);
 
             // 3. WebRTC Offer
             const offerData = await api.getWebRTCOffer(device.device_id, ['color', 'depth']);
@@ -293,11 +254,12 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
             } catch (e) {
                 console.warn("停止流时后端返回错误（可忽略）:", e);
             }
-            try {
-                await api.deactivatePointCloud(device.device_id);
-            } catch (e) {
-                console.warn("停用点云时后端返回错误（可忽略）:", e);
-            }
+            // 点云已禁用，不需要 deactivate 调用
+            // try {
+            //     await api.deactivatePointCloud(device.device_id);
+            // } catch (e) {
+            //     console.warn("停用点云时后端返回错误（可忽略）:", e);
+            // }
         }
     }, [device]);
 

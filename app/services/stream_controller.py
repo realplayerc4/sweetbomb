@@ -15,6 +15,7 @@ import pyrealsense2 as rs
 
 from app.core.errors import RealSenseError
 from app.models.stream import StreamConfig, StreamStatus
+from app.services.coordinate_transform import transform_realsense_to_robot, CAMERA_HEIGHT_DEFAULT
 
 
 class StreamController:
@@ -317,7 +318,7 @@ class StreamController:
         return None
 
     def _collect_frames(self, device_id: str, align_processor=None):
-        """帧采集主循环（守护线程）。"""
+        """帧采集主循环（守护线程。"""
         try:
             while device_id in self.pipelines:
                 try:
@@ -431,46 +432,32 @@ class StreamController:
                         "height": 480,
                     }
 
-                # 点云计算
-                if stype.lower() == "depth" and self.is_pointcloud_enabled.get(
-                    device_id, False
-                ):
-                    import time
-                    now = time.time()
-                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
-                        self._last_pc_calc_time[device_id] = now
-                        fd = raw_frames.get(stream_type, {}).get("frame_data")
-                        if fd:
-                            pts = self.pc.calculate(fd)
-                            v = pts.get_vertices()
-                            verts = (
-                                np.asanyarray(v)
-                                .view(np.float32)
-                                .reshape(-1, 3)
-                                .copy()
-                            )
-                            # 过滤太近的点
-                            verts = verts[verts[:, 2] >= 0.03]
-
-                            # RealSense -> Robot (Z-up) 坐标变换
-                            # 原始: X右, Y下, Z前
-                            # 目标: X前, Y左, Z上
-                            # 变换: new_x=old_z, new_y=-old_x, new_z=-old_y
-                            verts = np.stack([
-                                verts[:, 2],    # X = Z (前)
-                                -verts[:, 0],   # Y = -X (左)
-                                -verts[:, 1],   # Z = -Y (上)
-                            ], axis=1)
-                            
-                            # 降采样，防止前端卡死和 WebSocket OOM (不超过 5000 个点)
-                            if len(verts) > 5000:
-                                step = len(verts) // 5000
-                                verts = verts[::step]
-                                
-                            raw_frames[stream_type]["point_cloud"] = {
-                                "vertices": verts,
-                                "texture_coordinates": [],
-                            }
+                # 点云计算 - 已禁用，待重写
+                # if stype.lower() == "depth" and self.is_pointcloud_enabled.get(
+                #     device_id, False
+                # ):
+                #     import time
+                #     now = time.time()
+                #     if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
+                #         self._last_pc_calc_time[device_id] = now
+                #         fd = raw_frames.get(stream_type, {}).get("frame_data")
+                #         if fd:
+                #             pts = self.pc.calculate(fd)
+                #             v = pts.get_vertices()
+                #             verts = (
+                #                 np.asanyarray(v)
+                #                 .view(np.float32)
+                #                 .reshape(-1, 3)
+                #                 .copy()
+                #             )
+                #
+                #             # 使用统一的坐标转换模块
+                #             verts = transform_realsense_to_robot(verts, CAMERA_HEIGHT_DEFAULT)
+                #
+                #             raw_frames[stream_type]["point_cloud"] = {
+                #                 "vertices": verts,
+                #                 "texture_coordinates": [],
+                #             }
             except RuntimeError:
                 pass
 
@@ -502,8 +489,9 @@ class StreamController:
                     edges = cv2.dilate(edges, None)
                     depth_colormap[edges > 0] = [0, 0, 0]
                     frame = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
-                    if "point_cloud" in raw:
-                        metadata["point_cloud"] = raw["point_cloud"]
+                    # 点云数据已禁用，不添加到元数据
+                    # if "point_cloud" in raw:
+                    #     metadata["point_cloud"] = raw["point_cloud"]
 
                 elif raw["type"] == "color":
                     frame = raw["data"]

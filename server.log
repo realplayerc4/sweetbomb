@@ -1,33 +1,26 @@
-INFO:     Started server process [131202]
+INFO:     Started server process [219087]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     ('127.0.0.1', 49358) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-Socket.IO client connected: bvhO6ZxGBetTeal-AAAB
-INFO:     ('127.0.0.1', 49370) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-Socket.IO client connected: DDLx6lfQTfnksyMvAAAD
-INFO:     ('127.0.0.1', 49376) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-Socket.IO client connected: AOnZXM254wM3beE3AAAF
-INFO:     ('127.0.0.1', 49386) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-Socket.IO client connected: Zpd3KKAKXY1AkQnBAAAH
-INFO:     127.0.0.1:34294 - "GET /dashboard HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34294 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34302 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34294 - "GET /api/devices/ HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 34316) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-Socket.IO client connected: JH1uYcJv2tC-Eb7GAAAJ
-INFO:     127.0.0.1:34294 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
-[MetadataBroadcaster] Starting broadcast loop...INFO:     127.0.0.1:34294 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
-[MetadataBroadcaster] Broadcast loop started for device: 029522250337
+INFO:     127.0.0.1:53608 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53608 - "GET /assets/index-lwxname3.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:53608 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:53608 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 51848) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:53618 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53618 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: toOQ25g9jahz-Y1lAAAB
+INFO:     127.0.0.1:53618 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+[MetadataBroadcaster] Starting broadcast loop...[MetadataBroadcaster] Broadcast loop started for device: 029522250337
 
-INFO:     127.0.0.1:34294 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:34294 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34294 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:34294 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34294 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:34302 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:34294 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34302 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53618 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53618 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53618 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53618 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53618 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53608 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53608 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53618 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
 Error getting frame: 
 Error getting frame: 
 Error getting frame: 
@@ -51,66 +44,326 @@ Error getting frame:
 Error getting frame: 
 Error getting frame: 
 Error getting frame: 
-INFO:     127.0.0.1:34302 - "GET /api/webrtc/sessions/87913441-17e1-40c7-874b-39c778448083/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:34302 - "GET /api/webrtc/sessions/87913441-17e1-40c7-874b-39c778448083/ice-candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42564 - "GET /dashboard HTTP/1.1" 200 OK
-Socket.IO client disconnected: AOnZXM254wM3beE3AAAF
-INFO:     127.0.0.1:42564 - "GET /assets/index-lwxname3.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:42574 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 304 Not Modified
-INFO:     ('127.0.0.1', 42588) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-INFO:     127.0.0.1:42574 - "GET /api/devices/ HTTP/1.1" 200 OK
-Socket.IO client connected: o2uC1l6p8tgywC4PAAAL
-INFO:     127.0.0.1:42564 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:42574 - "GET /vite.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42564 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42564 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:42564 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42564 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:42564 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42564 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:42574 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:42564 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42574 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42574 - "GET /api/webrtc/sessions/e7c3bd69-2dd4-413b-beef-fd8c08189633/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:42574 - "GET /api/webrtc/sessions/e7c3bd69-2dd4-413b-beef-fd8c08189633/ice-candidates HTTP/1.1" 200 OK
-Socket.IO client disconnected: JH1uYcJv2tC-Eb7GAAAJ
-INFO:     127.0.0.1:48328 - "GET / HTTP/1.1" 200 OK
-Socket.IO client disconnected: bvhO6ZxGBetTeal-AAAB
-INFO:     127.0.0.1:48344 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:48328 - "GET /assets/index-lwxname3.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:48328 - "GET /api/devices/ HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 60134) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-INFO:     127.0.0.1:48328 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "GET /vite.svg HTTP/1.1" 200 OK
-Socket.IO client connected: iMJ65TlC3lrywmC3AAAN
-INFO:     127.0.0.1:48328 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48328 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48328 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48328 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48328 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48328 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48328 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "GET /api/webrtc/sessions/48a67d41-9391-48d6-8620-68ecec11c176/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "GET /api/webrtc/sessions/48a67d41-9391-48d6-8620-68ecec11c176/ice-candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "GET / HTTP/1.1" 200 OK
-Socket.IO client disconnected: iMJ65TlC3lrywmC3AAAN
-INFO:     127.0.0.1:48344 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48328 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 60144) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
-INFO:     127.0.0.1:48328 - "GET /vite.svg HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "GET /api/devices/ HTTP/1.1" 200 OK
-Socket.IO client connected: UnAZTKD6ymoFbud2AAAP
-INFO:     127.0.0.1:48344 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48344 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48328 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48344 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48328 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48328 - "GET /api/webrtc/sessions/aaad1f78-6bcc-4304-84a3-02971e84b2a6/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48328 - "GET /api/webrtc/sessions/aaad1f78-6bcc-4304-84a3-02971e84b2a6/ice-candidates HTTP/1.1" 200 OK
+Error getting frame: 
+INFO:     127.0.0.1:53618 - "GET /api/webrtc/sessions/0fff1b5b-7ea5-448e-81d7-3a52f342edff/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:53618 - "GET /api/webrtc/sessions/0fff1b5b-7ea5-448e-81d7-3a52f342edff/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: toOQ25g9jahz-Y1lAAAB
+INFO:     127.0.0.1:38066 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 38070) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:38056 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38066 - "GET /vite.svg HTTP/1.1" 200 OK
+Socket.IO client connected: aITOchDdc0AVVRj0AAAD
+INFO:     127.0.0.1:38056 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:38056 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:38056 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:38056 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:38066 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:38066 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38056 - "GET /api/webrtc/sessions/b52c47ae-2d72-4d72-9428-60edcc46504e/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:38056 - "GET /api/webrtc/sessions/b52c47ae-2d72-4d72-9428-60edcc46504e/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: aITOchDdc0AVVRj0AAAD
+INFO:     ('127.0.0.1', 57830) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:57810 - "GET /api/devices/ HTTP/1.1" 200 OK
+Socket.IO client connected: GWgvURikrfPzUvd7AAAF
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "GET /api/webrtc/sessions/8e0df794-e5b8-4a79-bba4-b51202073baf/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "GET /api/webrtc/sessions/8e0df794-e5b8-4a79-bba4-b51202073baf/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: GWgvURikrfPzUvd7AAAF
+INFO:     127.0.0.1:57814 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 57836) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:57814 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "GET /vite.svg HTTP/1.1" 200 OK
+Socket.IO client connected: y7ZM3mJ4RXXHFl4xAAAH
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57814 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57814 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57810 - "GET /api/webrtc/sessions/1f47324a-efb7-4af6-b5e9-d069030a40f0/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:57810 - "GET /api/webrtc/sessions/1f47324a-efb7-4af6-b5e9-d069030a40f0/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48192 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: y7ZM3mJ4RXXHFl4xAAAH
+INFO:     127.0.0.1:48192 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 48214) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:48192 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: 5ytxo6jNixusu2MvAAAJ
+INFO:     127.0.0.1:48192 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48192 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:48192 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48192 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:48192 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48192 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:48202 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:48202 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48192 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48192 - "GET /api/webrtc/sessions/a29d10b2-1475-488d-937c-39584d033f22/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:48192 - "GET /api/webrtc/sessions/a29d10b2-1475-488d-937c-39584d033f22/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39820 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: 5ytxo6jNixusu2MvAAAJ
+INFO:     127.0.0.1:39820 - "GET /assets/index-lwxname3.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:39828 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:39828 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 39834) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:39820 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39820 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: XsyGMKlH2pqYjjiaAAAL
+INFO:     127.0.0.1:39820 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39820 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39820 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39820 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39820 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39820 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39828 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39820 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39828 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39828 - "GET /api/webrtc/sessions/2e3fd597-a15f-4f05-8bd8-16ac242284e6/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39828 - "GET /api/webrtc/sessions/2e3fd597-a15f-4f05-8bd8-16ac242284e6/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42284 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: XsyGMKlH2pqYjjiaAAAL
+INFO:     127.0.0.1:42284 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42286 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 42296) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:42284 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42286 - "GET /vite.svg HTTP/1.1" 200 OK
+Socket.IO client connected: gTFZ84k_FV_8eeVrAAAN
+INFO:     127.0.0.1:42284 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42284 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42284 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42284 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42284 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42284 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42284 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42286 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42286 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42284 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42284 - "GET /api/webrtc/sessions/f4a771e4-2eea-4337-bf19-3d318ae8e335/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42284 - "GET /api/webrtc/sessions/f4a771e4-2eea-4337-bf19-3d318ae8e335/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35328 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: gTFZ84k_FV_8eeVrAAAN
+INFO:     127.0.0.1:35328 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 35336) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:35328 - "GET /api/devices/ HTTP/1.1" 200 OK
+Socket.IO client connected: jqQfqPjM_MbtGwHKAAAP
+INFO:     127.0.0.1:35330 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35330 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35330 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35330 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35328 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35328 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35330 - "GET /api/webrtc/sessions/ee6aeefb-e878-4a53-b77e-db300b7f106b/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:35330 - "GET /api/webrtc/sessions/ee6aeefb-e878-4a53-b77e-db300b7f106b/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42448 - "POST /api/devices/029522250337/stream/stop/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42456 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+[MetadataBroadcaster] Stopping broadcast loop...
+[MetadataBroadcaster] Broadcast loop stopped.
+[MetadataBroadcaster] Broadcast loop stopped.
+INFO:     127.0.0.1:42448 - "POST /api/devices/029522250337/stream/stop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42472 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+[MetadataBroadcaster] Starting broadcast loop...[MetadataBroadcaster] Broadcast loop started for device: 029522250337
+
+INFO:     127.0.0.1:42456 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42448 - "POST /api/devices/029522250337/point_cloud/deactivate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42456 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42472 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42448 - "POST /api/devices/029522250337/point_cloud/deactivate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42456 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42472 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42456 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42472 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42472 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42456 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42472 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42472 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42472 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42456 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42472 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42456 - "POST /api/webrtc/answer HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:42448 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42472 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42448 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42448 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42448 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42448 - "GET /api/webrtc/sessions/6ce8659f-d175-4e47-b703-10a8d5324d11/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42448 - "GET /api/webrtc/sessions/6ce8659f-d175-4e47-b703-10a8d5324d11/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42472 - "GET /api/webrtc/sessions/6ce8659f-d175-4e47-b703-10a8d5324d11/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42472 - "GET /api/webrtc/sessions/6ce8659f-d175-4e47-b703-10a8d5324d11/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42726 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: jqQfqPjM_MbtGwHKAAAP
+INFO:     127.0.0.1:42726 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42732 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 42744) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:42726 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42732 - "GET /vite.svg HTTP/1.1" 200 OK
+Socket.IO client connected: uErzPlZmsX_vzrYsAAAR
+INFO:     127.0.0.1:42726 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42726 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42726 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42726 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42726 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42726 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42726 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42732 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42726 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42732 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42732 - "GET /api/webrtc/sessions/cffea737-2571-42eb-acc3-c30af741318c/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42732 - "GET /api/webrtc/sessions/cffea737-2571-42eb-acc3-c30af741318c/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39672 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: uErzPlZmsX_vzrYsAAAR
+INFO:     127.0.0.1:39672 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 39686) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:39672 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: 6YWfZ9V-Gf1inYOAAAAT
+INFO:     127.0.0.1:39672 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39672 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39672 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39672 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39672 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39672 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39680 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39672 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39680 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39680 - "GET /api/webrtc/sessions/98a602a0-c18a-4f11-8030-b9f1e94bd566/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:39680 - "GET /api/webrtc/sessions/98a602a0-c18a-4f11-8030-b9f1e94bd566/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: 6YWfZ9V-Gf1inYOAAAAT
+INFO:     127.0.0.1:40586 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40594 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40594 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 40602) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:40586 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: DddsjpsJFbKMP2dxAAAV
+INFO:     127.0.0.1:40586 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:40586 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:40586 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:40594 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:40594 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40586 - "GET /api/webrtc/sessions/cea3013a-59ce-4bed-9085-cb3391a4914e/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:40586 - "GET /api/webrtc/sessions/cea3013a-59ce-4bed-9085-cb3391a4914e/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: DddsjpsJFbKMP2dxAAAV
+INFO:     ('127.0.0.1', 56120) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:56102 - "GET /api/devices/ HTTP/1.1" 200 OK
+Socket.IO client connected: atuxvZgJrROd-yQdAAAX
+INFO:     127.0.0.1:56102 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56102 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56102 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56102 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56116 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56116 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "GET /api/webrtc/sessions/9e3c05fc-0959-46d7-8334-0007fd427406/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:56102 - "GET /api/webrtc/sessions/9e3c05fc-0959-46d7-8334-0007fd427406/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42944 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: atuxvZgJrROd-yQdAAAX
+INFO:     127.0.0.1:42944 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42954 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 42956) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:42954 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42954 - "GET /vite.svg HTTP/1.1" 200 OK
+Socket.IO client connected: nY9N-tpjmTpmglg7AAAZ
+INFO:     127.0.0.1:42954 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42954 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42954 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42954 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42954 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42954 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42954 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42944 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42954 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42944 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42944 - "GET /api/webrtc/sessions/f1b5a8e0-091d-4db0-9af7-00f596afb1ee/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:42944 - "GET /api/webrtc/sessions/f1b5a8e0-091d-4db0-9af7-00f596afb1ee/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44580 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: nY9N-tpjmTpmglg7AAAZ
+INFO:     127.0.0.1:44580 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 44586) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:44580 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: rgrsPqseP6MD5Ne-AAAb
+INFO:     127.0.0.1:44580 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44584 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44584 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44584 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44584 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44584 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44580 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44580 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44584 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44584 - "GET /api/webrtc/sessions/38daea4a-921f-49c7-a8d3-46877aeb1f61/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44584 - "GET /api/webrtc/sessions/38daea4a-921f-49c7-a8d3-46877aeb1f61/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55828 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: rgrsPqseP6MD5Ne-AAAb
+INFO:     127.0.0.1:55830 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55828 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55830 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 55840) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+INFO:     127.0.0.1:55828 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55828 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+Socket.IO client connected: kiJBjBY4Z8jt2DWSAAAd
+INFO:     127.0.0.1:55828 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55830 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:55830 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55830 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:55830 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55830 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:55828 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:55828 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55830 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55830 - "GET /api/webrtc/sessions/6b629ea0-a906-460e-9871-f195b6924604/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:55830 - "GET /api/webrtc/sessions/6b629ea0-a906-460e-9871-f195b6924604/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "GET / HTTP/1.1" 200 OK
+Socket.IO client disconnected: kiJBjBY4Z8jt2DWSAAAd
+INFO:     127.0.0.1:44084 - "GET /assets/index-lwxname3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "GET /assets/index-DTUGLSVr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44084 - "GET /api/devices/ HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 44090) - "WebSocket /socket/?EIO=4&transport=websocket" [accepted]
+Socket.IO client connected: UPYStQ9WbFl4VgMZAAAf
+INFO:     127.0.0.1:44070 - "POST /api/devices/029522250337/stream/start/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44084 - "GET /vite.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "POST /api/devices/029522250337/stream/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "POST /api/devices/029522250337/point_cloud/activate/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44070 - "POST /api/devices/029522250337/point_cloud/activate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "POST /api/webrtc/offer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44070 - "POST /api/webrtc/offer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "POST /api/webrtc/answer/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44084 - "POST /api/webrtc/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44084 - "POST /api/webrtc/ice-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "POST /api/webrtc/answer HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44070 - "GET /api/webrtc/sessions/699853b5-7fa3-4b34-b8b5-97a038bcbf4b/ice-candidates/ HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:44070 - "GET /api/webrtc/sessions/699853b5-7fa3-4b34-b8b5-97a038bcbf4b/ice-candidates HTTP/1.1" 200 OK
