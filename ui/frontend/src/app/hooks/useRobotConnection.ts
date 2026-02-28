@@ -4,7 +4,7 @@ import { api } from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_URL } from '../config';
 
-export function useRobotConnection(cameraHeight: number = 1.0) {
+export function useRobotConnection() {
     const [device, setDevice] = useState<DeviceInfo | null>(null);
     const [isStreaming, setIsStreaming] = useState(false);
     const [rgbStream, setRgbStream] = useState<MediaStream | null>(null);
@@ -30,6 +30,7 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
     const socket = useRef<Socket | null>(null);
     const autoStartAttempted = useRef(false);
     const lastMetricsUpdateTime = useRef<number>(0);
+    const lastPointCountUpdateTime = useRef<number>(0);
 
     // Auto-connect to first available device
     useEffect(() => {
@@ -86,32 +87,33 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                 setStreamMetrics(prev => ({ ...prev, rgb: newMetrics.rgb || prev.rgb, depth: newMetrics.depth || prev.depth }));
             }
 
-            // 点云数据处理 - 已禁用，后端不再发送点云数据
-            // if (data.metadata_streams?.depth?.point_cloud?.vertices) {
-            //     try {
-            //         const base64Vertices = data.metadata_streams.depth.point_cloud.vertices;
-            //         const binaryString = window.atob(base64Vertices);
-            //         const len = binaryString.length;
-            //         const bytes = new Uint8Array(len);
-            //         for (let i = 0; i < len; i++) {
-            //             bytes[i] = binaryString.charCodeAt(i);
-            //         }
-            //         const rawVertices = new Float32Array(bytes.buffer);
-            //
-            //         // Backend already transformed coordinates to Robot (Z-up) coordinate system
-            //         // Just pass through directly - no further transformation needed
-            //         setPointCloudData(rawVertices);
-            //
-            //         // Update Point Cloud Metrics (throttled along with 1s check is better, but since it's dependent on parsing here, we append it)
-            //         const vertexCount = rawVertices.length / 3;
-            //         if (now - lastMetricsUpdateTime.current < 100 || now - lastMetricsUpdateTime.current >= 1000) {
-            //             setStreamMetrics(prev => ({ ...prev, pointCount: vertexCount }));
-            //         }
-            //
-            //     } catch (e) {
-            //         console.error("Error parsing point cloud:", e);
-            //     }
-            // }
+            // 点云数据处理
+            if (data.metadata_streams?.depth?.point_cloud?.vertices) {
+                try {
+                    const base64Vertices = data.metadata_streams.depth.point_cloud.vertices;
+                    const binaryString = window.atob(base64Vertices);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const rawVertices = new Float32Array(bytes.buffer);
+
+                    // Backend already transformed coordinates to ROS coordinate system
+                    // Just pass through directly - no further transformation needed
+                    setPointCloudData(rawVertices);
+
+                    // Update Point Cloud Metrics - independent throttling for point count
+                    const vertexCount = rawVertices.length / 3;
+                    if (now - lastPointCountUpdateTime.current >= 100) {  // 更新频率: 100ms
+                        lastPointCountUpdateTime.current = now;
+                        setStreamMetrics(prev => ({ ...prev, pointCount: vertexCount }));
+                    }
+
+                } catch (e) {
+                    console.error("Error parsing point cloud:", e);
+                }
+            }
         });
 
         return () => {
@@ -147,8 +149,8 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
                 align_to: "color"
             });
 
-            // 2. Activate Point Cloud - 已禁用，跳过
-            // await api.activatePointCloud(device.device_id);
+            // 2. Activate Point Cloud
+            await api.activatePointCloud(device.device_id);
 
             // 3. WebRTC Offer
             const offerData = await api.getWebRTCOffer(device.device_id, ['color', 'depth']);
@@ -254,12 +256,11 @@ export function useRobotConnection(cameraHeight: number = 1.0) {
             } catch (e) {
                 console.warn("停止流时后端返回错误（可忽略）:", e);
             }
-            // 点云已禁用，不需要 deactivate 调用
-            // try {
-            //     await api.deactivatePointCloud(device.device_id);
-            // } catch (e) {
-            //     console.warn("停用点云时后端返回错误（可忽略）:", e);
-            // }
+            try {
+                await api.deactivatePointCloud(device.device_id);
+            } catch (e) {
+                console.warn("停用点云时后端返回错误（可忽略）:", e);
+            }
         }
     }, [device]);
 

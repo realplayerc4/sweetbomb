@@ -15,7 +15,7 @@ import pyrealsense2 as rs
 
 from app.core.errors import RealSenseError
 from app.models.stream import StreamConfig, StreamStatus
-from app.services.coordinate_transform import transform_realsense_to_robot, CAMERA_HEIGHT_DEFAULT
+from app.services.coordinate_transform import transform_realsense_to_robot
 
 
 class StreamController:
@@ -432,32 +432,32 @@ class StreamController:
                         "height": 480,
                     }
 
-                # 点云计算 - 已禁用，待重写
-                # if stype.lower() == "depth" and self.is_pointcloud_enabled.get(
-                #     device_id, False
-                # ):
-                #     import time
-                #     now = time.time()
-                #     if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
-                #         self._last_pc_calc_time[device_id] = now
-                #         fd = raw_frames.get(stream_type, {}).get("frame_data")
-                #         if fd:
-                #             pts = self.pc.calculate(fd)
-                #             v = pts.get_vertices()
-                #             verts = (
-                #                 np.asanyarray(v)
-                #                 .view(np.float32)
-                #                 .reshape(-1, 3)
-                #                 .copy()
-                #             )
-                #
-                #             # 使用统一的坐标转换模块
-                #             verts = transform_realsense_to_robot(verts, CAMERA_HEIGHT_DEFAULT)
-                #
-                #             raw_frames[stream_type]["point_cloud"] = {
-                #                 "vertices": verts,
-                #                 "texture_coordinates": [],
-                #             }
+                # 点云计算
+                if stype.lower() == "depth" and self.is_pointcloud_enabled.get(
+                    device_id, False
+                ):
+                    import time
+                    now = time.time()
+                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
+                        self._last_pc_calc_time[device_id] = now
+                        fd = raw_frames.get(stream_type, {}).get("frame_data")
+                        if fd:
+                            pts = self.pc.calculate(fd)
+                            v = pts.get_vertices()
+                            verts = (
+                                np.asanyarray(v)
+                                .view(np.float32)
+                                .reshape(-1, 3)
+                                .copy()
+                            )
+
+                            # 使用统一的坐标转换模块（转换为 ROS 坐标系）
+                            verts = transform_realsense_to_robot(verts)
+
+                            raw_frames[stream_type]["point_cloud"] = {
+                                "vertices": verts,
+                                "texture_coordinates": [],
+                            }
             except RuntimeError:
                 pass
 

@@ -26,9 +26,9 @@ class CoordinateTransform:
             - Z 轴：指向上方（垂直方向）
 
         变换公式:
-            ros_x = rs_z   (前)
-            ros_y = rs_x   (左)
-            ros_z = -rs_y  (上，需要取反)
+            ros_x = rs_z      (前)
+            ros_y = -rs_x     (左 = -右)
+            ros_z = -rs_y     (上 = -下)
 
         Args:
             vertices: N x 3 的点云数组，形状为 (N, 3)
@@ -39,10 +39,17 @@ class CoordinateTransform:
         if len(vertices) == 0:
             return vertices
 
+        # 过滤无效点：只保留 Z (rs_z) > 0 的有效深度点
+        valid_mask = vertices[:, 2] > 0
+        if not np.any(valid_mask):
+            return np.empty((0, 3), dtype=np.float32)
+
+        filtered_vertices = vertices[valid_mask]
+
         return np.stack([
-            vertices[:, 2],     # X = Z (前)
-            vertices[:, 0],     # Y = X (左)
-            -vertices[:, 1],    # Z = -Y (上)
+            filtered_vertices[:, 2],     # X = Z (前)
+            -filtered_vertices[:, 0],    # Y = -X (左 = -右)
+            -filtered_vertices[:, 1],    # Z = -Y (上)
         ], axis=1)
 
 

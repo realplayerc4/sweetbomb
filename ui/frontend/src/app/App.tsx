@@ -4,10 +4,9 @@ import { useRobotConnection } from './hooks/useRobotConnection';
 
 import { RGBView } from './components/RGBView';
 import { DepthView } from './components/DepthView';
-import { PointCloudDataCard } from './components/PointCloudDataCard';
+import { PointCloudView } from './components/PointCloudView';
 import { CommandCenter } from './components/CommandCenter';
 import { Toaster } from './components/ui/sonner';
-import { SpatialConfigPanel } from './components/SpatialConfigPanel';
 import { MapPanel } from './components/MapPanel';
 
 export default function App() {
@@ -34,11 +33,6 @@ export default function App() {
   const [cpu, setCpu] = useState(45);
   const [temperature, setTemperature] = useState(38);
   const [signal, setSignal] = useState(92);
-
-  // Robot Configuration (暂时保留，后续可能需要)
-  const [cameraHeight, setCameraHeight] = useState(0.65);
-  const [bucketHeight, setBucketHeight] = useState(0.25);
-  const [tolerance, setTolerance] = useState(0.33);
 
   // Toggle Streaming
   const handleToggleRunning = () => {
@@ -112,31 +106,25 @@ export default function App() {
         )}
 
         {/* Image Views Row - RGB, Point Cloud Data Card */}
-        <div className="grid grid-cols-2 gap-[30px] h-[350px] w-full mb-[30px]">
-          <RGBView isActive={isStreaming} stream={rgbStream} metrics={streamMetrics?.rgb} />
+        <div className="flex gap-[30px] h-[350px] w-full mb-[30px]">
+          <div className="flex-1">
+            <RGBView isActive={isStreaming} stream={rgbStream} metrics={streamMetrics?.rgb} />
+          </div>
 
-          <PointCloudDataCard
-            isActive={isStreaming}
-            pointCount={streamMetrics?.pointCount}
-          />
+          <div className="w-[600px]">
+            <PointCloudView
+              isActive={isStreaming}
+              points={pointCloudData}
+            />
+          </div>
         </div>
 
         {/* Bottom Area */}
-        <div className="grid grid-cols-3 gap-[30px] min-h-[400px]">
+        <div className="grid grid-cols-2 gap-[30px] min-h-[400px]">
           {/* Col 1: Depth View */}
           <DepthView isActive={isStreaming} stream={depthStream} metrics={streamMetrics?.depth} />
 
-          {/* Col 2: Spatial Config */}
-          <SpatialConfigPanel
-            cameraHeight={cameraHeight}
-            setCameraHeight={setCameraHeight}
-            bucketHeight={bucketHeight}
-            setBucketHeight={setBucketHeight}
-            tolerance={tolerance}
-            setTolerance={setTolerance}
-          />
-
-          {/* Col 3: Map Placeholder */}
+          {/* Col 2: Map Panel */}
           <MapPanel />
         </div>
 
