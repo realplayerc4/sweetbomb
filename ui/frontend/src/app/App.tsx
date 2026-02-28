@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Activity, ShieldAlert } from 'lucide-react';
+import { Bot, Activity, ShieldAlert, Settings } from 'lucide-react';
 import { useRobotConnection } from './hooks/useRobotConnection';
 
 import { RGBView } from './components/RGBView';
@@ -8,6 +8,10 @@ import { PointCloudView } from './components/PointCloudView';
 import { CommandCenter } from './components/CommandCenter';
 import { Toaster } from './components/ui/sonner';
 import { MapPanel } from './components/MapPanel';
+import { RobotControlPanel } from './components/RobotControlPanel';
+import { SugarHarvestPanel } from './components/SugarHarvestPanel';
+import { BehaviorTreeViz } from './components/BehaviorTreeViz';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 
 export default function App() {
   // Connection Hook
@@ -25,6 +29,9 @@ export default function App() {
 
   // Control States (Local for now, until backend has control API)
   const [power, setPower] = useState(75);
+
+  // Robot Control Tab
+  const [robotTab, setRobotTab] = useState<'manual' | 'auto' | 'tree'>('manual');
 
 
 
@@ -126,6 +133,101 @@ export default function App() {
 
           {/* Col 2: Map Panel */}
           <MapPanel />
+        </div>
+
+        {/* Robot Control Section */}
+        <div className="bg-[#1c1c1e] rounded-2xl p-6 shadow-md">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-[#FD802E]/20 rounded-xl">
+              <Settings className="w-5 h-5 text-[#FD802E]" />
+            </div>
+            <h2 className="text-xl font-bold text-[#FD802E]">铲糖机器人控制</h2>
+          </div>
+
+          <Tabs value={robotTab} onValueChange={(v) => setRobotTab(v as any)}>
+            <TabsList className="bg-[#121214] border border-slate-700">
+              <TabsTrigger value="manual" className="data-[state=active]:bg-[#FD802E] data-[state=active]:text-black">
+                手动控制
+              </TabsTrigger>
+              <TabsTrigger value="auto" className="data-[state=active]:bg-[#FD802E] data-[state=active]:text-black">
+                自主铲糖
+              </TabsTrigger>
+              <TabsTrigger value="tree" className="data-[state=active]:bg-[#FD802E] data-[state=active]:text-black">
+                行为树状态
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="mt-6">
+              <TabsContent value="manual" className="m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <RobotControlPanel />
+                  <div className="text-sm text-slate-400 space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-200">操作说明</h3>
+                    <div className="space-y-2">
+                      <p>• 使用<strong>虚拟摇杆</strong>或<strong>WASD</strong>键控制移动</p>
+                      <p>• 点击<strong>方向按钮</strong>进行精确移动</p>
+                      <p>• 拖动<strong>伺服滑块</strong>控制铲斗和翻斗</p>
+                      <p>• 使用<strong>铲取/倾倒</strong>按钮快速执行动作</p>
+                      <p>• <strong>紧急停止</strong>可立即停止所有运动</p>
+                    </div>
+                    <div className="mt-4 p-3 bg-slate-800 rounded-lg">
+                      <p className="text-xs text-slate-500">键盘控制</p>
+                      <p className="text-sm font-mono">W/↑ 前进 | S/↓ 后退 | A/← 左移 | D/→ 右移</p>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="auto" className="m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <SugarHarvestPanel />
+                  <BehaviorTreeViz
+                    currentNode=""
+                    status="idle"
+                    cycleCount={0}
+                    maxCycles={10}
+                    sugarHeight={0.3}
+                    heightThreshold={0.20}
+                    stepHistory={[]}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="tree" className="m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <BehaviorTreeViz
+                      currentNode=""
+                      status="idle"
+                      cycleCount={0}
+                      maxCycles={10}
+                      sugarHeight={0.3}
+                      heightThreshold={0.20}
+                      stepHistory={[]}
+                    />
+                  </div>
+                  <div className="text-sm text-slate-400 space-y-4">
+                    <h3 className="text-lg font-semibold text-slate-200">行为树说明</h3>
+                    <div className="space-y-2">
+                      <p>行为树控制铲糖自主循环流程</p>
+                      <p>• <strong>序列节点 (→)</strong>: 顺序执行所有子节点</p>
+                      <p>• <strong>选择节点 (?)</strong>: 依次执行直到成功</p>
+                      <p>• <strong>重复节点 (↻)</strong>: 循环执行</p>
+                      <p>• <strong>动作节点 (⚡)</strong>: 执行具体操作</p>
+                    </div>
+                    <div className="mt-4 p-3 bg-slate-800 rounded-lg">
+                      <p className="text-xs text-slate-500 mb-2">循环终止条件</p>
+                      <ul className="text-sm space-y-1">
+                        <li>• 达到最大循环次数</li>
+                        <li>• 糖堆高度 &lt; 20cm (切换推垛模式)</li>
+                        <li>• 手动停止</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
         </div>
 
         {/* Global Footer Status Bar */}

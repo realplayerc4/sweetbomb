@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import devices, sensors, options, streams, webrtc, point_cloud, tasks, waypoints
+from app.api.endpoints import devices, sensors, options, streams, webrtc, point_cloud, tasks, waypoints, robot
 
 api_router = APIRouter()
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
@@ -10,3 +10,4 @@ api_router.include_router(point_cloud.router, prefix="/devices/{device_id}/point
 api_router.include_router(webrtc.router, prefix="/webrtc", tags=["webrtc"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(waypoints.router, prefix="/waypoints", tags=["waypoints"])
+api_router.include_router(robot.router, tags=["robot"])
