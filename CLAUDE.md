@@ -149,5 +149,25 @@ memory-bank/progress.md          → 项目进度
 
 ---
 
+## PM2 Services
+
+| Port | Name | Type |
+|------|------|------|
+| 5173 | sweetbomb-5173 | Vite (Frontend) |
+| 8000 | sweetbomb-8000 | FastAPI (Backend) |
+
+**Terminal Commands:**
+```bash
+pm2 start ecosystem.config.cjs   # First time
+pm2 start all                    # After first time
+pm2 stop all / pm2 restart all
+pm2 start {name} / pm2 stop {name}
+pm2 logs / pm2 status / pm2 monit
+pm2 save                         # Save process list
+pm2 resurrect                    # Restore saved list
+```
+
+---
+
 *Version: v1.0*
 *Last Updated: 2025-02-24*

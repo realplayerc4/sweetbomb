@@ -1,3 +1,9 @@
+"""WebRTC 视频流管理器。
+
+负责创建和管理 WebRTC PeerConnection，将 RealSense 视频流传输给客户端。
+支持多客户端连接，自动清理过期会话。
+"""
+
 import asyncio
 import uuid
 import time
@@ -11,10 +17,21 @@ from app.core.errors import RealSenseError
 from app.core.config import get_settings
 from app.models.webrtc import WebRTCStatus
 
+
 class RealSenseVideoTrack(VideoStreamTrack):
-    """Video track that captures frames from RealSense camera."""
+    """RealSense 视频轨道。
+
+    从 RealSense 摄像头捕获帧并转换为 WebRTC 视频轨道。
+    """
 
     def __init__(self, realsense_manager, device_id, stream_type):
+        """初始化视频轨道。
+
+        Args:
+            realsense_manager: RealSense 管理器实例
+            device_id: 设备 ID
+            stream_type: 流类型（color、depth 等）
+        """
         super().__init__()
         self.realsense_manager = realsense_manager
         self.device_id = device_id
@@ -22,29 +39,34 @@ class RealSenseVideoTrack(VideoStreamTrack):
         self._start = time.time()
 
     async def recv(self):
+        """接收视频帧。
+
+        Returns:
+            VideoFrame: 视频帧对象
+        """
         try:
-            # Get frame from RealSense
+            # 从 RealSense 获取帧数据
             frame_data = self.realsense_manager.get_latest_frame(self.device_id, self.stream_type)
 
-            # Convert to RGB format if necessary
+            # 必要时转换为 RGB 格式
             if len(frame_data.shape) == 3 and frame_data.shape[2] == 3:
-                # Already RGB, no conversion needed
+                # 已经是 RGB 格式，无需转换
                 img = frame_data
             else:
-                # Convert to RGB
+                # 转换为 RGB
                 img = cv2.cvtColor(frame_data, cv2.COLOR_BGR2RGB)
-            # Create VideoFrame
+            # 创建 VideoFrame
             video_frame = VideoFrame.from_ndarray(img, format="rgb24")
 
-            # Set frame timestamp
+            # 设置帧时间戳
             pts, time_base = await self.next_timestamp()
             video_frame.pts = pts
             video_frame.time_base = time_base
 
             return video_frame
         except Exception as e:
-            # On error, return a black frame
-            width, height = 640, 480  # Default size
+            # 出错时返回黑帧
+            width, height = 640, 480  # 默认尺寸
             img = np.zeros((height, width, 3), dtype=np.uint8)
             video_frame = VideoFrame.from_ndarray(img, format="rgb24")
             pts, time_base = await self.next_timestamp()
@@ -54,14 +76,29 @@ class RealSenseVideoTrack(VideoStreamTrack):
             print(f"Error getting frame: {str(e)}")
             return video_frame
 
+
 class WebRTCManager:
+    """WebRTC 会话管理器。
+
+    负责：
+    - 创建和管理 WebRTC PeerConnection
+    - 将 RealSense 视频流添加到连接
+    - 处理 ICE 候选
+    - 清理过期会话
+    """
+
     def __init__(self, realsense_manager):
+        """初始化 WebRTC 管理器。
+
+        Args:
+            realsense_manager: RealSense 管理器实例
+        """
         self.realsense_manager = realsense_manager
-        self.sessions: Dict[str, Dict[str, Any]] = {}
+        self.sessions: Dict[str, Dict[str, Any]] = {}  # session_id -> session_data
         self.lock = asyncio.Lock()
         self.settings = get_settings()
 
-        # Set up ICE servers for WebRTC
+        # 设置 WebRTC 的 ICE 服务器
         self.ice_servers = []
 
         if self.settings.STUN_SERVER:
@@ -76,62 +113,68 @@ class WebRTCManager:
                 )
             )
 
-
+        # 后台清理任务
         self.cleanup_task = None
 
     async def start_cleanup_loop(self):
-        """Start the background cleanup loop."""
-        if self.cleanup_task is None or self.cleanup_task.done():
+        """启动后台清理循环。"""
+        if self:cleanup_task is None or self.cleanup_task.done():
             self.cleanup_task = asyncio.create_task(self._cleanup_loop())
 
     async def _cleanup_loop(self):
-        """Background loop to clean up sessions."""
+        """后台循环，定期清理过期会话。"""
         while True:
-            await asyncio.sleep(60)  # Check every minute
+            await asyncio.sleep(60)  # 每分钟检查一次
             await self._cleanup_sessions()
 
     async def create_offer(self, device_id: str, stream_types: List[str]) -> Tuple[str, dict]:
-        """Create a WebRTC offer for device streams."""
-        # Verify device exists and is streaming
+        """创建 WebRTC offer 用于设备视频流。
+
+        Args:
+            device_id: 设备 ID
+            stream_types: 请求的流类型列表（color、depth 等）
+
+        Returns:
+            Tuple[session_id, offer_data]: 会话 ID 和 offer 数据
+
+        Raises:
+            RealSenseError: 设备未流式传输或流类型不可用
+        """
+        # 验证设备存在且正在流式传输
         stream_status = self.realsense_manager.get_stream_status(device_id)
         if not stream_status.is_streaming:
             raise RealSenseError(status_code=400, detail=f"Device {device_id} is not streaming")
 
-        # Verify requested stream types are available
+        # 验证请求的流类型可用
         for stream_type in stream_types:
             if stream_type not in stream_status.active_streams:
                 raise RealSenseError(status_code=400, detail=f"Stream type {stream_type} is not active")
 
-        # Create peer connection
+        # 创建 PeerConnection
         pc = RTCPeerConnection(RTCConfiguration(iceServers=self.ice_servers))
 
-        # Create session ID
+        # 创建会话 ID
         session_id = str(uuid.uuid4())
 
-        # Add video tracks for each stream type
+        # 为每个流类型添加视频轨道
         for stream_type in stream_types:
             video_track = RealSenseVideoTrack(self.realsense_manager, device_id, stream_type)
             pc.addTrack(video_track)
 
-        # Create offer
+        # 创建 offer
         offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
 
-        # Create stream map (mid -> stream_type)
+        # 创建流映射（mid -> stream_type）
         stream_map = {}
         for transceiver in pc.getTransceivers():
             if transceiver.sender and transceiver.sender.track:
-                 # Find which stream type this track belongs to
-                 # We can identify it by the track ID or by iterating our created tracks
-                 # Since we just created them, we can map them back if we stored them,
-                 # or reliance on the order if we trust it (fragile).
-                 # Better: The track object itself doesn't easily store the stream_type unless we subclassed it (we did!).
-                 # RealSenseVideoTrack has .stream_type attribute.
+                 # 找到该轨道属于哪个流类型
                  track = transceiver.sender.track
                  if isinstance(track, RealSenseVideoTrack):
                      stream_map[transceiver.mid] = track.stream_type
 
-        # Store session
+        # 存储会话
         async with self.lock:
             self.sessions[session_id] = {
                 "device_id": device_id,
@@ -142,11 +185,7 @@ class WebRTCManager:
                 "stream_map": stream_map
             }
 
-        # Schedule cleanup of unused sessions
-        # asyncio.create_task(self._cleanup_sessions()) # Moved to background loop
-
-
-        # Return session ID and offer
+        # 返回会话 ID 和 offer
         return session_id, {
             "sdp": pc.localDescription.sdp,
             "type": pc.localDescription.type,
@@ -154,18 +193,30 @@ class WebRTCManager:
         }
 
     async def process_answer(self, session_id: str, sdp: str, type_: str) -> bool:
-        """Process a WebRTC answer."""
+        """处理 WebRTC answer。
+
+        Args:
+            session_id: 会话 ID
+            sdp: SDP 字符串
+            type_: SDP 类型（answer）
+
+        Returns:
+            bool: 是否成功处理
+
+        Raises:
+            RealSenseError: 会话不存在或处理失败
+        """
         async with self.lock:
             if session_id not in self.sessions:
                 raise RealSenseError(status_code=404, detail=f"Session {session_id} not found")
 
             pc = self.sessions[session_id]["pc"]
 
-        # Set remote description
+        # 设置远程描述
         try:
             await pc.setRemoteDescription(RTCSessionDescription(sdp=sdp, type=type_))
 
-            # Mark as connected
+            # 标记为已连接
             async with self.lock:
                 self.sessions[session_id]["connected"] = True
 
@@ -174,14 +225,27 @@ class WebRTCManager:
             raise RealSenseError(status_code=400, detail=f"Error processing answer: {str(e)}")
 
     async def add_ice_candidate(self, session_id: str, candidate: str, sdp_mid: str, sdp_mline_index: int) -> bool:
-        """Add an ICE candidate to a session."""
+        """向会话添加 ICE 候选。
+
+        Args:
+            session_id: 会话 ID
+            candidate: ICE 候选字符串
+            sdp_mid: SDP mid
+            sdp_mline_index: SDP 行索引
+
+        Returns:
+            bool: 是否成功添加
+
+        Raises:
+            RealSenseError: 会话不存在或添加失败
+        """
         async with self.lock:
             if session_id not in self.sessions:
                 raise RealSenseError(status_code=404, detail=f"Session {session_id} not found")
 
             pc = self.sessions[session_id]["pc"]
 
-        # Add ICE candidate
+        # 添加 ICE 候选
         try:
             candidate_obj = RTCIceCandidate(
                 component=1,
@@ -202,17 +266,37 @@ class WebRTCManager:
             raise RealSenseError(status_code=400, detail=f"Error adding ICE candidate: {str(e)}")
 
     async def get_ice_candidates(self, session_id: str) -> List[dict]:
-        """Get ICE candidates for a session."""
+        """获取会话的 ICE 候选。
+
+        Args:
+            session_id: 会话 ID
+
+        Returns:
+            List[dict]: ICE 候选列表
+
+        Raises:
+            RealSenseError: 会话不存在
+        """
         async with self.lock:
             if session_id not in self.sessions:
                 raise RealSenseError(status_code=404, detail=f"Session {session_id} not found")
 
-        # ICE candidates would be sent via events in a real application
-        # This is a placeholder for the API
+        # ICE 候选在实际应用中会通过事件发送
+        # 这是一个占位符，用于 API
         return []
 
     async def get_session(self, session_id: str) -> WebRTCStatus:
-        """Get session status."""
+        """获取会话状态。
+
+        Args:
+            session_id: 会话 ID
+
+        Returns:
+            WebRTCStatus: 会话状态信息
+
+        Raises:
+            RealSenseError: 会话不存在
+        """
         async with self.lock:
             if session_id not in self.sessions:
                 raise RealSenseError(status_code=404, detail=f"Session {session_id} not found")
@@ -220,7 +304,7 @@ class WebRTCManager:
             session = self.sessions[session_id]
             pc = session["pc"]
 
-        # Get WebRTC stats (if available)
+        # 获取 WebRTC 统计信息（如果可用）
         stats = None
         try:
             stats_dict = await pc.getStats()
@@ -228,7 +312,7 @@ class WebRTCManager:
         except Exception:
             stats = None
 
-        # Return session status
+        # 返回会话状态
         return WebRTCStatus(
             session_id=session_id,
             device_id=session["device_id"],
@@ -239,23 +323,30 @@ class WebRTCManager:
         )
 
     async def close_session(self, session_id: str) -> bool:
-        """Close a WebRTC session."""
+        """关闭 WebRTC 会话。
+
+        Args:
+            session_id: 会话 ID
+
+        Returns:
+            bool: 是否成功关闭
+        """
         async with self.lock:
             if session_id not in self.sessions:
                 return False
 
-            # Close peer connection
+            # 关闭 PeerConnection
             try:
                 await self.sessions[session_id]["pc"].close()
             except Exception:
                 pass
 
-            # Remove session
+            # 删除会话
             del self.sessions[session_id]
             return True
 
     async def _cleanup_sessions(self):
-        """Clean up old or disconnected sessions."""
+        """清理过期或断开的会话。"""
         async with self.lock:
             now = time.time()
             session_ids = list(self.sessions.keys())
@@ -263,7 +354,7 @@ class WebRTCManager:
             for session_id in session_ids:
                 session = self.sessions[session_id]
 
-                # Remove sessions older than 1 hour
+                # 删除超过 1 小时的会话
                 if now - session["created_at"] > 3600:
                     try:
                         await session["pc"].close()

@@ -1,14 +1,20 @@
+"""
+假设备设置模块
+
+本模块提供用于测试的假 RealSense 设备创建功能。
+用于在测试环境中模拟真实设备的行为。
+"""
 from .pyrealsense_mock import context, create_mock_device
 
 def setup_fake_devices():
     """
-    Creates a set of fake RealSense devices for testing.
-    Returns a dictionary containing all the mock objects.
+    创建一组假 RealSense 设备用于测试
+    返回包含所有 mock 对象的字典
     """
-    # Create a mock context
+    # 创建 mock 上下文
     mock_context = context()
 
-    # Create two fake devices with depth and color sensors
+    # 创建两个带有深度和颜色传感器的假设备
     fake_device1 = create_mock_device(
         "device1", "Test Device 1", with_depth=True, with_color=True
     )
@@ -16,29 +22,29 @@ def setup_fake_devices():
         "device2", "Test Device 2", with_depth=True, with_color=True
     )
 
-    # Add the devices to the context
+    # 将设备添加到上下文
     mock_context.add_device(fake_device1)
     mock_context.add_device(fake_device2)
 
-    # Extract sensors for easy access in tests
+    # 提取传感器以便在测试中轻松访问
     depth_sensors = []
     color_sensors = []
 
-    # Collect sensors from device 1
+    # 从设备 1 收集传感器
     for i, sensor in enumerate(fake_device1.sensors):
         if sensor.is_depth_sensor():
             depth_sensors.append(sensor)
         elif sensor.is_color_sensor():
             color_sensors.append(sensor)
 
-    # Collect sensors from device 2
+    # 从设备 2 收集传感器
     for i, sensor in enumerate(fake_device2.sensors):
         if sensor.is_depth_sensor():
             depth_sensors.append(sensor)
         elif sensor.is_color_sensor():
             color_sensors.append(sensor)
 
-    # Return all mock objects in a dictionary
+    # 在字典中返回所有 mock 对象
     return {
         "context": mock_context,
         "devices": [fake_device1, fake_device2],

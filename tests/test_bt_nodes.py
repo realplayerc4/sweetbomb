@@ -1,4 +1,13 @@
-"""Unit tests for behavior tree nodes."""
+"""
+行为树节点单元测试
+
+本模块测试行为树引擎的核心功能，包括：
+- 节点状态管理
+- 操作节点执行
+- 条件节点评估
+- 复合节点（序列、选择器、重复）
+- 节点路径跟踪
+"""
 
 import pytest
 import asyncio
@@ -16,7 +25,7 @@ from app.services.bt_nodes import (
 
 @pytest.fixture
 def mock_context():
-    """Create a mock node context."""
+    """创建 mock 节点上下文"""
     return NodeContext(
         robot_controller=None,
         navigation_service=None,
@@ -31,11 +40,11 @@ def mock_context():
 
 
 class TestActionNode:
-    """Test suite for ActionNode."""
+    """操作节点测试套件"""
 
     @pytest.mark.asyncio
     async def test_action_success(self, mock_context):
-        """Test action node returning success."""
+        """测试返回成功的操作节点"""
 
         async def success_action(ctx):
             return NodeStatus.SUCCESS
@@ -48,7 +57,7 @@ class TestActionNode:
 
     @pytest.mark.asyncio
     async def test_action_failure(self, mock_context):
-        """Test action node returning failure."""
+        """测试返回失败的操作节点"""
 
         async def failure_action(ctx):
             return NodeStatus.FAILURE
@@ -60,7 +69,7 @@ class TestActionNode:
 
     @pytest.mark.asyncio
     async def test_action_exception(self, mock_context):
-        """Test action node handling exception."""
+        """测试操作节点异常处理"""
 
         async def exception_action(ctx):
             raise ValueError("Test error")
@@ -72,11 +81,11 @@ class TestActionNode:
 
 
 class TestConditionNode:
-    """Test suite for ConditionNode."""
+    """条件节点测试套件"""
 
     @pytest.mark.asyncio
     async def test_condition_true(self, mock_context):
-        """Test condition node returning true."""
+        """测试返回 true 的条件节点"""
 
         def true_condition(ctx):
             return True
@@ -88,7 +97,7 @@ class TestConditionNode:
 
     @pytest.mark.asyncio
     async def test_condition_false(self, mock_context):
-        """Test condition node returning false."""
+        """测试返回 false 的条件节点"""
 
         def false_condition(ctx):
             return False
@@ -100,11 +109,15 @@ class TestConditionNode:
 
 
 class TestSequenceNode:
-    """Test suite for SequenceNode."""
+    """序列节点测试套件
+
+    序列节点按顺序执行所有子节点，
+    只有所有子节点都成功时才返回成功。
+    """
 
     @pytest.mark.asyncio
     async def test_sequence_all_success(self, mock_context):
-        """Test sequence node with all children succeeding."""
+        """测试所有子节点都成功的序列节点"""
 
         async def success_action(ctx):
             return NodeStatus.SUCCESS
@@ -120,7 +133,7 @@ class TestSequenceNode:
 
     @pytest.mark.asyncio
     async def test_sequence_one_failure(self, mock_context):
-        """Test sequence node with one child failing."""
+        """测试有一个子节点失败的序列节点"""
 
         async def make_action(i):
             async def action(ctx):
@@ -140,7 +153,7 @@ class TestSequenceNode:
 
     @pytest.mark.asyncio
     async def test_sequence_with_running(self, mock_context):
-        """Test sequence node with a running child."""
+        """测试有运行中子节点的序列节点"""
 
         call_count = {"count": 0}
 
@@ -161,11 +174,15 @@ class TestSequenceNode:
 
 
 class TestSelectorNode:
-    """Test suite for SelectorNode."""
+    """选择器节点测试套件
+
+    选择器节点依次执行子节点，
+    直到第一个子节点成功为止。
+    """
 
     @pytest.mark.asyncio
     async def test_selector_first_success(self, mock_context):
-        """Test selector node with first child succeeding."""
+        """测试第一个子节点成功的选择器节点"""
 
         async def success_action(ctx):
             return NodeStatus.SUCCESS
@@ -184,7 +201,7 @@ class TestSelectorNode:
 
     @pytest.mark.asyncio
     async def test_selector_all_failure(self, mock_context):
-        """Test selector node with all children failing."""
+        """测试所有子节点都失败的选择器节点"""
 
         async def failure_action(ctx):
             return NodeStatus.FAILURE
@@ -200,11 +217,14 @@ class TestSelectorNode:
 
 
 class TestRepeatNode:
-    """Test suite for RepeatNode."""
+    """重复节点测试套件
+
+    重复节点按指定次数重复执行子节点。
+    """
 
     @pytest.mark.asyncio
     async def test_repeat_with_limit(self, mock_context):
-        """Test repeat node with execution limit."""
+        """测试带有执行次数限制的重复节点"""
 
         async def success_action(ctx):
             return NodeStatus.SUCCESS
@@ -212,28 +232,28 @@ class TestRepeatNode:
         child = ActionNode("SuccessAction", success_action)
         node = RepeatNode("TestRepeat", child, max_count=3)
 
-        # First tick should return RUNNING
+        # 第一次 tick 应该返回 RUNNING
         status = await node.tick(mock_context)
         assert status == NodeStatus.RUNNING
         assert node._current_count == 1
 
-        # Second tick
+        # 第二次 tick
         status = await node.tick(mock_context)
         assert status == NodeStatus.RUNNING
         assert node._current_count == 2
 
-        # Third tick
+        # 第三次 tick
         status = await node.tick(mock_context)
         assert status == NodeStatus.RUNNING
         assert node._current_count == 3
 
-        # Fourth tick should return SUCCESS (limit reached)
+        # 第四次 tick 应该返回 SUCCESS（达到限制）
         status = await node.tick(mock_context)
         assert status == NodeStatus.SUCCESS
 
     @pytest.mark.asyncio
     async def test_repeat_with_child_failure(self, mock_context):
-        """Test repeat node with child failure."""
+        """测试子节点失败的重复节点"""
 
         async def failure_action(ctx):
             return NodeStatus.FAILURE
@@ -246,14 +266,14 @@ class TestRepeatNode:
 
     @pytest.mark.asyncio
     async def test_repeat_updates_context(self, mock_context):
-        """Test that repeat node updates context cycle count."""
+        """测试重复节点更新上下文周期计数"""
 
         async def success_action(ctx):
             ctx.current_cycle += 1
             return NodeStatus.SUCCESS
 
         child = ActionNode("SuccessAction", success_action)
-        node = RepeatNode("TestRepeat", child, max_count=2)
+            node = RepeatNode("TestRepeat", child, max_count=2)
 
         await node.tick(mock_context)
         await node.tick(mock_context)
@@ -261,7 +281,7 @@ class TestRepeatNode:
         assert mock_context.current_cycle == 2
 
     def test_repeat_reset(self, mock_context):
-        """Test repeat node reset."""
+        """测试重复节点重置"""
 
         async def success_action(ctx):
             return NodeStatus.SUCCESS
@@ -269,10 +289,10 @@ class TestRepeatNode:
         child = ActionNode("SuccessAction", success_action)
         node = RepeatNode("TestRepeat", child, max_count=3)
 
-        # Simulate some execution
+        # 模拟一些执行
         node._current_count = 2
 
-        # Reset
+        # 重置
         node.reset()
 
         assert node._current_count == 0
@@ -280,25 +300,25 @@ class TestRepeatNode:
 
 
 class TestNodePath:
-    """Test suite for node path tracking."""
+    """节点路径跟踪测试套件"""
 
     def test_node_path_without_parent(self):
-        """Test node path for root node."""
+        """测试根节点的节点路径"""
         node = ActionNode("Root", lambda ctx: asyncio.sleep(0) or NodeStatus.SUCCESS)
         assert node.get_path() == "Root"
 
     def test_node_path_with_parent(self):
-        """Test node path for child node."""
+        """测试子节点的节点路径"""
         parent = SequenceNode("Parent", [])
         child = ActionNode("Child", lambda ctx: asyncio.sleep(0) or NodeStatus.SUCCESS)
 
-        # Manually set parent (normally done in SequenceNode.__init__)
+        # 手动设置父节点（通常在 SequenceNode.__init__ 中完成）
         child._parent = parent
 
         assert child.get_path() == "Parent/Child"
 
     def test_nested_node_path(self):
-        """Test node path for nested nodes."""
+        """测试嵌套节点的节点路径"""
         root = SequenceNode("Root", [])
         parent = SequenceNode("Parent", [])
         child = ActionNode("Child", lambda ctx: asyncio.sleep(0) or NodeStatus.SUCCESS)

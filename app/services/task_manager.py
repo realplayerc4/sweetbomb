@@ -1,4 +1,8 @@
-"""Task manager for lifecycle management of tasks."""
+"""任务生命周期管理器。
+
+负责任务的创建、启动、暂停、恢复、停止和查询。
+支持最多 4 个并发任务，通过 Socket.IO 广播任务事件，追踪任务进度。
+"""
 
 import asyncio
 import uuid
@@ -26,30 +30,37 @@ from app.services.tasks.registry import TaskRegistry
 logger = logging.getLogger(__name__)
 
 
-# Maximum concurrent running tasks
+# 最大并发运行任务数
 MAX_CONCURRENT_TASKS = 4
 
 
 class TaskManager:
     """
-    Singleton manager for task lifecycle.
+    任务管理器（单例模式）。
 
-    Features:
-    - Create, start, pause, resume, stop tasks
-    - Concurrent task execution (max 4 tasks)
-    - Socket.IO event broadcasting
-    - Progress tracking
+    功能：
+    - 创建、启动、暂停、恢复、停止任务
+    - 并发任务执行（最多 4 个任务）
+    - Socket.IO 事件广播
+    - 进度追踪
     """
 
     _instance: Optional["TaskManager"] = None
 
     def __new__(cls, sio: Optional[socketio.AsyncServer] = None, rs_manager=None) -> "TaskManager":
+        """单例模式。"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self, sio: Optional[socketio.AsyncServer] = None, rs_manager=None):
+        """初始化任务管理器。
+
+        Args:
+            sio: Socket.IO 服务器实例
+            rs_manager: RealSense 管理器实例
+        """
         if self._initialized:
             if sio is not None:
                 self._sio = sio
@@ -59,9 +70,9 @@ class TaskManager:
 
         self._sio = sio
         self._rs_manager = rs_manager
-        self._tasks: Dict[str, TaskInfo] = {}
-        self._task_instances: Dict[str, BaseTask] = {}
-        self._running_tasks: Dict[str, asyncio.Task] = {}
+        self._tasks: Dict[str, TaskInfo] = {}  # task_id -> TaskInfo
+        self._task_instances: Dict[str, BaseTask] = {}  # task_id -> BaseTask
+        self._running_tasks: Dict[str, asyncio.Task] = {}  # task_id -> asyncio.Task
         self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
         self._registry = TaskRegistry.get_instance()
         self._executor = ThreadPoolExecutor(max_workers=2)
@@ -71,17 +82,22 @@ class TaskManager:
 
     @classmethod
     def get_instance(cls, sio: Optional[socketio.AsyncServer] = None, rs_manager=None) -> "TaskManager":
-        """Get the singleton TaskManager instance."""
+        """获取单例实例。"""
         return cls(sio, rs_manager)
 
     def set_socketio(self, sio: socketio.AsyncServer):
-        """Set the Socket.IO server instance."""
+        """设置 Socket.IO 服务器实例。"""
         self._sio = sio
 
-    # --- Socket.IO Event Broadcasting ---
+    # --- Socket.IO 事件广播 ---
 
     async def _emit_event(self, event_type: str, task_info: TaskInfo):
-        """Emit a task event via Socket.IO."""
+        """通过 Socket.IO 发送任务事件。
+
+        Args:
+            event_type: 事件类型（created、started、paused、resumed、stopped、completed、failed）
+            task_info: 任务信息
+        """
         if self._sio is None:
             return
 
@@ -99,33 +115,33 @@ class TaskManager:
         except Exception as e:
             logger.error(f"Failed to emit event: {e}")
 
-    # --- Task Creation ---
+    # --- 任务创建 ---
 
     def create_task(self, request: TaskCreateRequest) -> TaskInfo:
         """
-        Create a new task.
+        创建新任务。
 
         Args:
-            request: Task creation request
+            request: 任务创建请求
 
         Returns:
-            TaskInfo for the created task
+            TaskInfo: 创建的任务信息
 
         Raises:
-            ValueError: If task type is not registered or validation fails
+            ValueError: 任务类型未注册或验证失败
         """
         task_class = self._registry.get(request.task_type)
         if task_class is None:
             raise ValueError(f"Unknown task type: {request.task_type}")
 
-        # Check device requirement
+        # 检查设备依赖
         if task_class.requires_device and not request.device_id:
             raise ValueError(f"Task type '{request.task_type}' requires a device_id")
 
-        # Generate task ID
+        # 生成任务 ID
         task_id = str(uuid.uuid4())
 
-        # Merge config
+        # 合并配置
         config = request.config or TaskConfig(
             device_id=request.device_id,
             params=request.params
@@ -133,7 +149,7 @@ class TaskManager:
         if request.device_id:
             config.device_id = request.device_id
 
-        # Create task info
+        # 创建任务信息
         task_info = TaskInfo(
             task_id=task_id,
             task_type=request.task_type,
@@ -144,39 +160,39 @@ class TaskManager:
             created_at=datetime.now(),
         )
 
-        # Create task instance
+        # 创建任务实例
         task_instance = task_class(
             task_id=task_id,
             config=config,
             params=request.params,
             device_id=request.device_id
         )
-        
-        # Inject hardware dependencies if instance supports it
+
+        # 注入硬件依赖（如果实例支持）
         if hasattr(task_instance, "rs_manager"):
             task_instance.rs_manager = self._rs_manager
 
-        # Store task
+        # 存储任务
         self._tasks[task_id] = task_info
         self._task_instances[task_id] = task_instance
 
         logger.info(f"Created task {task_id} of type {request.task_type}")
         return task_info
 
-    # --- Task Control ---
+    # --- 任务控制 ---
 
     async def start_task(self, task_id: str) -> TaskInfo:
         """
-        Start a pending task.
+        启动待命任务。
 
         Args:
-            task_id: The task ID to start
+            task_id: 要启动的任务 ID
 
         Returns:
-            Updated TaskInfo
+            TaskInfo: 更新后的任务信息
 
         Raises:
-            ValueError: If task not found or not in PENDING status
+            ValueError: 任务不存在或不在 PENDING 状态
         """
         if task_id not in self._tasks:
             raise ValueError(f"Task not found: {task_id}")
@@ -187,7 +203,7 @@ class TaskManager:
 
         task_instance = self._task_instances[task_id]
 
-        # Set up callbacks
+        # 设置回调函数
         def on_progress(progress: TaskProgress):
             task_info.progress = progress
 
@@ -196,7 +212,7 @@ class TaskManager:
 
         task_instance.set_callbacks(on_progress, on_status_change)
 
-        # Start async execution
+        # 启动异步执行
         async def run_with_semaphore():
             async with self._semaphore:
                 task_info.started_at = datetime.now()
@@ -224,20 +240,20 @@ class TaskManager:
                 finally:
                     self._running_tasks.pop(task_id, None)
 
-        # Create and store the task
+        # 创建并存储异步任务
         async_task = asyncio.create_task(run_with_semaphore())
         self._running_tasks[task_id] = async_task
 
         return task_info
 
     async def pause_task(self, task_id: str) -> TaskInfo:
-        """Pause a running task."""
+        """暂停运行中的任务。"""
         if task_id not in self._tasks:
             raise ValueError(f"Task not found: {task_id}")
 
         task_info = self._tasks[task_id]
         if task_info.status != TaskStatus.RUNNING:
-            raise ValueError(f"Task must be RUNNING to pause. Current: {task_info.status}")
+            raise ValueError(f"TaskTask must be RUNNING to pause. Current: {task_info.status}")
 
         task_instance = self._task_instances[task_id]
         task_instance.pause()
@@ -247,7 +263,7 @@ class TaskManager:
         return task_info
 
     async def resume_task(self, task_id: str) -> TaskInfo:
-        """Resume a paused task."""
+        """恢复暂停的任务。"""
         if task_id not in self._tasks:
             raise ValueError(f"Task not found: {task_id}")
 
@@ -263,7 +279,7 @@ class TaskManager:
         return task_info
 
     async def stop_task(self, task_id: str) -> TaskInfo:
-        """Stop a running or paused task."""
+        """停止运行中或暂停的任务。"""
         if task_id not in self._tasks:
             raise ValueError(f"Task not found: {task_id}")
 
@@ -276,7 +292,7 @@ class TaskManager:
         task_info.status = TaskStatus.STOPPED
         task_info.completed_at = datetime.now()
 
-        # Cancel the async task if it exists
+        # 取消异步任务（如果存在）
         if task_id in self._running_tasks:
             self._running_tasks[task_id].cancel()
             del self._running_tasks[task_id]
@@ -285,7 +301,7 @@ class TaskManager:
         return task_info
 
     def delete_task(self, task_id: str) -> bool:
-        """Delete a task (only if not running)."""
+        """删除任务（仅非运行中任务）。"""
         if task_id not in self._tasks:
             raise ValueError(f"Task not found: {task_id}")
 
@@ -300,10 +316,10 @@ class TaskManager:
         logger.info(f"Deleted task {task_id}")
         return True
 
-    # --- Task Queries ---
+    # --- 任务查询 ---
 
     def get_task(self, task_id: str) -> Optional[TaskInfo]:
-        """Get task info by ID."""
+        """根据 ID 获取任务信息。"""
         return self._tasks.get(task_id)
 
     def list_tasks(
@@ -312,10 +328,10 @@ class TaskManager:
         device_id: Optional[str] = None,
         task_type: Optional[str] = None
     ) -> TaskListResponse:
-        """List tasks with optional filtering."""
+        """列查任务，支持可选过滤。"""
         tasks = list(self._tasks.values())
 
-        # Apply filters
+        # 应用过滤器
         if status:
             tasks = [t for t in tasks if t.status == status]
         if device_id:
@@ -334,20 +350,20 @@ class TaskManager:
         )
 
     def get_running_count(self) -> int:
-        """Get count of currently running tasks."""
+        """获取当前运行中的任务数量。"""
         return sum(1 for t in self._tasks.values() if t.status == TaskStatus.RUNNING)
 
     def can_start_more_tasks(self) -> bool:
-        """Check if more tasks can be started."""
+        """检查是否可以启动更多任务。"""
         return self.get_running_count() < MAX_CONCURRENT_TASKS
 
-    # --- Cleanup ---
+    # --- 清理 ---
 
     async def shutdown(self):
-        """Stop all running tasks and cleanup."""
+        """停止所有运行中的任务并清理资源。"""
         logger.info("Shutting down TaskManager...")
 
-        # Stop all running tasks
+        # 停止所有运行中的任务
         for task_id, task_info in list(self._tasks.items()):
             if task_info.status in [TaskStatus.RUNNING, TaskStatus.PAUSED]:
                 try:
@@ -355,7 +371,7 @@ class TaskManager:
                 except Exception as e:
                     logger.error(f"Failed to stop task {task_id}: {e}")
 
-        # Cancel all async tasks
+        # 取消所有异步任务
         for async_task in self._running_tasks.values():
             async_task.cancel()
 

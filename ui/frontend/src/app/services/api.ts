@@ -1,3 +1,7 @@
+/**
+ * RealSense 设备 API 服务
+ * 提供设备管理、流控制和 WebRTC 相关的 API 调用
+ */
 
 import { API_BASE } from '../config';
 
@@ -22,12 +26,14 @@ export interface StreamRequest {
 }
 
 export const api = {
+    /** 获取所有设备列表 */
     async getDevices(): Promise<DeviceInfo[]> {
         const res = await fetch(`${API_BASE}/devices/`);
         if (!res.ok) throw new Error('Failed to fetch devices');
         return res.json();
     },
 
+    /** 启动设备流 */
     async startStream(deviceId: string, config: StreamRequest): Promise<void> {
         const res = await fetch(`${API_BASE}/devices/${deviceId}/stream/start/`, {
             method: 'POST',
@@ -37,6 +43,7 @@ export const api = {
         if (!res.ok) throw new Error('Failed to start stream');
     },
 
+    /** 停止设备流 */
     async stopStream(deviceId: string): Promise<void> {
         const res = await fetch(`${API_BASE}/devices/${deviceId}/stream/stop/`, {
             method: 'POST',
@@ -44,6 +51,7 @@ export const api = {
         if (!res.ok) throw new Error('Failed to stop stream');
     },
 
+    /** 创建 WebRTC offer */
     async getWebRTCOffer(deviceId: string, streamTypes: string[]): Promise<any> {
         const res = await fetch(`${API_BASE}/webrtc/offer/`, {
             method: 'POST',
@@ -54,6 +62,7 @@ export const api = {
         return res.json();
     },
 
+    /** 发送 ICE 候选 */
     async sendIceCandidate(sessionId: string, candidate: RTCIceCandidate): Promise<void> {
         await fetch(`${API_BASE}/webrtc/ice-candidates/`, {
             method: 'POST',
@@ -67,6 +76,7 @@ export const api = {
         });
     },
 
+    /** 发送 WebRTC answer */
     async sendAnswer(sessionId: string, answer: RTCSessionDescriptionInit): Promise<void> {
         await fetch(`${API_BASE}/webrtc/answer/`, {
             method: 'POST',
@@ -79,22 +89,25 @@ export const api = {
         });
     },
 
+    /** 获取 ICE 候选列表 */
     async getIceCandidates(sessionId: string): Promise<RTCIceCandidateInit[]> {
         const res = await fetch(`${API_BASE}/webrtc/sessions/${sessionId}/ice-candidates/`);
         if (!res.ok) throw new Error('Failed to get ICE candidates');
         return res.json();
     },
 
+    /** 激活点云 */
     async activatePointCloud(deviceId: string): Promise<void> {
         const res = await fetch(`${API_BASE}/devices/${deviceId}/point_cloud/activate/`, {
-            method: 'POST'
+            method: 'POST',
         });
         if (!res.ok) throw new Error('Failed to activate point cloud');
     },
 
+    /** 关闭点云 */
     async deactivatePointCloud(deviceId: string): Promise<void> {
         const res = await fetch(`${API_BASE}/devices/${deviceId}/point_cloud/deactivate/`, {
-            method: 'POST'
+            method: 'POST',
         });
         if (!res.ok) throw new Error('Failed to deactivate point cloud');
     }
