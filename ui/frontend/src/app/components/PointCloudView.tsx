@@ -78,51 +78,7 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
   // Generate test point cloud data when no device is connected (for debugging)
   // TEMPORARILY DISABLED to see real data state
   const displayPoints = useMemo(() => {
-    // Always use real data - disable test mode
     return points;
-
-    /*
-    // Test mode code (disabled)
-    if (points && points.length > 0) {
-      return points;  // Use real data if available
-    }
-
-    // Generate test pattern when active but no data
-    if (isActive && (!points || points.length === 0)) {
-      console.log('[PointCloud] Generating test point cloud...');
-      const testPoints: number[] = [];
-
-      // Create a spiral pattern with varying height
-      const numRings = 8;
-      const pointsPerRing = 32;
-      for (let ring = 0; ring < numRings; ring++) {
-        const radius = (ring + 1) * 0.3;
-        const z = ring * 0.15;
-        for (let i = 0; i < pointsPerRing; i++) {
-          const angle = (i / pointsPerRing) * Math.PI * 2;
-          testPoints.push(
-            Math.cos(angle) * radius,  // x
-            Math.sin(angle) * radius,  // y
-            z + Math.sin(angle * 3) * 0.1  // z with some variation
-          );
-        }
-      }
-
-      // Add some random scattered points
-      for (let i = 0; i < 200; i++) {
-        testPoints.push(
-          (Math.random() - 0.5) * 4,  // x
-          (Math.random() - 0.5) * 4,  // y
-          Math.random() * 1.5         // z (height)
-        );
-      }
-
-      console.log(`[PointCloud] Generated ${testPoints.length / 3} test points`);
-      return new Float32Array(testPoints);
-    }
-
-    return points;
-    */
   }, [points]);
 
   // Auto-calculate bounds from point cloud
@@ -154,11 +110,12 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
     };
   }, [displayPoints]);
 
-  // Debug logging - simplified
+  // Debug logging
   useEffect(() => {
-    const isTestMode = isActive && (!points || points.length === 0) && displayPoints && displayPoints.length > 0;
-    console.log('[PointCloud]', isTestMode ? 'TEST MODE' : 'REAL DATA', '-', filteredPointCount, 'points rendered');
-  }, [isActive, points, displayPoints, filteredPointCount]);
+    if (filteredPointCount > 0) {
+      console.log('[PointCloud]', filteredPointCount, 'points rendered');
+    }
+  }, [filteredPointCount]);
 
   // Auto-focus camera on point cloud center (runs once)
   const autoFocusDoneRef = useRef(false);
@@ -392,6 +349,14 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
       containerRef.current?.removeEventListener('wheel', onWheel);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('mousemove', onMouseMove);
+      if (pointsRef.current) {
+        if (pointCloudGroupRef.current) {
+          pointCloudGroupRef.current.remove(pointsRef.current);
+        }
+        if (pointsRef.current.geometry) pointsRef.current.geometry.dispose();
+        if (pointsRef.current.material) (pointsRef.current.material as THREE.Material).dispose();
+        pointsRef.current = null;
+      }
       pointCloudGroupRef.current = null;  // Clear ref on cleanup
     };
   }, []);
@@ -421,8 +386,8 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
       const rosZ = displayPoints[i + 2];
 
       if (rosX >= minX && rosX <= maxX &&
-          rosY >= minY && rosY <= maxY &&
-          rosZ >= minZ && rosZ <= maxZ) {
+        rosY >= minY && rosY <= maxY &&
+        rosZ >= minZ && rosZ <= maxZ) {
         filteredPositions.push(rosX, rosY, rosZ);
       }
     }
@@ -454,6 +419,7 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
 
         pointsObj = new THREE.Points(geometry, material);
         pointsObj.frustumCulled = false;
+        geometry.computeBoundingSphere();
         pointCloudGroup.add(pointsObj);
         pointsRef.current = pointsObj;
       } else {
@@ -461,6 +427,7 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
         const geometry = pointsObj.geometry;
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(filteredPositions), 3));
         geometry.attributes.position.needsUpdate = true;
+        geometry.computeBoundingSphere();
 
         // Update material if particle size changed
         if ('size' in pointsObj.material) {
@@ -499,11 +466,10 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
           <div className="text-[8px] text-[#FD802E] font-bold font-mono">ROS 范围 (米)</div>
           <button
             onClick={() => setAutoRange(!autoRange)}
-            className={`text-[7px] px-1.5 py-0.5 rounded font-mono transition-colors ${
-              autoRange
-                ? 'bg-[#FD802E] text-black'
-                : 'bg-slate-700 text-slate-300'
-            }`}
+            className={`text-[7px] px-1.5 py-0.5 rounded font-mono transition-colors ${autoRange
+              ? 'bg-[#FD802E] text-black'
+              : 'bg-slate-700 text-slate-300'
+              }`}
           >
             {autoRange ? '自动' : '手动'}
           </button>

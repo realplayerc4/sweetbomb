@@ -103,6 +103,8 @@ class StreamController:
                 self.metadata_queues[device_id] = {
                     stream_key: [] for stream_key in active_streams
                 }
+                # 初始化点云启用状态 - 必须在锁内完成
+                self.is_pointcloud_enabled[device_id] = False
 
             # 启动帧采集守护线程
             threading.Thread(
@@ -433,15 +435,15 @@ class StreamController:
                     }
 
                 # 点云计算
-                if stype.lower() == "depth" and self.is_pointcloud_enabled.get(
-                    device_id, False
-                ):
+                pc_enabled = self.is_pointcloud_enabled.get(device_id, False)
+                if stype.lower() == "depth" and pc_enabled:
                     import time
                     now = time.time()
                     if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
                         self._last_pc_calc_time[device_id] = now
                         fd = raw_frames.get(stream_type, {}).get("frame_data")
                         if fd:
+                            print(f"[PointCloudCalc] Calculating point cloud for {device_id}...")
                             pts = self.pc.calculate(fd)
                             v = pts.get_vertices()
                             verts = (
@@ -450,14 +452,21 @@ class StreamController:
                                 .reshape(-1, 3)
                                 .copy()
                             )
+                            print(f"[PointCloudCalc] Raw vertices count: {len(verts) // 3}")
 
                             # 使用统一的坐标转换模块（转换为 ROS 坐标系）
                             verts = transform_realsense_to_robot(verts)
+                            print(f"[PointCloudCalc] Transformed vertices count: {len(verts) // 3}")
 
                             raw_frames[stream_type]["point_cloud"] = {
                                 "vertices": verts,
                                 "texture_coordinates": [],
                             }
+                        else:
+                            print(f"[PointCloudCalc] No frame data available for {device_id}")
+                else:
+                    if stype.lower() == "depth" and False: # Debug only
+                        print(f"[PointCloudCalc] Depth stream processing but point cloud DISABLED (pc_enabled={pc_enabled})")
             except RuntimeError:
                 pass
 
