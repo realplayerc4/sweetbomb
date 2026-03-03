@@ -18,15 +18,17 @@ from app.services.bt_nodes import (
 )
 from app.services.bt_action_nodes import (
     create_navigate_to_sugar_node,
+    create_check_shovel_flat_node,
     create_analyze_sugar_node,
     create_check_sugar_height_node,
-    create_switch_to_push_mode_node,
-    create_move_forward_to_scoop_node,
-    create_reverse_to_nav_point_node,
     create_navigate_to_dump_node,
     create_dump_action_node,
     create_check_cycle_limit_node,
+    create_return_to_home_node,
 )
+from app.services.bt_calculate_distance_node import create_calculate_approach_distance_node
+from app.services.bt_scoop_action import create_scoop_and_return_node
+from app.services.bt_dump_action import create_dump_and_return_node
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +126,9 @@ class BehaviorTreeEngine:
         harvest_sequence = SequenceNode(
             "HarvestSequence",
             children=[
-                create_move_forward_to_scoop_node(),
-                create_reverse_to_nav_point_node(),
-                create_navigate_to_dump_node(),
-                create_dump_action_node(),
+                create_calculate_approach_distance_node(),  # 计算前进距离
+                create_scoop_and_return_node(),  # 连贯动作：前进 → 翻转铲子 → 倒退
+                create_dump_and_return_node(),  # 连贯动作：导航A点→举升→导航B点→倾倒→倒退→归零
             ],
         )
 
@@ -139,6 +140,7 @@ class BehaviorTreeEngine:
                 "FullHarvestCycle",
                 children=[
                     create_navigate_to_sugar_node(),
+                    create_check_shovel_flat_node(),
                     create_analyze_sugar_node(),
                     # 条件检查：高度是否足够
                     SelectorNode(
@@ -151,8 +153,8 @@ class BehaviorTreeEngine:
                                     harvest_sequence,
                                 ],
                             ),
-                            # 高度不足 -> 切换推垛模式（终止循环）
-                            create_switch_to_push_mode_node(),
+                            # 高度不足 -> 回桩（返回充电桩）
+                            create_return_to_home_node(),
                         ],
                     ),
                 ],

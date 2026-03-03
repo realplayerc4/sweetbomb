@@ -291,7 +291,96 @@ class MyTask(BaseTask):
             └─────────────┘
 ```
 
+## 6. 行为树节点知识
+
+### 6.1 节点类型速查
+
+| 节点类型 | 语义 | 成功条件 | 失败条件 |
+|----------|------|----------|----------|
+| **Sequence** | 顺序执行 | 所有子节点成功 | 任一子节点失败 |
+| **Selector** | 选择执行 | 任一子节点成功 | 所有子节点失败 |
+| **Repeat** | 重复执行 | 达到重复次数 | 子节点返回 FAILURE |
+| **Action** | 执行动作 | 动作成功完成 | 动作执行失败 |
+| **Condition** | 检查条件 | 条件为真 | 条件为假 |
+
+### 6.2 铲糖动作节点详解
+
+#### CalculateApproachDistance
+
+```python
+# 职责：计算前进铲糖的精确距离
+# 输入：distance_analysis (黑板)
+# 输出：approach_distance (黑板)
+# 公式：move_distance = analysis.distance_m - approach_offset
+
+create_calculate_approach_distance_node()
+```
+
+**关键参数：**
+- `approach_offset_m`: 安全偏移量，默认 0.05m (5cm)
+- 如果计算结果为负，使用默认值 0.1m
+
+#### ScoopAndReturn
+
+```python
+# 职责：连贯执行铲糖动作序列
+# 动作序列：前进 → 翻转铲子 → 倒退
+
+create_scoop_and_return_node()
+```
+
+**动作分解：**
+
+| 步骤 | 动作 | 说明 |
+|------|------|------|
+| 1 | 前进 | 根据 `approach_distance` 前进到糖堆 |
+| 2 | 翻转 | 举升铲斗到 `scoop_position` (默认 90°) |
+| 3 | 倒退 | 直接控制机器人倒退回原位（非导航） |
+
+**倒退距离计算：**
+- 优先使用 `nav_point_position` 与当前位置的 X 轴差值
+- 如果未记录导航点，使用默认 0.5m
+- 倒退速度：0.3 m/s
+
+#### ReturnToHome
+
+```python
+# 职责：当糖堆高度不足时，导航回充电桩
+
+create_return_to_home_node()
+```
+
+**触发条件：**
+- 糖堆高度 < 阈值 (默认 20cm)
+- 行为树路径 B 执行
+
+### 6.3 黑板数据规范
+
+```yaml
+NodeContext.blackboard:
+  # 导航相关
+  nav_point_position: [float, float, float]  # 取糖点位置
+
+  # 分析结果
+  distance_analysis: DistanceAnalysisResult    # 距离分析结果
+
+  # 计算结果
+  approach_distance: float                      # 前进距离(米)
+
+  # 废弃字段
+  # switch_to_push_mode: bool                  # 已废弃，现为回桩
+```
+
+### 6.4 常见调试问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| "缺少前进距离" | CalculateApproachDistance 未执行或失败 | 检查 distance_analysis 是否存在 |
+| "未记录导航点位置" | NavigateToSugarPoint 未记录 | 检查 nav_point_position 黑板数据 |
+| 倒退距离为负 | 当前位置 X 轴小于导航点 | 使用默认 0.5m 或检查坐标系 |
+| 铲斗未举升 | 伺服电机超时 | 检查机器人状态，增加等待时间 |
+
 ---
 
-*知识库版本: v1.0*
-*最后更新: 2025-02-24*
+*知识库版本: v1.1*
+*最后更新: 2026-03-03*

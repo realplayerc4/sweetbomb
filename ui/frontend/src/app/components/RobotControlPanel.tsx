@@ -244,7 +244,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     className="w-[160px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/20 text-[#FD802E] border border-[#FD802E]/40 rounded-2xl hover:bg-red-500 hover:text-white transition-all font-black shadow-2xl shadow-[#FD802E]/20 ring-1 ring-[#FD802E]/20"
                 >
                     <AlertOctagon className="w-6 h-6" />
-                    <span className="text-[12px] tracking-[0.3em]">紧急停止</span>
+                    <span className="text-[14px] tracking-[0.3em]">停止</span>
                 </Button>
 
                 {/* 4. Dock */}

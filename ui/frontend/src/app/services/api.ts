@@ -53,7 +53,7 @@ export const api = {
 
     /** 创建 WebRTC offer */
     async getWebRTCOffer(deviceId: string, streamTypes: string[]): Promise<any> {
-        const res = await fetch(`${API_BASE}/webrtc/offer/`, {
+        const res = await fetch(`${API_BASE}/webrtc/offer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_id: deviceId, stream_types: streamTypes }),
@@ -64,7 +64,7 @@ export const api = {
 
     /** 发送 ICE 候选 */
     async sendIceCandidate(sessionId: string, candidate: RTCIceCandidate): Promise<void> {
-        await fetch(`${API_BASE}/webrtc/ice-candidates/`, {
+        await fetch(`${API_BASE}/webrtc/ice-candidates`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

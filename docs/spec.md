@@ -198,5 +198,168 @@ class BaseTask(ABC):
 
 ---
 
-*规范版本: v1.0*
-*最后更新: 2025-02-24*
+## 7. 行为树铲糖流程规范
+
+### 7.1 行为树结构
+
+```
+RepeatNode (SugarHarvestMainLoop)
+└── SequenceNode (FullHarvestCycle)
+    ├── NavigateToSugarPoint       [导航到取糖点]
+    ├── CheckShovelFlat            [检查车铲是否放平]
+    ├── AnalyzeSugarDistance       [分析糖堆距离和高度]
+    └── SelectorNode (HeightCheck)
+        ├── 路径 A: 高度足够 → SequenceNode
+        │   ├── CalculateApproachDistance  [计算前进距离]
+        │   ├── ScoopAndReturn           [连贯动作：前进→翻转→倒退]
+        │   ├── NavigateToDumpPoint      [导航到卸载点]
+        │   └── DumpAction               [翻斗卸载]
+        └── 路径 B: 高度不足 → ReturnToHome [回桩]
+```
+
+#### 核心设计思想
+
+| 设计要点 | 说明 |
+|----------|------|
+| **条件分支** | 使用 SelectorNode 实现"如果高度足够则铲糖，否则回桩"的决策逻辑 |
+| **动作封装** | 将"前进→翻转→倒退"三个机械动作封装为 ScoopAndReturn 单一节点，保证原子性 |
+| **距离预计算** | 前进距离在 ScoopAndReturn 之前独立计算，便于日志记录和参数调整 |
+| **失败处理** | 路径 B 直接回桩，避免机器人在低糖堆区域空转 |
+
+### 7.2 动作节点规范
+
+#### CalculateApproachDistance
+
+| 属性 | 值 |
+|------|-----|
+| **职责** | 根据糖堆分析结果计算前进铲糖的距离 |
+| **输入** | `distance_analysis` (黑板) |
+| **输出** | `approach_distance` (黑板) |
+| **参数** | `approach_offset_m` (默认 0.05m) |
+| **计算** | `move_distance = distance_m - approach_offset` |
+
+#### ScoopAndReturn
+
+| 属性 | 值 |
+|------|-----|
+| **职责** | 连贯执行铲糖动作：前进 → 翻转铲子 → 倒退 |
+| **输入** | `approach_distance`, `nav_point_position` (黑板) |
+| **第1步** | 前进：根据 `approach_distance` 前进到糖堆 |
+| **第2步** | 翻转：举升铲斗到 `scoop_position` (默认 90°) |
+| **第3步** | 倒退：直接倒退回原位（非导航） |
+
+#### ReturnToHome
+
+| 属性 | 值 |
+|------|-----|
+| **职责** | 当糖堆高度不足时，导航回充电桩 |
+| **参数** | `home_point` (任务参数) |
+| **行为** | 导航到充电桩位置并广播事件 |
+
+#### DumpAndReturn
+
+| 属性 | 值 |
+|------|-----|
+| **职责** | 连贯执行卸载动作：导航A点→举升→导航B点→【按钮确认】→倾倒→倒退→归零 |
+| **输入** | `dump_point_a`, `dump_point_b` (任务参数) |
+| **参数** | `lift_height` (默认 90.0°), `dump_angle` (默认 135.0°) |
+| **第1步** | 导航到卸载A点（等待位置） |
+| **第2步** | 举升铲齿到 `lift_height` |
+| **第3步** | 导航到卸载B点（倾倒位置） |
+| **第4步** | 【按钮确认】翻转倾倒电机到 `dump_angle` 进行卸料 |
+| **第5步** | 倒退（直接倒车）回到A点 |
+| **第6步** | 倾倒电机归零，举升电机归零 |
+| **安全机制** | 倾倒前需按钮确认，防止误触导致物料倾洒 |
+
+### 7.3 前端配置参数
+
+#### SugarHarvestConfig 接口
+
+```typescript
+interface SugarHarvestConfig {
+  // 导航点
+  navigation_point: [number, number];  // [x, y] 取糖点坐标
+
+  // 卸载点（废弃，保留向后兼容）
+  dump_point?: [number, number];       // [x, y] 卸载点坐标
+
+  // 卸载A点和B点（新增）
+  dump_point_a: [number, number];      // [x, y] 卸载A点（等待位置）
+  dump_point_b: [number, number];      // [x, y] 卸载B点（倾倒位置）
+
+  // 机械参数
+  bucket_width_m: number;             // 铲斗宽度（米）
+  approach_offset_m: number;            // 接近偏移量（米）
+
+  // 伺服角度
+  scoop_position: number;               // 铲取角度（度）
+  dump_position: number;                // 倾倒角度（度）
+  lift_height?: number;                 // 举升高度（度，默认90）
+
+  // 循环控制
+  max_cycles: number;                   // 最大循环次数
+  height_threshold_m: number;           // 推垛模式切换高度（米）
+}
+```
+
+### 7.4 黑板数据流
+
+```yaml
+NodeContext.blackboard:
+├── nav_point_position       (NavigateToSugarPoint 记录，ScoopAndReturn 使用)
+├── distance_analysis        (AnalyzeSugarDistance 记录)
+├── approach_distance        (CalculateApproachDistance 记录，ScoopAndReturn 使用)
+└── switch_to_push_mode      (废弃，现为回桩)
+```
+
+#### 节点数据依赖图
+
+```
+NavigateToSugarPoint
+│   └── 输出: nav_point_position ──────────────┐
+│                                               ▼
+AnalyzeSugarDistance                            ScoopAndReturn
+│   └── 输出: distance_analysis ────┐          (使用: nav_point_position,
+│                                    ▼           approach_distance)
+CalculateApproachDistance                          │
+│   └── 输出: approach_distance ─────┘           ▼
+│                                          DumpAndReturn
+│                                          (使用: dump_point_a/b 参数)
+```
+
+### 7.5 安全机制与按钮确认
+
+#### 倾倒动作按钮确认流程
+
+```
+DumpAndReturn 节点执行到第4步时：
+│
+├─→ 发送 Socket.IO 事件 "bt_waiting_for_button"
+│   Payload: { action: "dump_confirm", timeout: 30 }
+│
+├─→ 前端显示按钮确认弹窗
+│   "请确认倾倒操作 - 翻转电机到 135°"
+│   [确认] [取消]
+│
+├─→ 等待用户点击确认按钮
+│   超时时间：30秒
+│
+├─→ 收到确认后执行倾倒动作
+│   未收到确认则返回 FAILURE
+│
+└─→ 继续执行第5步（倒退）
+```
+
+#### 安全规则
+
+| 规则 | 说明 |
+|------|------|
+| **物料保护** | 铲糖/卸载过程中，翻转电机操作前必须按钮确认 |
+| **位置保护** | 只有到达A点后才能举升，到达B点后才能倾倒 |
+| **倒退安全** | 倾倒完成后必须倒退回A点（直接倒车，非导航） |
+| **归零保护** | 回到A点后才能归零电机，防止空中归零导致物料掉落 |
+
+---
+
+*规范版本: v1.1*
+*最后更新: 2026-03-03*

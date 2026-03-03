@@ -2,6 +2,7 @@
 
 定义铲糖自主循环所需的具体动作节点：
 - 导航到取糖点
+- 检查车铲是否放平
 - 分析糖堆距离和高度
 - 检查糖堆高度
 - 前进铲糖
@@ -9,8 +10,10 @@
 - 导航到卸载点
 - 翻斗卸载
 - 检查循环次数
+- 回桩（失败时返回充电桩）
 """
 
+import asyncio
 import logging
 from typing import Tuple
 
@@ -57,6 +60,40 @@ def create_navigate_to_sugar_node() -> ActionNode:
             return NodeStatus.FAILURE
 
     return ActionNode("NavigateToSugarPoint", navigate_action)
+
+
+def create_check_shovel_flat_node() -> ActionNode:
+    """创建检查车铲是否放平动作节点。"""
+
+    async def check_shovel_action(context: NodeContext) -> NodeStatus:
+        logger.info("开始检查车铲是否放平")
+        
+        # 轮询检查伺服电机状态，最多等待 15 秒
+        max_retries = 30
+        retry_delay = 0.5
+        
+        for _ in range(max_retries):
+            status = await context.robot_controller.get_status_async() if hasattr(context.robot_controller, 'get_status_async') else context.robot_controller.get_status()
+            
+            # 假定目标放平角度都为 0 (lift=0, dump=0)
+            lift_servo = status.servos.get("lift")
+            dump_servo = status.servos.get("dump")
+            
+            lift_angle = lift_servo.current_angle if lift_servo else 0.0
+            dump_angle = dump_servo.current_angle if dump_servo else 0.0
+            
+            # 容差范围 +/- 2度
+            if abs(lift_angle) <= 2.0 and abs(dump_angle) <= 2.0:
+                logger.info("车铲已确认放平，安全执行后续操作")
+                return NodeStatus.SUCCESS
+                
+            logger.info(f"等待车铲归位中... (当前 lift={lift_angle:.1f}, dump={dump_angle:.1f})")
+            await asyncio.sleep(retry_delay)
+            
+        logger.error("车铲未能及时归位(未放平)，中止系统运转避免危险")
+        return NodeStatus.FAILURE
+
+    return ActionNode("CheckShovelFlat", check_shovel_action)
 
 
 def create_analyze_sugar_node() -> ActionNode:
@@ -139,14 +176,17 @@ def create_switch_to_push_mode_node() -> ActionNode:
     return ActionNode("SwitchToPushMode", switch_action)
 
 
-def create_move_forward_to_scoop_node() -> ActionNode:
-    """创建前进铲糖动作节点。"""
+def create_calculate_approach_distance_node() -> ActionNode:
+    """创建计算前进距离动作节点。
 
-    async def scoop_action(context: NodeContext) -> NodeStatus:
+    根据糖堆分析结果计算前进铲糖的距离，并保存到 blackboard。
+    """
+
+    async def calculate_action(context: NodeContext) -> NodeStatus:
         # 获取距离分析结果
         analysis: DistanceAnalysisResult = context.blackboard.get("distance_analysis")
         if not analysis:
-            logger.error("缺少距离分析结果")
+            logger.error("缺少距离分析结果，无法计算前进距离")
             return NodeStatus.FAILURE
 
         # 计算前进距离（减去偏移量，避免撞到糖堆）
@@ -156,6 +196,29 @@ def create_move_forward_to_scoop_node() -> ActionNode:
         if move_distance <= 0:
             logger.warning(f"计算的前进距离非正: {move_distance:.3f}m，使用默认值 0.1m")
             move_distance = 0.1
+
+        # 保存计算结果到 blackboard
+        context.blackboard["approach_distance"] = move_distance
+
+        logger.info(f"计算前进距离完成: {move_distance:.3f}m (原始距离={analysis.distance_m:.3f}m, 偏移={approach_offset}m)")
+
+        return NodeStatus.SUCCESS
+
+    return ActionNode("CalculateApproachDistance", calculate_action)
+
+
+def create_move_forward_to_scoop_node() -> ActionNode:
+    """创建前进铲糖动作节点。
+
+    从 blackboard 读取已计算好的前进距离并执行移动。
+    """
+
+    async def scoop_action(context: NodeContext) -> NodeStatus:
+        # 从 blackboard 获取已计算好的前进距离
+        move_distance = context.blackboard.get("approach_distance")
+        if move_distance is None:
+            logger.error("缺少前进距离，请先执行 CalculateApproachDistance 节点")
+            return NodeStatus.FAILURE
 
         logger.info(f"前进铲糖: 距离={move_distance:.3f}m")
 
@@ -294,5 +357,46 @@ def create_check_cycle_limit_node() -> ConditionNode:
     return ConditionNode("CheckCycleLimit", check_condition)
 
 
-# 导入 asyncio
-import asyncio
+def create_return_to_home_node() -> ActionNode:
+    """创建回桩动作节点。
+
+    当行为树失败时，自动导航回充电桩/初始位置。
+    """
+    async def return_home_action(context: NodeContext) -> NodeStatus:
+        home_point = context.task_params.get("home_point")
+        if not home_point:
+            logger.warning("未配置 home_point，跳过回桩")
+            return NodeStatus.SUCCESS  # 即使没有配置也返回 SUCCESS，避免阻塞
+
+        target = NavigationTarget(
+            x=home_point[0],
+            y=home_point[1],
+            z=0.0,
+            name="充电桩"
+        )
+
+        logger.warning(f"行为树失败，开始回桩: {home_point}")
+
+        # 广播回桩事件
+        from app.services.socketio import sio
+        await sio.emit("bt_event", {
+            "event_type": "returning_to_home",
+            "timestamp": __import__("datetime").datetime.now().isoformat(),
+            "home_point": home_point,
+        })
+
+        result = await context.navigation_service.navigate_to(target)
+
+        if result.success:
+            logger.info("回桩成功，已返回充电桩")
+            await sio.emit("bt_event", {
+                "event_type": "returned_to_home",
+                "timestamp": __import__("datetime").datetime.now().isoformat(),
+            })
+            return NodeStatus.SUCCESS
+        else:
+            logger.error(f"回桩失败: {result.error or result.message}")
+            # 即使回桩失败也返回 SUCCESS，因为已经尽力了
+            return NodeStatus.SUCCESS
+
+    return ActionNode("ReturnToHome", return_home_action)

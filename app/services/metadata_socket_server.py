@@ -90,15 +90,12 @@ class MetadataSocketServer:
                             and "vertices" in metadata["point_cloud"]
                         ):
                             point_count = len(metadata["point_cloud"]["vertices"]) // 3
-                            print(f"[MetadataBroadcaster] Point cloud data found: {point_count} points, encoding to Base64...")
+                            # print(f"[MetadataBroadcaster] Point cloud data found: {point_count} points, encoding to Base64...")
                             metadata["point_cloud"]["vertices"] = base64.b64encode(
                                 metadata["point_cloud"]["vertices"].tobytes()
                             ).decode("utf-8")
                         else:
-                            if stream_type == "depth":
-                                print(f"[MetadataBroadcaster] Depth metadata keys: {list(metadata.keys())}")
-                                if "point_cloud" in metadata:
-                                    print(f"[MetadataBroadcaster] point_cloud keys: {list(metadata['point_cloud'].keys())}")
+                            pass
                         all_metadata[stream_type] = metadata
                     except Exception as e:
                         if hasattr(e, "status_code"):
@@ -157,10 +154,7 @@ class MetadataSocketServer:
             try:
                 # Debug: check if point cloud is in payload
                 if "depth" in all_metadata and all_metadata["depth"]:
-                    has_pc = "point_cloud" in all_metadata["depth"]
-                    print(f"[MetadataBroadcaster] About to emit metadata. Has point_cloud: {has_pc}")
-                    if has_pc:
-                        print(f"[MetadataBroadcaster] Point cloud keys: {list(all_metadata['depth']['point_cloud'].keys())}")
+                    pass
                 # Use helper method to handle emit appropriately
                 self._emit_event("metadata_update", payload)
             except Exception as e:

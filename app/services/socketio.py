@@ -7,7 +7,6 @@ sio = socketio.AsyncServer(
     cors_credentials=True,
     logger=False,  # Disable verbose logging to reduce noise
     engineio_logger=True,  # Enable minimal engineio logging
-    socketio_path='/socket.io',  # Explicit path configuration
     ping_timeout=60,  # Default ping timeout
     ping_interval=25,  # Default ping interval
     allow_upgrading=True,  # Allow WebSocket upgrades from HTTP

@@ -3,6 +3,7 @@
  * Final Strict Version: Absolute Centered Header, Pill-Only Nodes, No Lines.
  */
 
+import { useState } from 'react';
 import { Card } from './ui/card';
 import { cn } from '../lib/utils';
 import { Network } from 'lucide-react';
@@ -29,46 +30,40 @@ const SUGAR_HARVEST_TREE: BTNodeConfig = {
     name: 'SugarHarvestMainLoop',
     type: 'repeat',
     children: [
-        {
-            name: 'FullHarvestCycle',
-            type: 'sequence',
-            children: [
-                { name: 'NavigateToSugarPoint', type: 'action' },
-                { name: 'AnalyzeSugarDistance', type: 'action' },
-                {
-                    name: 'HeightCheck',
-                    type: 'selector',
-                    children: [
-                        {
-                            name: 'ContinueHarvest',
-                            type: 'sequence',
-                            children: [
-                                { name: 'MoveForwardToScoop', type: 'action' },
-                                { name: 'ReverseToNavPoint', type: 'action' },
-                                { name: 'NavigateToDumpPoint', type: 'action' },
-                                { name: 'DumpAction', type: 'action' },
-                            ],
-                        },
-                        { name: 'SwitchToPushMode', type: 'action' },
-                    ],
-                },
-            ],
-        },
+        { name: 'NavigateToSugarPoint', type: 'action' },
+        { name: 'CheckShovelFlat', type: 'action' },
+        { name: 'AnalyzeSugarDistance', type: 'action' },
+        { name: 'MoveForwardToScoop', type: 'action' },
+        { name: 'ReverseToNavPoint', type: 'action' },
+        { name: 'NavigateToDumpPoint', type: 'action' },
+        { name: 'DumpAction', type: 'action' },
     ],
+};
+
+const PUSH_MODE_TREE: BTNodeConfig = {
+    name: 'PushModeMainLoop',
+    type: 'repeat',
+    children: [
+        { name: 'AnalyzeSugarDistance', type: 'action' },
+        { name: 'HeightCheck', type: 'condition' },
+        { name: 'SwitchToPushMode', type: 'action' },
+        { name: 'MoveForwardToScoop', type: 'action' },
+        { name: 'ReverseToNavPoint', type: 'action' }
+    ]
 };
 
 const STEP_NAMES: Record<string, string> = {
     'NavigateToSugarPoint': '导航到取糖点',
-    'AnalyzeSugarDistance': '分析糖堆距离和高度',
-    'MoveForwardToScoop': '前进铲糖',
+    'AnalyzeSugarDistance': '分析距离与高度',
+    'MoveForwardToScoop': '前进铲糖 / 推垛',
     'ReverseToNavPoint': '原路倒退',
     'NavigateToDumpPoint': '导航到卸载点',
     'DumpAction': '翻斗卸载',
-    'SwitchToPushMode': '切换到推垛模式',
+    'SwitchToPushMode': '切换推垛姿态',
     'SugarHarvestMainLoop': '铲糖主循环',
-    'FullHarvestCycle': '完整铲糖流程',
+    'PushModeMainLoop': '推垛模式',
     'HeightCheck': '检查糖堆高度',
-    'ContinueHarvest': '继续铲糖',
+    'CheckShovelFlat': '监控车铲放平',
 };
 
 const STEP_ICONS: Record<string, string> = {
@@ -83,6 +78,7 @@ const STEP_ICONS: Record<string, string> = {
     'FullHarvestCycle': '⚙️',
     'HeightCheck': '📏',
     'ContinueHarvest': '✅',
+    'CheckShovelFlat': '⚖️',
 };
 
 function TreeNode({ node, currentNode, depth = 0 }: { node: BTNodeConfig; currentNode: string; depth?: number }) {
@@ -140,6 +136,136 @@ function TreeNode({ node, currentNode, depth = 0 }: { node: BTNodeConfig; curren
     );
 }
 
+function CircularHarvestFlow({
+    nodes,
+    currentNode,
+    status,
+    onStartCycle,
+    isHarvestRunning
+}: {
+    nodes: BTNodeConfig[],
+    currentNode: string,
+    status: string,
+    onStartCycle?: () => void,
+    isHarvestRunning?: boolean
+}) {
+    // Expand radius slightly for the extra node
+    const radius = 135;
+    const totalNodes = nodes.length;
+
+    return (
+        <div className="relative w-full h-[380px] flex items-center justify-center mt-4">
+            {/* Background SVG Canvas for connecting arcs */}
+            <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] h-[380px] pointer-events-none">
+                <defs>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#4B5563" />
+                    </marker>
+                    <marker id="arrow-active" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#FD802E" />
+                    </marker>
+                </defs>
+
+                {/* Fixed Circular path with markers */}
+                <circle cx="190" cy="190" r={radius} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
+
+                {/* Generate directional arrows precisely spaced on the circle track */}
+                {nodes.map((_, i) => {
+                    const angleOffset = (i * 360 / totalNodes - 90 + (180 / totalNodes)) * (Math.PI / 180);
+                    const cx = 190;
+                    const cy = 190;
+                    const startX = cx + Math.cos(angleOffset - 0.1) * radius;
+                    const startY = cy + Math.sin(angleOffset - 0.1) * radius;
+                    const endX = cx + Math.cos(angleOffset) * radius;
+                    const endY = cy + Math.sin(angleOffset) * radius;
+
+                    const currentIdx = nodes.findIndex(n => n.name === currentNode);
+                    const isFlowActive = status === 'running' && (currentIdx === i || currentIdx === (i + 1) % totalNodes);
+
+                    return (
+                        <path
+                            key={`arrow-${i}`}
+                            d={`M ${startX} ${startY} L ${endX} ${endY}`}
+                            stroke={isFlowActive ? '#FD802E' : '#4B5563'}
+                            strokeWidth="2"
+                            fill="none"
+                            markerEnd={isFlowActive ? 'url(#arrow-active)' : 'url(#arrow)'}
+                            className={cn('transition-all duration-300', isFlowActive && 'opacity-100')}
+                        />
+                    );
+                })}
+
+                {status === 'running' && (
+                    <circle cx="190" cy="190" r={radius} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: '190px 190px' }} />
+                )}
+            </svg>
+
+            {nodes.map((node, i) => {
+                const angle = (i * 360 / totalNodes - 90) * (Math.PI / 180);
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                const isCurrent = node.name === currentNode;
+                const currentIdx = nodes.findIndex(n => n.name === currentNode);
+                const isSuccess = currentIdx > -1 && i < currentIdx;
+
+                // First node (NavigateToSugarPoint) should act as a button if idle
+                const isStartNode = node.name === 'NavigateToSugarPoint';
+                const isInteractive = isStartNode && !isHarvestRunning;
+
+                const baseNodeContent = (
+                    <div
+                        className={cn(
+                            'group flex items-center gap-2.5 px-3 py-2 rounded-full font-bold tracking-wider transition-all duration-300 w-auto select-none backdrop-blur-md whitespace-nowrap shadow-lg cursor-default',
+                            isSuccess
+                                ? 'bg-[#1c1c1e] text-[#FD802E] border border-white/5'
+                                : isCurrent
+                                    ? 'bg-[#FD802E]/15 border border-[#FD802E]/60 text-white ring-2 ring-[#FD802E]/40 shadow-[0_0_25px_rgba(253,128,46,0.3)]'
+                                    : isInteractive
+                                        ? 'bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E] shadow-[0_0_15px_rgba(253,128,46,0.2)] hover:bg-[#FD802E] hover:text-white cursor-pointer scale-105'
+                                        : 'bg-[#1c1c1e]/60 border border-transparent text-slate-400 hover:text-slate-200'
+                        )}
+                        onClick={isInteractive ? onStartCycle : undefined}
+                    >
+                        <span className="text-[16px] drop-shadow-sm">{STEP_ICONS[node.name] || '⚡'}</span>
+                        <span className="text-[14px]">{STEP_NAMES[node.name] || node.name}</span>
+
+                        {isCurrent && (
+                            <span className="ml-1 flex items-center justify-center relative w-2 h-2">
+                                <span className="absolute w-2.5 h-2.5 rounded-full bg-[#FD802E] animate-ping opacity-75" />
+                                <span className="relative w-1.5 h-1.5 rounded-full bg-[#FD802E]" />
+                            </span>
+                        )}
+                        {isSuccess && (
+                            <span className="ml-1 text-[12px] text-green-500/80 mr-0.5">✓</span>
+                        )}
+                        {isInteractive && (
+                            <span className="ml-1 text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-white group-hover:bg-white/20">点击启动</span>
+                        )}
+                    </div>
+                );
+
+                return (
+                    <div
+                        key={node.name}
+                        className={cn(
+                            'absolute flex flex-col items-center justify-center text-center transition-all duration-500',
+                            isCurrent ? 'scale-110 z-10' : 'scale-100 z-0 opacity-90'
+                        )}
+                        style={{
+                            transform: `translate(${x}px, ${y}px)`,
+                        }}
+                    >
+                        {baseNodeContent}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+import { useRobotController } from '../hooks/useRobotController';
+import type { SugarHarvestConfig } from '../services/robotApi';
+
 export function BehaviorTreeViz({
     className,
     currentNode = '',
@@ -150,60 +276,89 @@ export function BehaviorTreeViz({
     heightThreshold = 0.20,
     stepHistory = [],
 }: BehaviorTreeVizProps) {
+    const { startSugarHarvest, isHarvestRunning } = useRobotController();
     const needsPushMode = sugarHeight < heightThreshold;
+    const [activeTab, setActiveTab] = useState<'harvest' | 'push'>('harvest');
+
+    const currentTree = activeTab === 'harvest' ? SUGAR_HARVEST_TREE : PUSH_MODE_TREE;
+    const currentTabName = activeTab === 'harvest' ? '铲糖主循环' : '推垛模式';
 
     return (
         <Card
-            data-vibe="bt-panel-v3"
-            className={cn('relative p-6 bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden', className)}
+            data-vibe="bt-panel-v5"
+            className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[400px]', className)}
         >
+            {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
+            {/* 1. Left: System Cycles */}
+            <div className="absolute top-[16px] left-[32px] z-[100] flex flex-col items-start">
+                <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">System Cycles</span>
+                <span className="text-[12px] font-black text-[#FD802E] tracking-tighter">系统循环: {cycleCount} / {maxCycles}</span>
+            </div>
 
-            {/* ABSOLUTE TOP CENTERED CAPSULE - FORCE CENTERING WITH LEFT-1/2 */}
-            <div
-                className="absolute top-[10px] left-1/2 -translate-x-1/2 z-[100] flex items-center justify-center gap-2 bg-[#1c1c1e] px-6 py-2 rounded-full border border-[#FD802E]/60 shadow-[0_0_20px_rgba(253,128,46,0.3)] whitespace-nowrap"
-            >
-                <div className={cn('w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(253,128,46,0.8)]',
-                    status === 'running' ? 'bg-[#FD802E]' : 'bg-green-500')} />
-                <Network className="w-3.5 h-3.5 text-[#FD802E]" />
-                <span className="text-[10px] text-[#FD802E] font-bold tracking-[0.2em] uppercase font-mono">
-                    行为树状态 | {status === 'running' ? '运行中' : '空闲'}
+            {/* 2. Center: Status Capsule - PHYSICALLY CENTERED */}
+            <div className="absolute top-[12px] left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 bg-[#1c1c1e]/95 backdrop-blur-xl px-8 py-2.5 rounded-full border border-[#FD802E]/40 shadow-[0_0_25px_rgba(253,128,46,0.5)]">
+                <div className={cn('w-2 h-2 rounded-full shadow-[0_0_12px_rgba(253,128,46,1)]',
+                    status === 'running' ? 'bg-[#FD802E] animate-pulse' : 'bg-green-500')} />
+                <Network className="w-4 h-4 text-[#FD802E]" />
+                <span className="text-[10px] text-[#FD802E] font-black tracking-[0.2em] uppercase font-mono whitespace-nowrap">
+                    {currentTabName} | {status === 'running' ? '运行中' : '空闲'}
                 </span>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 space-y-8 overflow-y-auto no-scrollbar pt-14 px-1">
+            {/* 3. Right: Sugar Height Parameter */}
+            <div className="absolute top-[16px] right-[32px] z-[100] flex flex-col items-end">
+                <span className={cn('text-[7px] font-black tracking-[0.3em] uppercase',
+                    needsPushMode ? 'text-red-500/60' : 'text-[#FD802E]/40'
+                )}>Sugar Pile Height</span>
+                <span className={cn('text-[12px] font-black leading-none',
+                    needsPushMode ? 'text-red-500' : 'text-[#FD802E]'
+                )}>堆体高度: {(sugarHeight * 100).toFixed(1)} cm</span>
+            </div>
 
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-2 gap-5">
-                    <div className="bg-white/5 p-4 rounded-2xl border border-transparent">
-                        <div className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">系统循环</div>
-                        <div className="flex items-baseline gap-1.5">
-                            <span className="text-2xl font-black text-[#FD802E] tabular-nums tracking-tighter">{cycleCount}</span>
-                            <span className="text-xs text-slate-600 font-bold italic">/ {maxCycles}</span>
-                        </div>
-                    </div>
-                    <div className={cn('p-4 rounded-2xl transition-all', needsPushMode ? 'bg-[#FD802E]/10 ring-1 ring-[#FD802E]/30' : 'bg-white/5')}>
-                        <div className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">堆体高度</div>
-                        <div className="flex items-baseline gap-1.5">
-                            <span className={cn('text-2xl font-black tabular-nums tracking-tighter', needsPushMode ? 'text-[#FD802E]' : 'text-slate-200')}>
-                                {(sugarHeight * 100).toFixed(1)}
-                            </span>
-                            <span className="text-xs text-slate-600 font-bold italic">cm</span>
-                        </div>
-                    </div>
-                </div>
-
+            {/* Main Interactive Layer - Absolute Positioning for Precision */}
+            <div className="flex-1 relative mt-[60px] mb-[60px] overflow-y-auto no-scrollbar px-6">
                 {/* Tree Visual Area */}
                 <div className="space-y-4">
-                    <div className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] px-1 opacity-80">BEHAVIOR FLOW</div>
-                    <div className="max-h-[500px] overflow-y-auto no-scrollbar pb-10">
-                        <TreeNode node={SUGAR_HARVEST_TREE} currentNode={currentNode} />
+                    <div className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] px-1 opacity-80">
+                        {activeTab === 'harvest' ? 'HARVEST FLOW' : 'PUSH FLOW'}
+                    </div>
+                    <div className="max-h-[500px]">
+                        {activeTab === 'harvest' && currentTree.children ? (
+                            <CircularHarvestFlow
+                                nodes={currentTree.children}
+                                currentNode={currentNode}
+                                status={status}
+                                isHarvestRunning={isHarvestRunning}
+                                onStartCycle={async () => {
+                                    if (!isHarvestRunning) {
+                                        // Trigger system cycle with default config inline. Usually this comes from panel, but User wants clickable Flow
+                                        const defaultConfig: SugarHarvestConfig = {
+                                            navigation_point: [1.0, 0.0],
+                                            dump_point: [0.0, 1.0],
+                                            bucket_width_m: 0.6,
+                                            approach_offset_m: 0.05,
+                                            scoop_position: 90.0,
+                                            dump_position: 135.0,
+                                            max_cycles: 10,
+                                            height_threshold_m: 0.20,
+                                        };
+                                        try {
+                                            await startSugarHarvest(defaultConfig);
+                                        } catch (e) {
+                                            console.error("Failed to start harvest from BT interaction", e);
+                                        }
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <TreeNode node={currentTree} currentNode={currentNode} />
+                        )}
                     </div>
                 </div>
 
                 {/* Footnotes / History */}
                 {stepHistory.length > 0 && (
-                    <div className="absolute bottom-6 left-6 right-6 pt-4 border-t border-white/5 bg-[#1A1A1E]">
+                    <div className="mt-8 pt-4 border-t border-white/5">
                         <div className="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2">RECENT_LOGS</div>
                         <div className="flex flex-wrap gap-2 opacity-40">
                             {stepHistory.slice(-3).reverse().map((step, idx) => (
@@ -214,6 +369,38 @@ export function BehaviorTreeViz({
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* Bottom Tabs (Excel Sheet Style) */}
+            <div className="absolute bottom-0 left-0 right-0 flex justify-start px-2 bg-[#121214] pt-2 border-t border-[#2a2a2e] rounded-b-[10px] z-[120]">
+                <button
+                    onClick={() => setActiveTab('harvest')}
+                    className={cn(
+                        'relative px-5 py-2.5 text-[12px] font-bold tracking-wider rounded-t-lg transition-all',
+                        activeTab === 'harvest'
+                            ? 'bg-[#1c1c1e] text-[#FD802E] border-t border-l border-r border-[#2a2a2e] shadow-[0_-4px_10px_rgba(0,0,0,0.2)] z-10'
+                            : 'bg-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5 border-t border-l border-r border-transparent'
+                    )}
+                >
+                    铲糖主循环
+                    {activeTab === 'harvest' && (
+                        <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-[#1c1c1e]" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('push')}
+                    className={cn(
+                        'relative px-5 py-2.5 text-[12px] font-bold tracking-wider rounded-t-lg transition-all',
+                        activeTab === 'push'
+                            ? 'bg-[#1c1c1e] text-[#FD802E] border-t border-l border-r border-[#2a2a2e] shadow-[0_-4px_10px_rgba(0,0,0,0.2)] z-10'
+                            : 'bg-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5 border-t border-l border-r border-transparent'
+                    )}
+                >
+                    推垛模式
+                    {activeTab === 'push' && (
+                        <span className="absolute bottom-[-1px] left-0 right-0 h-[3px] bg-[#1c1c1e]" />
+                    )}
+                </button>
             </div>
         </Card>
     );

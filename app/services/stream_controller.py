@@ -434,6 +434,9 @@ class StreamController:
                         "height": 480,
                     }
 
+                if stream_type not in raw_frames:
+                    print(f"[DEBUG_STREAM] Could not extract raw frame for {stream_type}. frames object contains: {[f.get_profile().stream_type().name for f in frames]}")
+
                 # 点云计算
                 pc_enabled = self.is_pointcloud_enabled.get(device_id, False)
                 if stype.lower() == "depth" and pc_enabled:

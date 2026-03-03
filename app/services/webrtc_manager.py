@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Tuple
 import numpy as np
 import cv2
 from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, RTCConfiguration, RTCIceServer
+from aiortc.sdp import candidate_from_sdp
 from aiortc.mediastreams import VideoStreamTrack
 from av import VideoFrame
 from app.core.errors import RealSenseError
@@ -73,7 +74,9 @@ class RealSenseVideoTrack(VideoStreamTrack):
             video_frame.pts = pts
             video_frame.time_base = time_base
 
-            print(f"Error getting frame: {str(e)}")
+            import traceback
+            exc_info = traceback.format_exc()
+            print(f"Error getting frame: type={type(e)} repr={repr(e)} exc={exc_info}")
             return video_frame
 
 
@@ -142,13 +145,17 @@ class WebRTCManager:
         """
         # 验证设备存在且正在流式传输
         stream_status = self.realsense_manager.get_stream_status(device_id)
+        print(f"[DEBUG] create_offer: device={device_id}, is_streaming={stream_status.is_streaming}")
+        print(f"[DEBUG] active_streams: {stream_status.active_streams}")
+        print(f"[DEBUG] requested_streams: {stream_types}")
+
         if not stream_status.is_streaming:
             raise RealSenseError(status_code=400, detail=f"Device {device_id} is not streaming")
 
         # 验证请求的流类型可用
         for stream_type in stream_types:
             if stream_type not in stream_status.active_streams:
-                raise RealSenseError(status_code=400, detail=f"Stream type {stream_type} is not active")
+                raise RealSenseError(status_code=400, detail=f"Stream type {stream_type} is not active (Active: {stream_status.active_streams})")
 
         # 创建 PeerConnection
         pc = RTCPeerConnection(RTCConfiguration(iceServers=self.ice_servers))
@@ -214,14 +221,27 @@ class WebRTCManager:
 
         # 设置远程描述
         try:
+            print(f"[DEBUG] Processing WebRTC answer for session: {session_id}")
+            print(f"[DEBUG] SDP type: {type_}")
+            
+            # 如果已经处于 stable 状态，说明已经处理过 answer 了
+            if pc.signalingState == "stable":
+                print(f"[DEBUG] Session {session_id} is already in stable state, ignoring redundant answer.")
+                return True
+
             await pc.setRemoteDescription(RTCSessionDescription(sdp=sdp, type=type_))
 
             # 标记为已连接
             async with self.lock:
                 self.sessions[session_id]["connected"] = True
 
+            print(f"[DEBUG] Successfully set remote description for session: {session_id}")
             return True
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"[ERROR] Failed to set remote description for session {session_id}: {str(e)}")
+            print(f"[ERROR] Traceback: {error_trace}")
             raise RealSenseError(status_code=400, detail=f"Error processing answer: {str(e)}")
 
     async def add_ice_candidate(self, session_id: str, candidate: str, sdp_mid: str, sdp_mline_index: int) -> bool:
@@ -247,19 +267,16 @@ class WebRTCManager:
 
         # 添加 ICE 候选
         try:
-            candidate_obj = RTCIceCandidate(
-                component=1,
-                foundation="0",
-                ip="0.0.0.0",
-                port=0,
-                priority=0,
-                protocol="udp",
-                type="host",
-                sdpMid=sdp_mid,
-                sdpMLineIndex=sdp_mline_index
-            )
-            setattr(candidate_obj, "candidate", candidate)  # aiortc 内部需要此属性
-
+            # 使用 aiortc.sdp.candidate_from_sdp 解析候选字符串
+            # 候选字符串通常包含 "candidate:" 前缀，需要确保格式正确
+            candidate_line = candidate
+            if not candidate_line.startswith("candidate:"):
+                candidate_line = "candidate:" + candidate
+            
+            candidate_obj = candidate_from_sdp(candidate_line)
+            candidate_obj.sdpMid = sdp_mid
+            candidate_obj.sdpMLineIndex = sdp_mline_index
+            
             await pc.addIceCandidate(candidate_obj)
             return True
         except Exception as e:

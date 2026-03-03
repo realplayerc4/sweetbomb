@@ -37,7 +37,7 @@ setup_exception_handlers(app)
 # Mount the Socket.IO app (`sio`) onto the FastAPI app (`app`)
 # The result `combined_app` is what Uvicorn will run.
 # Note: socketio_path must match the client's path option
-combined_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app, socketio_path='/socket.io')
+combined_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app)
 
 @app.on_event("startup")
 async def startup_event():

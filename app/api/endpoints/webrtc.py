@@ -17,10 +17,12 @@ async def create_offer(
     Create a WebRTC offer for streaming from a RealSense device.
     """
     try:
+        print(f"[API] Creating WebRTC offer for device: {offer_request.device_id}, streams: {offer_request.stream_types}")
         session_id, offer = await webrtc_manager.create_offer(
             offer_request.device_id,
             offer_request.stream_types
         )
+        print(f"[API] Created WebRTC offer: session_id={session_id}")
         return {
             "session_id": session_id,
             "sdp": offer["sdp"],
@@ -28,6 +30,9 @@ async def create_offer(
             "stream_map": offer["stream_map"]
         }
     except Exception as e:
+        print(f"[API ERROR] Error in /offer endpoint: type={type(e)}, repr={repr(e)}, detail={str(e)}")
+        import traceback
+        print(f"[API ERROR] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/answer", response_model=dict)
@@ -39,6 +44,7 @@ async def process_answer(
     Process a WebRTC answer from a client.
     """
     try:
+        print(f"[API] Received WebRTC answer for session: {answer.session_id}")
         result = await webrtc_manager.process_answer(
             answer.session_id,
             answer.sdp,
@@ -46,6 +52,9 @@ async def process_answer(
         )
         return {"success": result}
     except Exception as e:
+        print(f"[API ERROR] Error in /answer endpoint: type={type(e)}, repr={repr(e)}, detail={str(e)}")
+        import traceback
+        print(f"[API ERROR] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/ice-candidates", response_model=dict)
@@ -65,6 +74,7 @@ async def add_ice_candidate(
         )
         return {"success": result}
     except Exception as e:
+        print(f"[API ERROR] Error in /ice-candidates endpoint: type={type(e)}, repr={repr(e)}, detail={str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/sessions/{session_id}", response_model=WebRTCStatus)

@@ -3,8 +3,8 @@ import { Bot, Activity, ShieldAlert } from 'lucide-react';
 import { useRobotConnection } from './hooks/useRobotConnection';
 
 import { VideoView } from './components/VideoView';
+import { DepthView } from './components/DepthView';
 import { SliceView } from './components/SliceView';
-import { PointCloudView } from './components/PointCloudView';
 import { CommandCenter } from './components/CommandCenter';
 import { Toaster } from './components/ui/sonner';
 import { MapPanel } from './components/MapPanel';
@@ -107,22 +107,21 @@ export default function App() {
           </div>
         )}
 
-        {/* First Row: Video + Slice + PointCloud */}
+        {/* First Row: Video(RGB) + Slice + Depth */}
         <div className="grid grid-cols-3 gap-[30px] h-[350px]">
           <VideoView
             isActive={isStreaming}
             rgbStream={rgbStream}
-            depthStream={depthStream}
             rgbMetrics={streamMetrics?.rgb}
-            depthMetrics={streamMetrics?.depth}
           />
           <SliceView
             isActive={isStreaming}
             pointCloudData={pointCloudData}
           />
-          <PointCloudView
+          <DepthView
             isActive={isStreaming}
-            points={pointCloudData}
+            depthStream={depthStream}
+            depthMetrics={streamMetrics?.depth}
           />
         </div>
 

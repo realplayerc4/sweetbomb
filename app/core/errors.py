@@ -22,14 +22,10 @@ class RealSenseError(Exception):
 
 
 def setup_exception_handlers(app: FastAPI):
-    """设置 FastAPI 的全局异常处理器。
-
-    Args:
-        app: FastAPI 应用实例
-    """
+    """设置 FastAPI 的全局异常处理器。"""
     @app.exception_handler(RealSenseError)
     async def realsense_exception_handler(request: Request, exc: RealSenseError):
-        """处理 RealSense 自定义异常。"""
+        print(f"[ERROR] RealSenseError: {exc.status_code} - {exc.detail}")
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": exc.detail},
@@ -37,7 +33,7 @@ def setup_exception_handlers(app: FastAPI):
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        """处理 HTTP 异常。"""
+        print(f"[ERROR] HTTPException: {exc.status_code} - {exc.detail}")
         return JSONResponse(
             status_code=exc.status_code,
             content={"detail": exc.detail},
@@ -45,44 +41,19 @@ def setup_exception_handlers(app: FastAPI):
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """处理请求验证异常。"""
+        errors = exc.errors()
+        print(f"[ERROR] Validation error for {request.method} {request.url}: {errors}")
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": exc.errors()},
+            content={"detail": errors},
         )
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception):
-        """处理通用异常。"""
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": f"An unexpected error occurred: {str(exc)}"},
-        )
-
-def setup_exception_handlers(app: FastAPI):
-    @app.exception_handler(RealSenseError)
-    async def realsense_exception_handler(request: Request, exc: RealSenseError):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"detail": exc.detail},
-        )
-
-    @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"detail": exc.detail},
-        )
-
-    @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": exc.errors()},
-        )
-
-    @app.exception_handler(Exception)
-    async def generic_exception_handler(request: Request, exc: Exception):
+        import traceback
+        trace = traceback.format_exc()
+        print(f"[ERROR] Unhandled Exception for {request.method} {request.url}: {str(exc)}")
+        print(f"[ERROR] Traceback: {trace}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": f"An unexpected error occurred: {str(exc)}"},

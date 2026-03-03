@@ -53,15 +53,6 @@ export function useRobotConnection() {
         });
 
         socket.current.on('metadata_update', (data: any) => {
-            // Debug log to check if point cloud data is in the metadata
-            if (data.metadata_streams?.depth) {
-                const hasPointCloud = !!data.metadata_streams.depth.point_cloud?.vertices;
-                console.log('[RobotConnection] metadata_update - depth stream has point_cloud:', hasPointCloud);
-                if (!hasPointCloud) {
-                    console.log('[RobotConnection] depth metadata keys:', Object.keys(data.metadata_streams.depth));
-                }
-            }
-
             if (data.system_stats) {
                 setSystemStats(data.system_stats);
             }
