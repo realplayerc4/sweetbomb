@@ -118,7 +118,7 @@ class WebRTCManager:
 
     async def start_cleanup_loop(self):
         """启动后台清理循环。"""
-        if self:cleanup_task is None or self.cleanup_task.done():
+        if self.cleanup_task is None or self.cleanup_task.done():
             self.cleanup_task = asyncio.create_task(self._cleanup_loop())
 
     async def _cleanup_loop(self):

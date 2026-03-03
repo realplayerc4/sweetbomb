@@ -11,9 +11,7 @@
 }
 
 body {
-  background-color: var(--bg-app);
-  background-image: linear-gradient(to bottom right, #1c1c1e, #000000);
-  background-attachment: fixed;
+  background-color: #000000;
   color: #e5e5ea;
   margin: 0;
   padding: 0;

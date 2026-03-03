@@ -82,9 +82,9 @@ export default function App() {
     <div className="min-h-screen bg-[#121214] text-slate-200 font-inter selection:bg-orange-500/30">
       <Toaster position="top-right" theme="dark" />
 
-      <div className="max-w-[1900px] mx-auto p-6 lg:p-10 flex flex-col gap-8">
+      <div className="max-w-[1900px] mx-auto p-6 lg:p-10 flex flex-col gap-[30px]">
         {/* Header - Industrial Card Style */}
-        <header className="flex items-center justify-between p-6 bg-[#1c1c1e] rounded-2xl shadow-md">
+        <header className="flex items-center justify-between p-6 bg-transparent rounded-2xl">
           <div className="flex items-center gap-6">
             <div className="p-4 bg-[#FD802E] rounded-2xl shadow-lg shadow-[#FD802E]/20">
               <Bot className="w-8 h-8 text-black" />

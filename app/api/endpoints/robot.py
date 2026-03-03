@@ -259,6 +259,22 @@ async def dump_action(robot: RobotController = Depends(get_robot_ctrl)):
         logger.error(f"倾倒动作失败: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/dock", response_model=Dict[str, Any])
+async def dock_robot(robot: RobotController = Depends(get_robot_ctrl)):
+    """控制机器人回桩。"""
+    try:
+        success = await robot.dock()
+        return {
+            "success": success,
+            "message": "回桩指令已执行",
+            "status": robot.get_status().state,
+        }
+
+    except Exception as e:
+        logger.error(f"回桩失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 # ==================== 状态查询端点 ====================
 

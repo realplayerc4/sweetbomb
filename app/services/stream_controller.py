@@ -486,7 +486,11 @@ class StreamController:
                     "height": raw["height"],
                 }
 
-                if raw["type"] == "depth":
+                # 点云数据直接传递 - 不检查 type
+                if "point_cloud" in raw:
+                    metadata["point_cloud"] = raw["point_cloud"]
+
+                if raw.get("type") == "depth":
                     depth_image = raw["data"]
                     depth_normalized = cv2.normalize(
                         depth_image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U
@@ -499,11 +503,7 @@ class StreamController:
                     depth_colormap[edges > 0] = [0, 0, 0]
                     frame = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
 
-                # 点云数据已启用 - 添加到元数据
-                if "point_cloud" in raw:
-                    metadata["point_cloud"] = raw["point_cloud"]
-
-                elif raw["type"] == "color":
+                elif raw.get("type") == "color":
                     frame = raw["data"]
 
                 elif raw["type"] == "infrared":

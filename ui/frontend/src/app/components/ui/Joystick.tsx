@@ -181,7 +181,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         <div
             ref={containerRef}
             className={cn(
-                'relative rounded-full bg-slate-800 border-2 border-slate-600',
+                'relative rounded-full bg-[#1c1c1e] border-2 border-[#FD802E]/40 shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]',
                 'select-none touch-none',
                 disabled && 'opacity-50 cursor-not-allowed',
                 className
@@ -192,27 +192,27 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         >
             {/* Direction indicators */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-full h-full relative">
+                <div className="w-full h-full relative opacity-60">
                     {/* Arrow indicators */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 text-slate-500 text-xs">↑</div>
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-slate-500 text-xs">↓</div>
-                    <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">←</div>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 text-xs">→</div>
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[#FD802E] text-[10px] font-black">↑</div>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[#FD802E] text-[10px] font-black">↓</div>
+                    <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[#FD802E] text-[10px] font-black">←</div>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[#FD802E] text-[10px] font-black">→</div>
                 </div>
             </div>
 
             {/* Center indicator */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-700" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#FD802E]/5 border border-[#FD802E]/20" />
 
             {/* Draggable knob */}
             <div
                 ref={knobRef}
                 className={cn(
                     'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-                    'w-12 h-12 rounded-full shadow-lg transition-colors',
+                    'w-14 h-14 rounded-full shadow-2xl transition-all duration-150 border-2',
                     isDragging || (position.x !== 0 || position.y !== 0)
-                        ? 'bg-primary shadow-primary/50'
-                        : 'bg-slate-400'
+                        ? 'bg-[#FD802E] border-[#FD802E]/20 shadow-[#FD802E]/40 scale-105'
+                        : 'bg-[#FD802E]/10 border-[#FD802E]/30 shadow-black/80'
                 )}
                 style={{
                     transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
@@ -220,8 +220,8 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
             />
 
             {/* Direction label */}
-            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 whitespace-nowrap">
-                {isDragging ? '拖动控制' : '拖动或 WASD'}
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-[10px] font-black text-[#FD802E]/50 uppercase tracking-[0.2em] whitespace-nowrap">
+                {isDragging ? 'MANUAL ACTIVE' : 'WASD / DRAG'}
             </div>
         </div>
     );

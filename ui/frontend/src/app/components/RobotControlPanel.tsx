@@ -1,14 +1,9 @@
-/**
- * Robot Control Panel
- * Manual control interface for the sugar harvesting robot.
- */
-
 import { useState } from 'react';
+import { Pickaxe, RotateCw, AlertOctagon, RotateCcw, Cpu, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Joystick } from './ui/Joystick';
 import { Slider } from './ui/slider';
-import { Label } from './ui/label';
 import { useRobotController } from '../hooks/useRobotController';
 import { MoveDirection, RobotState } from '../services/robotApi';
 import { cn } from '../lib/utils';
@@ -26,13 +21,13 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         setServo,
         scoop,
         dump,
+        dock,
         error,
         clearError,
     } = useRobotController();
 
     const [servoAngles, setServoAngles] = useState({ lift: 0, dump: 0 });
-    const [moveSpeed, setMoveSpeed] = useState(0.5);
-    const [moveDuration, setMoveDuration] = useState(1.0);
+    const [moveSpeed] = useState(0.5); // Fixed display value
 
     const handleJoystickMove = async (direction: 'forward' | 'backward' | 'left' | 'right' | null, intensity: number) => {
         if (!direction) return;
@@ -63,7 +58,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
 
     const handleDirectionClick = async (direction: MoveDirection) => {
         try {
-            await move(direction, moveSpeed, moveDuration);
+            await move(direction, moveSpeed, 0.5); // Default duration 0.5s
         } catch (e) {
             console.error('Direction move failed:', e);
         }
@@ -75,25 +70,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
             await setServo(servoId, angle);
         } catch (e) {
             console.error('Servo control failed:', e);
-        }
-    };
-
-    const getStateColor = (state: RobotState) => {
-        switch (state) {
-            case RobotState.IDLE:
-                return 'text-green-500';
-            case RobotState.MOVING:
-                return 'text-blue-500';
-            case RobotState.SCOOPING:
-                return 'text-yellow-500';
-            case RobotState.DUMPING:
-                return 'text-orange-500';
-            case RobotState.ERROR:
-                return 'text-red-500';
-            case RobotState.EMERGENCY_STOP:
-                return 'text-red-600';
-            default:
-                return 'text-slate-500';
         }
     };
 
@@ -111,12 +87,12 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
 
     if (error) {
         return (
-            <Card className={cn('p-4', className)}>
-                <div className="text-red-500 text-center">
-                    <p className="font-medium">错误</p>
-                    <p className="text-sm">{error}</p>
-                    <Button onClick={clearError} variant="outline" className="mt-2">
-                        关闭
+            <Card className={cn('relative p-6 bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px]', className)}>
+                <div className="text-red-500 text-center py-10">
+                    <p className="font-medium text-lg text-[#FD802E]">系统错误</p>
+                    <p className="text-sm mt-1 mb-4 opacity-80">{error}</p>
+                    <Button onClick={clearError} variant="outline" className="border-[#FD802E]/50 text-[#FD802E] hover:bg-[#FD802E]/10">
+                        清除错误
                     </Button>
                 </div>
             </Card>
@@ -124,203 +100,211 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
     }
 
     return (
-        <Card className={cn('p-4 space-y-4', className)}>
-            {/* Status Header */}
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">机器人控制</h3>
-                {status && (
-                    <div className={cn('text-sm font-medium', getStateColor(status.state))}>
-                        {getStateLabel(status.state)}
-                    </div>
-                )}
+        <Card className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[400px]', className)}>
+
+            {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
+            {/* 1. Left: Set Speed */}
+            <div className="absolute top-[16px] left-[32px] z-[100] flex flex-col items-start">
+                <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">System Ready // Speed</span>
+                <span className="text-[12px] font-black text-[#FD802E] tracking-tighter">设定速度: {moveSpeed.toFixed(1)} m/s</span>
             </div>
 
-            {/* Battery Level */}
+            {/* 2. Center: Status Capsule - PHYSICALLY CENTERED */}
+            <div className="absolute top-[12px] left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 bg-[#1c1c1e]/95 backdrop-blur-xl px-8 py-2.5 rounded-full border border-[#FD802E]/40 shadow-[0_0_25px_rgba(253,128,46,0.5)]">
+                <div className={cn('w-2 h-2 rounded-full animate-pulse shadow-[0_0_12px_rgba(253,128,46,1)]',
+                    status?.state === RobotState.IDLE ? 'bg-green-500' : 'bg-[#FD802E]')} />
+                <Cpu className="w-4 h-4 text-[#FD802E]" />
+                <span className="text-[10px] text-[#FD802E] font-black tracking-[0.2em] uppercase font-mono whitespace-nowrap">
+                    机器人控制 | {getStateLabel(status?.state || RobotState.IDLE)}
+                </span>
+            </div>
+
+            {/* 3. Right: Telemetry */}
             {status && (
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-400">电池:</span>
-                    <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                            className={cn(
-                                'h-full transition-all',
-                                status.battery_level > 50 ? 'bg-green-500' :
-                                status.battery_level > 20 ? 'bg-yellow-500' : 'bg-red-500'
-                            )}
-                            style={{ width: `${status.battery_level}%` }}
+                <div className="absolute top-[16px] right-[32px] z-[100] flex flex-col items-end opacity-40">
+                    <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">Energy Level</span>
+                    <span className="text-[12px] font-black text-[#FD802E] leading-none">{status.battery_level.toFixed(0)}%</span>
+                </div>
+            )}
+
+            {/* Main Interactive Layer - Absolute Positioning for Precision */}
+            <div className="flex-1 relative mt-[60px] mb-[100px]">
+
+                {/* Left Controls: Vertical Bucket Bars (50px from left, 20px gap) */}
+                <div className="absolute left-[50px] top-1/2 -translate-y-1/2 flex gap-[20px] items-center">
+                    {/* Lift Bar */}
+                    <div className="flex flex-col items-center gap-3">
+                        <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">举升</span>
+                        <div className="relative h-[220px] w-7 bg-[#FD802E]/5 rounded-xl flex flex-col items-center py-3 border border-[#FD802E]/10 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]">
+                            <ChevronUp className="w-4 h-4 text-[#FD802E] mb-2 opacity-40" />
+                            <div className="flex-1 w-2 bg-[#FD802E]/10 rounded-full relative overflow-hidden">
+                                <div
+                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#FD802E] to-[#ffa060] transition-all duration-300 shadow-[0_0_20px_rgba(253,128,46,0.6)]"
+                                    style={{ height: `${(servoAngles.lift / 180) * 100}%` }}
+                                />
+                                <Slider
+                                    orientation="vertical"
+                                    value={[servoAngles.lift]}
+                                    onValueChange={([v]: [number]) => handleServoChange('lift', v)}
+                                    min={0}
+                                    max={180}
+                                    step={1}
+                                    className="absolute inset-0 z-10 opacity-0 cursor-ns-resize"
+                                    disabled={status?.state === RobotState.EMERGENCY_STOP}
+                                />
+                            </div>
+                            <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
+                        </div>
+                        <span className="text-[11px] font-black text-[#FD802E] tabular-nums">{servoAngles.lift}°</span>
+                    </div>
+
+                    {/* Dump Bar */}
+                    <div className="flex flex-col items-center gap-3">
+                        <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">旋转</span>
+                        <div className="relative h-[220px] w-7 bg-[#FD802E]/5 rounded-xl flex flex-col items-center py-3 border border-[#FD802E]/10 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]">
+                            <ChevronUp className="w-4 h-4 text-[#FD802E] mb-2 opacity-40" />
+                            <div className="flex-1 w-2 bg-[#FD802E]/10 rounded-full relative overflow-hidden">
+                                <div
+                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#FD802E] to-[#ffa060] transition-all duration-300 shadow-[0_0_20px_rgba(253,128,46,0.6)]"
+                                    style={{ height: `${(servoAngles.dump / 180) * 100}%` }}
+                                />
+                                <Slider
+                                    orientation="vertical"
+                                    value={[servoAngles.dump]}
+                                    onValueChange={([v]: [number]) => handleServoChange('dump', v)}
+                                    min={0}
+                                    max={180}
+                                    step={1}
+                                    className="absolute inset-0 z-10 opacity-0 cursor-ns-resize"
+                                    disabled={status?.state === RobotState.EMERGENCY_STOP}
+                                />
+                            </div>
+                            <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
+                        </div>
+                        <span className="text-[11px] font-black text-[#FD802E] tabular-nums">{servoAngles.dump}°</span>
+                    </div>
+                </div>
+
+                {/* Center Control: Joystick */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="scale-150 transition-transform duration-500 hover:scale-[1.6]">
+                        <Joystick
+                            onMove={handleJoystickMove}
+                            onStop={handleJoystickStop}
+                            disabled={status?.state === RobotState.EMERGENCY_STOP}
                         />
                     </div>
-                    <span className="text-sm">{status.battery_level.toFixed(0)}%</span>
                 </div>
-            )}
 
-            {/* Joystick */}
-            <div className="flex justify-center">
-                <Joystick
-                    onMove={handleJoystickMove}
-                    onStop={handleJoystickStop}
-                    disabled={status?.state === RobotState.EMERGENCY_STOP}
-                />
-            </div>
-
-            {/* Direction Buttons */}
-            <div className="grid grid-cols-3 gap-2">
-                <div />
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDirectionClick(MoveDirection.FORWARD)}
-                    disabled={status?.state === RobotState.EMERGENCY_STOP}
-                >
-                    ↑
-                </Button>
-                <div />
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDirectionClick(MoveDirection.LEFT)}
-                    disabled={status?.state === RobotState.EMERGENCY_STOP}
-                >
-                    ←
-                </Button>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDirectionClick(MoveDirection.STOP)}
-                    disabled={status?.state === RobotState.EMERGENCY_STOP}
-                >
-                    ■
-                </Button>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDirectionClick(MoveDirection.RIGHT)}
-                    disabled={status?.state === RobotState.EMERGENCY_STOP}
-                >
-                    →
-                </Button>
-                <div />
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleDirectionClick(MoveDirection.BACKWARD)}
-                    disabled={status?.state === RobotState.EMERGENCY_STOP}
-                >
-                    ↓
-                </Button>
-                <div />
-            </div>
-
-            {/* Speed & Duration Controls */}
-            <div className="space-y-3">
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-xs">移动速度</Label>
-                        <span className="text-xs text-slate-400">{(moveSpeed * 100).toFixed(0)}%</span>
+                {/* Right Controls: Direction Arrows (Right Middle) */}
+                <div className="absolute right-[50px] top-1/2 -translate-y-1/2">
+                    <div className="p-6 rounded-[2rem] bg-[#FD802E]/5 border border-[#FD802E]/10 shadow-[inset_0_0_30px_rgba(253,128,46,0.1)]">
+                        <div className="grid grid-cols-3 gap-4">
+                            <div />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                onClick={() => handleDirectionClick(MoveDirection.FORWARD)}
+                                disabled={status?.state === RobotState.EMERGENCY_STOP}
+                            >
+                                <ChevronUp className="w-8 h-8" />
+                            </Button>
+                            <div />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                onClick={() => handleDirectionClick(MoveDirection.LEFT)}
+                                disabled={status?.state === RobotState.EMERGENCY_STOP}
+                            >
+                                <span className="text-3xl font-light pr-1">←</span>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-14 h-14 bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E]/60 rounded-2xl hover:bg-[#FD802E]/40 transition-all shadow-[0_0_15px_rgba(253,128,46,0.3)]"
+                                onClick={() => handleDirectionClick(MoveDirection.STOP)}
+                                disabled={status?.state === RobotState.EMERGENCY_STOP}
+                            >
+                                <div className="w-5 h-5 bg-current rounded-sm shadow-[0_0_10px_currentColor]" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                onClick={() => handleDirectionClick(MoveDirection.RIGHT)}
+                                disabled={status?.state === RobotState.EMERGENCY_STOP}
+                            >
+                                <span className="text-3xl font-light pl-1">→</span>
+                            </Button>
+                            <div />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                onClick={() => handleDirectionClick(MoveDirection.BACKWARD)}
+                                disabled={status?.state === RobotState.EMERGENCY_STOP}
+                            >
+                                <ChevronDown className="w-8 h-8" />
+                            </Button>
+                            <div />
+                        </div>
                     </div>
-                    <Slider
-                        value={[moveSpeed * 100]}
-                        onValueChange={([v]: [number]) => setMoveSpeed(v / 100)}
-                        min={10}
-                        max={100}
-                        step={10}
-                        disabled={status?.state === RobotState.EMERGENCY_STOP}
-                    />
-                </div>
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-xs">持续时间</Label>
-                        <span className="text-xs text-slate-400">{moveDuration.toFixed(1)}s</span>
-                    </div>
-                    <Slider
-                        value={[moveDuration * 10]}
-                        onValueChange={([v]: [number]) => setMoveDuration(v / 10)}
-                        min={1}
-                        max={50}
-                        step={1}
-                        disabled={status?.state === RobotState.EMERGENCY_STOP}
-                    />
                 </div>
             </div>
 
-            {/* Servo Controls */}
-            <div className="space-y-3 pt-2 border-t border-slate-700">
-                <h4 className="text-sm font-medium">伺服控制</h4>
-
-                {/* Lift Servo */}
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-xs">铲斗举升</Label>
-                        <span className="text-xs text-slate-400">{servoAngles.lift}°</span>
-                    </div>
-                    <Slider
-                        value={[servoAngles.lift]}
-                        onValueChange={([v]: [number]) => handleServoChange('lift', v)}
-                        min={0}
-                        max={180}
-                        step={1}
-                        disabled={status?.state === RobotState.EMERGENCY_STOP}
-                    />
-                </div>
-
-                {/* Dump Servo */}
-                <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-xs">翻斗</Label>
-                        <span className="text-xs text-slate-400">{servoAngles.dump}°</span>
-                    </div>
-                    <Slider
-                        value={[servoAngles.dump]}
-                        onValueChange={([v]: [number]) => handleServoChange('dump', v)}
-                        min={0}
-                        max={180}
-                        step={1}
-                        disabled={status?.state === RobotState.EMERGENCY_STOP}
-                    />
-                </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
+            {/* Bottom Action Footer - Symmetrical v7 Layout */}
+            <div className="absolute bottom-[20px] left-0 right-0 flex justify-center items-center gap-[5px] z-[120]">
+                {/* 1. Scoop */}
                 <Button
-                    variant="default"
                     onClick={scoop}
                     disabled={status?.state === RobotState.EMERGENCY_STOP}
+                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg"
                 >
-                    铲取
+                    <Pickaxe className="w-5 h-5" />
+                    <span className="text-[10px] tracking-[0.2em]">铲取</span>
                 </Button>
+
+                {/* 2. Dump */}
                 <Button
-                    variant="default"
                     onClick={dump}
                     disabled={status?.state === RobotState.EMERGENCY_STOP}
+                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg"
                 >
-                    倾倒
+                    <RotateCw className="w-5 h-5" />
+                    <span className="text-[10px] tracking-[0.2em]">倾倒</span>
                 </Button>
-            </div>
 
-            {/* Emergency Controls */}
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
+                {/* 3. Center: EMERGENCY STOP (Anchors the group) */}
                 <Button
-                    variant="destructive"
                     onClick={stop}
                     disabled={status?.state === RobotState.EMERGENCY_STOP}
+                    className="w-[160px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/20 text-[#FD802E] border border-[#FD802E]/40 rounded-2xl hover:bg-red-500 hover:text-white transition-all font-black shadow-2xl shadow-[#FD802E]/20 ring-1 ring-[#FD802E]/20"
                 >
-                    紧急停止
+                    <AlertOctagon className="w-6 h-6" />
+                    <span className="text-[12px] tracking-[0.3em]">紧急停止</span>
                 </Button>
+
+                {/* 4. Dock */}
                 <Button
-                    variant="outline"
-                    onClick={reset}
+                    onClick={dock}
+                    disabled={status?.state === RobotState.EMERGENCY_STOP}
+                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg"
                 >
-                    重置状态
+                    <LogOut className="w-5 h-5 -rotate-90" />
+                    <span className="text-[10px] tracking-[0.2em]">回桩</span>
+                </Button>
+
+                {/* 5. Reset */}
+                <Button
+                    onClick={reset}
+                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg"
+                >
+                    <RotateCcw className="w-5 h-5" />
+                    <span className="text-[10px] tracking-[0.2em]">重置</span>
                 </Button>
             </div>
-
-            {/* Position Info */}
-            {status && (
-                <div className="text-xs text-slate-400 space-y-1 pt-2 border-t border-slate-700">
-                    <div>位置: [{status.current_position.map((v, i) => `${['X', 'Y', 'Z'][i]}=${v.toFixed(2)}m`).join(', ')}]</div>
-                    <div>朝向: Roll={status.orientation[0].toFixed(1)}° Pitch={status.orientation[1].toFixed(1)}° Yaw={status.orientation[2].toFixed(1)}°</div>
-                </div>
-            )}
         </Card>
     );
 }

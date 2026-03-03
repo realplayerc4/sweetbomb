@@ -9,12 +9,13 @@ module.exports = {
       interpreter: 'node',
       env: { NODE_ENV: 'development' }
     },
-    // Backend: FastAPI/uvicorn
+    // Backend: FastAPI/uvicorn (using python3 directly)
     {
       name: 'sweetbomb-8000',
       cwd: '.',
-      script: 'start.cjs',
-      interpreter: 'node',
+      script: 'python3',
+      args: '-m uvicorn main:combined_app --host 0.0.0.0 --port 8000 --log-level debug',
+      interpreter: 'none',
       env: { PYTHONUNBUFFERED: '1' }
     }
   ]

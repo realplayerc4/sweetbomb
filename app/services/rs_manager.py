@@ -164,6 +164,7 @@ class RealSenseManager:
     # ========== 点云 API ==========
 
     def activate_point_cloud(self, device_id: str, enable: bool) -> PointCloudStatus:
+        print(f"[RealSenseManager] activate_point_cloud: device_id={device_id}, enable={enable}")
         return self._pointcloud.activate(device_id, enable)
 
     def get_point_cloud_status(self, device_id: str) -> PointCloudStatus:

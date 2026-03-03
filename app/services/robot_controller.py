@@ -324,6 +324,39 @@ class RobotController:
         self._state = RobotState.IDLE
         logger.info("倾倒动作完成")
         return True
+    async def dock(self) -> bool:
+        """执行回桩动作。
+
+        流程：机器人回到原点 [0,0,0]，复位所有伺服。
+
+        Returns:
+            bool: 是否成功执行
+        """
+        self._state = RobotState.MOVING
+        logger.info("执行回桩对准...")
+
+        # 1. 复位伺服
+        await self.set_servo_angle("dump", 0.0)
+        await self.set_servo_angle("lift", 0.0)
+        
+        # 2. 模拟移动回到原点
+        dist_to_origin = (self._position[0]**2 + self._position[1]**2)**0.5
+        if dist_to_origin > 0:
+            logger.info(f"正在从 {self._position} 回到原点...")
+            # 简单模拟：分 5 步回到 [0,0,0]
+            for i in range(5):
+                await asyncio.sleep(0.4)
+                ratio = (i + 1) / 5
+                self._position[0] *= (1 - ratio)
+                self._position[1] *= (1 - ratio)
+            
+        self._position = [0.0, 0.0, 0.0]
+        self._orientation = [0.0, 0.0, 0.0]
+        
+        self._state = RobotState.IDLE
+        logger.info("回桩对准完成，已就位。")
+        return True
+
 
     def get_status(self) -> RobotStatus:
         """获取机器人状态。

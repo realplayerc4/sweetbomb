@@ -45,10 +45,10 @@ export function VideoView({ isActive, rgbStream, depthStream, rgbMetrics, depthM
         ) : (
           <Layers className="w-3.5 h-3.5 text-[#FD802E]" />
         )}
-        <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono"> {modeLabel} </span>
+        <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono"> {modeLabel} | </span>
         {currentMetrics && isActive && (
           <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 ml-1 font-mono font-bold">
-            | {currentMetrics.width}×{currentMetrics.height} @ {currentMetrics.fps} FPS
+            {currentMetrics.width}×{currentMetrics.height} @ {currentMetrics.fps} FPS
           </span>
         )}
       </div>

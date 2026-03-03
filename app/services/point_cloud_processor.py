@@ -40,7 +40,9 @@ class PointCloudProcessor:
     def activate(self, device_id: str, enable: bool) -> PointCloudStatus:
         """激活或停用设备的点云处理。"""
         self._ensure_device(device_id)
+        print(f"[PointCloudProcessor] activate called: device_id={device_id}, enable={enable}")
         self.is_pointcloud_enabled[device_id] = enable
+        print(f"[PointCloudProcessor] is_pointcloud_enabled state: {self.is_pointcloud_enabled}")
         return PointCloudStatus(device_id=device_id, is_active=enable)
 
     def get_status(self, device_id: str) -> PointCloudStatus:

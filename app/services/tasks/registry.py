@@ -70,7 +70,7 @@ class TaskRegistry:
 
     def list_types(self) -> List[str]:
         """获取所有已注册的任务类型列表。"""
-        return list(self)tasks.keys())
+        return list(self.tasks.keys())
 
     def get_type_info(self, task_type: str) -> Optional[TaskTypeInfo]:
         """

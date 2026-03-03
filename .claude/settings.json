@@ -1,8 +1,15 @@
 {
-  "model": "glm-5",
   "permissions": {
     "allow": [
-      "mcp__zai-mcp-server__ui_to_artifact"
+      "mcp__zai-mcp-server__ui_to_artifact",
+      "Bash(ss -tlnp)",
+      "Bash(node node_modules/pm2/bin/pm2 restart sweetbomb-5173 sweetbomb-8000)",
+      "Bash(node node_modules/pm2/bin/pm2 start ecosystem.config.cjs)",
+      "Read(//home/yq/sweetbomb/**)",
+      "Bash(pip show python-socketio)",
+      "Bash(xargs -r kill -9)",
+      "Read(//home/yq/.pm2/logs/**)"
     ]
-  }
+  },
+  "model": "glm-5"
 }

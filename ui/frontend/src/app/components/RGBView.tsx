@@ -32,10 +32,10 @@ export function RGBView({ isActive, stream, metrics }: RGBViewProps) {
           <div className="w-3 h-3 bg-slate-500 rounded-full" />
         )}
         <Video className="w-3.5 h-3.5 text-[#FD802E]" />
-        <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono"> RGB </span>
+        <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono"> RGB | </span>
         {metrics && isActive && (
           <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 ml-1 font-mono font-bold">
-            | {metrics.width}×{metrics.height} @ {metrics.fps} FPS
+            {metrics.width}×{metrics.height} @ {metrics.fps} FPS
           </span>
         )}
       </div>

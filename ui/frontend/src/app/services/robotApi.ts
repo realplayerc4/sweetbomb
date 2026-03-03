@@ -176,6 +176,15 @@ export const robotApi = {
         if (!res.ok) throw new Error('Failed to execute dump action');
         return res.json();
     },
+    /** 执行回桩动作 */
+    async dock(): Promise<{ success: boolean; message: string; status: RobotState }> {
+        const res = await fetch(`${API_BASE}/robot/dock`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to execute dock action');
+        return res.json();
+    },
+
 
     // --- 状态查询 ---
 

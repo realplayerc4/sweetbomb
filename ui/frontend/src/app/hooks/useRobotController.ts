@@ -25,6 +25,7 @@ interface UseRobotControllerReturn {
     setServo: (servoId: string, angle: number) => Promise<void>;
     scoop: () => Promise<void>;
     dump: () => Promise<void>;
+    dock: () => Promise<void>;
 
     // Sugar harvest
     startSugarHarvest: (config: any) => Promise<void>;
@@ -224,6 +225,17 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
             throw e;
         }
     }, [refreshStatus]);
+    const dock = useCallback(async () => {
+        setError(null);
+        try {
+            await robotApi.dock();
+            await refreshStatus();
+        } catch (e: any) {
+            setError(e.message);
+            throw e;
+        }
+    }, [refreshStatus]);
+
 
     const startSugarHarvest = useCallback(async (config: any) => {
         setError(null);
@@ -263,6 +275,7 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         setServo,
         scoop,
         dump,
+        dock,
         startSugarHarvest,
         stopSugarHarvest: stopSugarHarvestFunc,
         harvestStatus,

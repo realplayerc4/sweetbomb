@@ -80,7 +80,6 @@ export interface TaskListResponse {
     total: number;
     running_count: number;
     pending_count: number;
-;
 }
 
 /** 任务创建请求 */
