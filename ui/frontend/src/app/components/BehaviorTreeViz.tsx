@@ -97,26 +97,35 @@ function TreeNode({ node, currentNode, depth = 0 }: { node: BTNodeConfig; curren
         >
             <div
                 className={cn(
-                    'inline-flex items-center gap-2.5 px-4 py-1.5 mb-3 rounded-full text-[11px] font-bold tracking-wider transition-all duration-300 w-auto border-none select-none',
+                    'group inline-flex items-center gap-2.5 px-3 py-1.5 mb-3 rounded-[8px] text-[12px] font-bold tracking-wider transition-all duration-300 w-auto select-none backdrop-blur-md',
                     isSuccess
-                        ? 'bg-[#FD802E] text-white shadow-[0_4px_12px_rgba(253,128,46,0.35)]'
+                        ? 'bg-[#1c1c1e] text-[#FD802E] border border-white/5 shadow-sm hover:bg-[#2a2a2e]/80 hover:border-white/10'
                         : isCurrent
-                            ? 'bg-[#FD802E]/10 text-[#FD802E] ring-1 ring-[#FD802E]/40 shadow-[0_0_15px_rgba(253,128,46,0.25)]'
-                            : 'bg-white/5 text-slate-500 opacity-60'
+                            ? 'bg-[#FD802E]/10 border border-[#FD802E]/60 text-white ring-1 ring-[#FD802E]/30 shadow-[0_0_20px_rgba(253,128,46,0.15)] scale-[1.02]'
+                            : 'bg-[#1c1c1e]/40 border border-transparent text-slate-500 opacity-60 hover:opacity-100 hover:bg-[#1c1c1e]/80 hover:border-[#FD802E]/20'
                 )}
             >
-                <span className="opacity-70 text-[9px] font-mono">
+                <div className={cn(
+                    "flex items-center justify-center w-5 h-5 rounded-[4px] bg-black/40 text-[10px] font-mono shadow-inner transition-colors",
+                    isCurrent ? "text-[#FD802E] bg-[#FD802E]/20" : "text-slate-400 group-hover:text-[#FD802E]/80"
+                )}>
                     {node.type === 'sequence' && '→'}
                     {node.type === 'selector' && '?'}
                     {node.type === 'repeat' && '↻'}
                     {node.type === 'action' && '⚡'}
-                </span>
-                <span className="flex items-center gap-1.5">
-                    <span className="text-[13px] filter drop-shadow-sm">{STEP_ICONS[node.name] || '⚡'}</span>
-                    <span className="whitespace-nowrap">{STEP_NAMES[node.name] || node.name}</span>
+                </div>
+                <span className="flex items-center gap-2">
+                    <span className="text-[14px] filter drop-shadow-sm transition-transform group-hover:scale-110">{STEP_ICONS[node.name] || '⚡'}</span>
+                    <span className="whitespace-nowrap transition-colors text-slate-200 group-hover:text-white translate-y-[0.5px]">{STEP_NAMES[node.name] || node.name}</span>
                 </span>
                 {isCurrent && (
-                    <span className="ml-1 w-1.5 h-1.5 rounded-full bg-[#FD802E] animate-pulse" />
+                    <span className="ml-1.5 flex items-center justify-center relative w-2 h-2">
+                        <span className="absolute w-2.5 h-2.5 rounded-full bg-[#FD802E] animate-ping opacity-75" />
+                        <span className="relative w-1.5 h-1.5 rounded-full bg-[#FD802E]" />
+                    </span>
+                )}
+                {isSuccess && (
+                    <span className="ml-1.5 text-[12px] text-green-500/80 mr-0.5">✓</span>
                 )}
             </div>
 

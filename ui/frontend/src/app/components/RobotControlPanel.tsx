@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Pickaxe, RotateCw, AlertOctagon, RotateCcw, Cpu, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Joystick } from './ui/Joystick';
 import { Slider } from './ui/slider';
 import { useRobotController } from '../hooks/useRobotController';
 import { MoveDirection, RobotState } from '../services/robotApi';
@@ -28,33 +27,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
 
     const [servoAngles, setServoAngles] = useState({ lift: 0, dump: 0 });
     const [moveSpeed] = useState(0.5); // Fixed display value
-
-    const handleJoystickMove = async (direction: 'forward' | 'backward' | 'left' | 'right' | null, intensity: number) => {
-        if (!direction) return;
-
-        const directionMap = {
-            'forward': MoveDirection.FORWARD,
-            'backward': MoveDirection.BACKWARD,
-            'left': MoveDirection.LEFT,
-            'right': MoveDirection.RIGHT,
-        };
-
-        const adjustedSpeed = Math.max(0.1, moveSpeed * intensity);
-
-        try {
-            await move(directionMap[direction], adjustedSpeed, 0.1);
-        } catch (e) {
-            console.error('Move failed:', e);
-        }
-    };
-
-    const handleJoystickStop = async () => {
-        try {
-            await stop();
-        } catch (e) {
-            console.error('Stop failed:', e);
-        }
-    };
 
     const handleDirectionClick = async (direction: MoveDirection) => {
         try {
@@ -182,17 +154,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                             <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
                         </div>
                         <span className="text-[11px] font-black text-[#FD802E] tabular-nums">{servoAngles.dump}°</span>
-                    </div>
-                </div>
-
-                {/* Center Control: Joystick */}
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <div className="scale-150 transition-transform duration-500 hover:scale-[1.6]">
-                        <Joystick
-                            onMove={handleJoystickMove}
-                            onStop={handleJoystickStop}
-                            disabled={status?.state === RobotState.EMERGENCY_STOP}
-                        />
                     </div>
                 </div>
 

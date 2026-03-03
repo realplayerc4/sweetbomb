@@ -8,7 +8,8 @@
       "Read(//home/yq/sweetbomb/**)",
       "Bash(pip show python-socketio)",
       "Bash(xargs -r kill -9)",
-      "Read(//home/yq/.pm2/logs/**)"
+      "Read(//home/yq/.pm2/logs/**)",
+      "Bash(npm run build -- --mode production --reporter compact)"
     ]
   },
   "model": "glm-5"
