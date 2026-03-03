@@ -49,7 +49,7 @@ export function PointCloudView({ isActive, points }: PointCloudViewProps) {
       const { target, radius, theta, phi } = orbitRef.current;
       const x = target.x + radius * Math.sin(phi) * Math.cos(theta);
       const y = target.y + radius * Math.sin(phi) * Math.sin(theta);
-      const z = { target.z + radius * Math.cos(phi) };
+      const z = target.z + radius * Math.cos(phi);
       camera.position.set(x, y, z);
       camera.lookAt(target);
     };

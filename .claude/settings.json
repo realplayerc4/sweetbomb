@@ -9,7 +9,10 @@
       "Bash(pip show python-socketio)",
       "Bash(xargs -r kill -9)",
       "Read(//home/yq/.pm2/logs/**)",
-      "Bash(npm run build -- --mode production --reporter compact)"
+      "Bash(npm run build -- --mode production --reporter compact)",
+      "Bash(chmod +x /home/yq/sweetbomb/start-simple.sh)",
+      "Bash(/home/yq/sweetbomb/start-simple.sh)",
+      "Bash(npm run dev)"
     ]
   },
   "model": "glm-5"
