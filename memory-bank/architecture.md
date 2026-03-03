@@ -75,6 +75,39 @@
 **依赖**: aiortc
 **延迟要求**: < 100ms
 
+### 4. robot_controller (机器人控制器)
+
+| 职责 | 描述 |
+|------|------|
+| 运动控制 | 履带式移动控制（八方向） |
+| 伺服控制 | 铲斗举升/翻转控制 |
+| 状态获取 | 电池、位置、姿态实时反馈 |
+| 安全保护 | 紧急停止机制 |
+
+**通信方式**: WebSocket + 串口代理
+
+### 5. behavior_tree_engine (行为树引擎)
+
+| 职责 | 描述 |
+|------|------|
+| 节点执行 | 顺序、选择、动作、条件节点执行 |
+| 状态管理 | 节点状态转换 (IDLE→RUNNING→SUCCESS/FAILURE) |
+| 黑板共享 | 节点间数据共享机制 |
+| 事件广播 | 节点状态变化实时推送前端 |
+
+**核心节点类型**: Sequence, Selector, Action, Condition, Repeat, Inverter
+
+### 6. distance_analyzer (距离分析器)
+
+| 职责 | 描述 |
+|------|------|
+| 点云处理 | 深度图转点云数据 |
+| 距离计算 | 糖堆距离智能测算 |
+| 高度检测 | 糖堆高度识别 |
+| 策略决策 | 铲糖策略判断（高/矮糖堆） |
+
+**依赖**: NumPy, Open3D (可选)
+
 ---
 
 ## Communication Protocols
@@ -84,6 +117,7 @@
 | 视频流 | WebRTC | RGB/Depth 实时传输 | < 100ms |
 | 元数据 | Socket.IO | 设备状态、任务事件 | < 500ms |
 | 控制 | REST API | 参数配置、任务管理 | < 1s |
+| 机器人 | WebSocket | 运动控制、状态反馈 | < 100ms |
 
 ---
 
@@ -108,8 +142,26 @@ ros2realsense/
 ├── tests/                 # 单元与全链路集成测试
 ├── deploy/                # 运维与远程节点部署脚本集合
 ├── ui/                    # 前端 React 源码与编译产物
-├── tools/                 # 脱机独立静态 HTML 调试器
-└── logs/                  # 系统日志归档仓
+│   └── frontend/
+│       └── src/app/
+│           ├── components/       # React 组件
+│           │   ├── Dashboard.tsx        # 主仪表盘 (3x2 网格布局)
+│           │   ├── RobotControlPanel.tsx # 机器人控制面板
+│           │   ├── TaskPanel.tsx         # 任务管理面板
+│           │   ├── PointCloud.tsx        # 3D 点云视图
+│           │   ├── VideoView.tsx         # RGB/Depth 视频视图
+│           │   ├── SliceView.tsx         # BEV 俯视切片
+│           │   ├── MapPanel.tsx          # 航点地图面板
+│           │   └── SugarHarvestPanel.tsx # 铲糖任务面板
+│           ├── services/         # API 客户端
+│           ├── hooks/            # 自定义 Hooks
+│           └── App.tsx              # 应用入口
+├── tests/                        # 单元与集成测试
+├── deploy/                       # 运维与部署脚本
+├── memory-bank/                  # AI 上下文核心
+├── docs/                         # 项目文档
+├── ecosystem.config.cjs          # PM2 配置文件
+└── README.md                     # 项目说明
 ```
 
 ---

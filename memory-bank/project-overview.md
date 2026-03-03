@@ -19,6 +19,7 @@
 3. **低延迟传输**: 基于 WebRTC 实现毫秒级视频传输
 4. **3D 可视化**: 集成 Three.js 提供点云实时渲染
 5. **任务管理**: 支持可扩展的后台任务系统（如对象检测、数据采集）
+6. **行为树控制**: 实现铲糖自动化任务的完整行为树系统
 
 ---
 
@@ -43,15 +44,50 @@
 | **Sensor** | 传感器组件 | id, name, options |
 | **Stream** | 数据流 | type (RGB/Depth), resolution, fps |
 | **Task** | 后台任务 | id, type, status, progress |
+| **BTNode** | 行为树节点 | type, name, children, status |
+| **SugarHarvestConfig** | 铲糖配置 | navigation_point, dump_point_a, dump_point_b |
+
+---
+
+## Behavior Tree System
+
+### 铲糖任务行为树结构
+
+```
+RepeatNode (SugarHarvestMainLoop, max_count=cycles)
+└── SequenceNode (FullHarvestCycle)
+    ├── NavigateToSugarPoint          [导航到取糖点]
+    ├── CheckShovelFlat               [检查车铲是否放平]
+    ├── AnalyzeSugarDistance          [分析糖堆距离和高度]
+    └── SelectorNode (HeightCheck)
+        ├── 路径 A: 高度足够 → SequenceNode
+        │   ├── CalculateApproachDistance  [计算前进距离]
+        │   ├── ScoopAndReturn             [连贯动作：前进→翻转→倒退]
+        │   └── DumpAndReturn              [连贯动作：导航A点→举升→导航B点→倾倒→倒退→归零]
+        └── 路径 B: 高度不足 → ReturnToHome [回桩]
+```
+
+### 黑板数据流
+
+```yaml
+NodeContext.blackboard:
+├── nav_point_position       (NavigateToSugarPoint 记录，ScoopAndReturn 使用)
+├── distance_analysis        (AnalyzeSugarDistance 记录)
+├── approach_distance        (CalculateApproachDistance 记录，ScoopAndReturn 使用)
+└── dump_point_a_final       (DumpAndReturn 内部使用)
+```
 
 ---
 
 ## Success Metrics
 
-- 视频流延迟 < 100ms
-- API 响应时间 < 50ms (P99)
-- 支持 2 路并发视频流
-- 支持最多 4 个并发后台任务
+| 指标 | 当前值 | 目标值 |
+|------|--------|--------|
+| 视频延迟 | ~80ms | < 100ms |
+| API P99 | ~30ms | < 50ms |
+| 并发任务 | 4 | 4 |
+| 测试覆盖率 | 60% | 80% |
+| 铲糖任务成功率 | 85% | 95% |
 
 ---
 
@@ -65,5 +101,5 @@
 
 ---
 
-*Version: v1.1 (Industrial Redesign)*
-*Last Updated: 2026-02-26*
+*Version: v1.2 (Behavior Tree Enhanced)*
+*Last Updated: 2026-03-03*

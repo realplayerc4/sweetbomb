@@ -8,6 +8,10 @@ from config import settings
 import socketio
 from app.services.socketio import sio
 from app.api.dependencies import get_webrtc_manager
+from app.core.logging_config import setup_logging
+
+# Initialize logging
+setup_logging()
 
 
 # --- Create FastAPI App ---

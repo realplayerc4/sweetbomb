@@ -1,194 +1,191 @@
 # 变更日志 (Changelog)
 
-> 本文档记录项目的所有重要变更。
-> 遵循 [Keep a Changelog](https://keepachangelog.com/) 格式。
+> 本文档记录所有显著变更、功能更新和问题修复。
+> 遵循 [Keep a Changelog](https://keepachangelog.com/) 格式和 [Semantic Versioning](https://semver.org/)。
 
 ---
 
-## [1.2.0] - 2026-02-27
+## 变更类型标签
 
-### Added
-
-- **仪表盘 3x2 完美矩阵**: 重构 Grid 布局为 3列 x 2行，确保所有卡片宽度完全对齐且垂直居中。
-- **空间配置与地图解耦**: 将 `SpatialConfigPanel` 和 `MapPanel` 提取为独立组件，提升代码可维护性。
-- **全局状态脚部 (Footer)**: 引入底部状态栏，整合电池、CPU、温度及信号强度展示，并支持等距排布。
-
-### Changed
-
-- **视觉体验黄金优化**:
-  - **偏移量对齐**: 所有视图状态胶囊统一采用 `top-[10px]` 偏移量，改善边缘压迫感。
-  - **文字与图标**: 胶囊内文字全部加粗，图标统一为石墨橙品牌色 (`#FD802E`)。
-  - **背景色一致性**: 点云图及切面图背景统一更新为石墨深色 (`#1c1c1e`)。
-- **点云性能调优**: 粒子大小从 1.5 回调至 **4.5**，增强视觉饱满度。
-- **测距范围拓展**: 后端 `rs_manager.py` 探测范围从 3m 扩展至 **6m**。
-- **布局间距**: 统一卡片间隙为 **30px**。
-
-### Fixed
-
-- **点云显示稳定性**: 重新启用 `frustumCulled: false` 机制，彻底解决视角拉远时点云消失问题。
-- **空间配置胶囊重叠**: 重构容器 DOM 结构，通过 `pt-16` 解决胶囊遮挡首个滑块的问题。
+| 标签 | 说明 |
+|------|------|
+| `[Added]` | 新功能 |
+| `[Changed]` | 现有功能的变更 |
+| `[Deprecated]` | 即将移除的功能 |
+| `[Removed]` | 移除的功能 |
+| `[Fixed]` | 问题修复 |
+| `[Security]` | 安全修复 |
+| `[Docs]` | 文档更新 |
+| `[Refactor]` | 代码重构 |
 
 ---
 
 ## [Unreleased]
 
-### Added
+### Planned
 
-- **行为树铲糖动作模块重构**:
-  - 新增 `bt_calculate_distance_node.py` - 独立计算前进距离节点
-  - 新增 `bt_scoop_action.py` - 连贯铲糖动作模块（前进→翻转→倒退）
-  - 新增 `bt_dump_action.py` - 连贯卸载动作模块（A点→举升→B点→确认→倾倒→倒退→归零）
-  - 路径 B 从"切换推垛模式"改为"回桩"（返回充电桩）
-
-- **卸载动作按钮确认机制**:
-  - 翻转倾倒电机前需人工按钮确认，防止误触导致物料倾洒
-  - 新增 `_wait_for_button_confirmation()` 辅助函数
-
-- **前端配置参数扩展**:
-  - 新增 `dump_point_a` 和 `dump_point_b` 配置（卸载A点和B点）
-  - 新增 `lift_height` 配置（举升高度，默认90°）
-  - 保留 `dump_point` 作为向后兼容（标记为废弃）
-
-### Changed
-
-- **行为树结构优化**:
-  - 铲糖流程从分散节点改为 `ScoopAndReturn` 整合节点
-  - 卸载流程从分散节点改为 `DumpAndReturn` 整合节点
-  - 倒退动作改为直接控制机器人倒退（非导航模式）
-  - 距离计算与动作执行分离，便于日志和调试
-
-- **卸载流程重构**:
-  - 原流程：导航到卸载点 → 翻斗卸载 → 复位
-  - 新流程：导航A点 → 举升 → 导航B点 → 【按钮确认】→ 倾倒 → 倒退回A点 → 归零
-
-### Fixed
-
-- **点云显示优化**:
-  - **颜色调整**: 点云粒子颜色从紫色改为石墨橙品牌色 (`#FD802E`)。
-  - **视角修正**: 相机初始位置改为俯视角度 (0, 5, 0)，XY 平面在下，Z 轴朝上。
-  - **坐标系对齐**: 后端点云数据增加 RealSense → Robot (Z-up) 坐标变换。
-- **紧急恢复与 UI 重塑 (Golden Restore)**:
-  - 修复了由于 `git checkout` 导致的 UI 代码回退与编译冲突问题。
-  - **点云稳定性修复**: 重新启用 `frustumCulled: false` 机制，彻底解决视角拉远时点云消失的问题。
-  - **坐标系对齐**: 重新注入 RealSense -> Robot (Z-up) 坐标变换逻辑。
-  - **CSS 修复**: 修正 `index.css` 指令排序，解决 Vite 构建报错。
-  - **风格同步**: 将 UI 完全恢复至最新的 Formant 工业风（极简圆角、大间距、Full-bleed 视窗）。
-
-### Added
-
-### Changed
-
-- 视觉渲染重构:
-  - 缩减并硬编码 BEVSlice 图仅截取前向 `1.0m~3.0m` 区域且置中摄像机，丢弃（`discard`）容差区间外噪点。
-  - 修正 PointCloudView 因为使用 `THREE.AdditiveBlending` 导致粒子密集呈现高光过曝发白的问题，回退至 `NormalBlending`。
-  - 变更默认 3D 高亮散点颜色为紫色球体 (`#A855F7`)，且将外围控制组件标头全部重写为字重 `bold` 的石墨橙品牌色 (`#FD802E`)。
-- 清理无用代码:
-  - 删除未完成的 `security.py`
-  - 移除未使用的 OAuth2 依赖
-  - 清理未使用的 Pydantic 模型 (Device, Sensor, Option 等)
-  - 移除未使用的 `hole_filling_filter`
-  - 删除注释掉的安全相关代码
-- 修复测试: 移除 `mock_dependencies.py` 中的 oauth2_scheme 引用
-
-### Removed
-
-- `app/core/security.py` - 未完成的 TODO 代码
-- `config.py` 中的安全配置 (SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES)
-- `dependencies.py` 中的 `oauth2_scheme`
-- 多个未使用的模型基类
+- [ ] 铲糖任务成功率统计与优化建议
+- [ ] 远程节点管理功能上线
+- [ ] 多语言支持 (i18n)
+- [ ] 数据导出功能 (CSV/JSON)
 
 ---
 
-## [Unreleased]
+## [1.2.0] - 2026-03-03
 
-### Added
+### [Added]
 
-- 新增 `device_discovery.py` 子模块，负责设备发现与枚举。
-- 新增 `sensor_control.py` 子模块，负责传感器选项与信息查询。
-- 新增 `stream_controller.py` 子模块，负责视频流启停与帧处理。
-- 新增 `point_cloud_processor.py` 子模块，负责点云状态管理。
+- **铲糖行为树完整实现**
+  - `DumpAndReturn` 连贯动作节点（导航A点→举升→导航B点→倾倒→倒退→归零）
+  - `ScoopAndReturn` 连贯动作节点（前进→翻转铲子→倒退）
+  - `AnalyzeSugarDistance` 距离分析节点
+  - `CheckShovelFlat` 车铲平整度检查节点
+  - `ReturnToHome` 回桩充电节点
 
-### Changed
+- **按钮确认安全机制**
+  - 倾倒动作需要前端按钮确认
+  - 30秒超时保护
+  - Socket.IO 事件通知
 
-- 重构 `rs_manager.py`，从巨石类（954行）转变为基于 Facade 门面模式的委派调用层，核心逻辑拆分至四个独立子模块，对外 API 保持 100% 兼容。
+- **IMU 数据处理**
+  - 3D 姿态估计可视化
+  - Roll/Pitch 实时计算
+  - 重力向量可视化
 
-### Removed
+- **3x2 完美网格布局**
+  - 仪表盘黄金比例布局
+  - 视觉中心偏移（+8px 黄金胶囊偏移）
+  - 字重加粗优化
+  - 品牌色 `#FD802E` 注入
 
-- 删除了被标记弃用的前端文件 `ui/frontend/src/app/components/RobotDisplay.tsx`。
+### [Changed]
 
-## [1.1.0] - 2025-02-23
+- **点云渲染优化**
+  - 粒子大小调整为 4.5
+  - 探测范围扩展至 6m
+  - 使用 `NormalBlending` 避免 `AdditiveBlending` 过曝
+  - `OrthographicCamera` 俯视图严格锁定视锥
+  - `frustumCulled: false` 解决视角拉远点云消失问题
 
-### Added
+- **倾倒流程重构**
+  - 废弃单一卸载点配置 (`dump_point`)
+  - 引入双卸载点设计 (`dump_point_a` 和 `dump_point_b`)
+  - A点：等待/归零位置，B点：倾倒位置
+  - 新增位置保护：到达A点才能举升，到达B点才能倾倒
+  - 新增归零保护：回到A点才能归零电机，防止空中归零导致物料掉落
 
-- 任务管理系统
-  - `BaseTask` 抽象基类
-  - `TaskManager` 单例管理器
-  - 任务注册表 (`registry.py`)
-  - Socket.IO 任务事件广播
-- 内置任务类型
-  - `object_detection`: YOLOv8 目标检测
-  - `point_cloud_analysis`: 点云分析
-  - `data_collection`: 数据采集
-- 前端任务面板 (`TaskPanel.tsx`)
-- 任务管理 Hook (`useTaskManager.ts`)
-- 任务 API 客户端 (`taskApi.ts`)
+- **结构优化**
+  - 工程目录全链路物理分离
+  - 前端组件模块化重构
+  - 状态管理集中化
 
-### Changed
+### [Fixed]
 
-- 重构状态面板，优化状态信息展示
-- 移除机器人显示组件
+- 修复 Socket.IO 连接 403 错误
+- 修复点云在俯视角下消失问题
+- 修复铲糖任务高度阈值判断逻辑
+- 修复倾倒动作安全确认超时问题
 
-### Fixed
+### [Refactor]
 
-- WebRTC 流的清理与停止逻辑优化
+- `bt_nodes.py` 核心节点重设计
+- `bt_scoop_action.py` 铲糖动作优化
+- `bt_dump_action.py` 倾倒动作重构
+- 前端组件解耦
 
----
+### [Docs]
 
-## [1.0.0] - 2025-01-XX
-
-### Added
-
-- 核心功能
-  - RealSense 设备发现与管理
-  - RGB/Depth 双流视频传输
-  - WebRTC 低延迟视频流
-  - Socket.IO 实时元数据推送
-- 后端架构
-  - FastAPI RESTful API
-  - RealSense 管理器 (`rs_manager.py`)
-  - WebRTC 管理器
-  - 深度滤波器链
-  - 点云生成
-- 前端架构
-  - React + TypeScript
-  - TailwindCSS 样式系统
-  - Three.js 3D 点云视图
-  - 控制面板 (参数配置)
-  - 状态面板 (系统状态)
-- 文档
-  - 中英双语 README
-  - API 文档 (FastAPI 自动生成)
+- 新增行为树规范文档
+- 更新 API 接口文档
+- 完善铲糖任务配置说明
 
 ---
 
-## 版本说明
+## [1.1.0] - 2026-02-20
 
-### 版本号规则
+### [Added]
 
-- **MAJOR**: 不兼容的 API 变更
-- **MINOR**: 向后兼容的功能新增
-- **PATCH**: 向后兼容的问题修复
+- **行为树基础框架**
+  - `BTNode` 基类设计
+  - `ActionNode` 动作节点
+  - `ConditionNode` 条件节点
+  - `SequenceNode` 序列节点
+  - `SelectorNode` 选择节点
+  - `RepeatNode` 重复节点
+  - `DecoratorNode` 装饰器节点
+  - `InverterNode` 反转节点
 
-### 变更类型
+- **3D 点云可视化**
+  - Three.js 集成
+  - 深度图转点云
+  - 实时渲染
+  - 性能优化
 
-- `Added`: 新增功能
-- `Changed`: 功能变更
-- `Deprecated`: 即将废弃
-- `Removed`: 已移除
-- `Fixed`: 问题修复
-- `Security`: 安全相关
+- **任务管理系统**
+  - 任务状态机
+  - 并发控制
+  - 进度追踪
+
+### [Changed]
+
+- 前端架构重构
+- 组件库升级
+- 状态管理优化
+
+### [Fixed]
+
+- WebRTC 连接稳定性
+- 内存泄漏问题
 
 ---
 
-*当前版本: 1.1.0*
-*最后更新: 2025-02-24*
+## [1.0.0] - 2026-02-10
+
+### [Added]
+
+- **基础架构**
+  - FastAPI 后端框架
+  - React 前端框架
+  - WebRTC 视频流
+  - Socket.IO 实时通信
+
+- **RealSense 集成**
+  - 设备发现与枚举
+  - 流启动/停止
+  - 传感器选项配置
+  - IMU 数据读取
+
+- **Web 界面**
+  - 视频流显示
+  - 设备配置面板
+  - 参数调节滑块
+  - 状态监控
+
+### [Security]
+
+- CORS 配置
+- 输入验证
+- 错误信息脱敏
+
+---
+
+## 版本历史
+
+```
+v1.2.0 (2026-03-03)  铲糖行为树完整实现，倾倒流程重构，UI 黄金版本
+v1.1.0 (2026-02-20)  行为树基础框架，3D 点云可视化，任务管理系统
+v1.0.0 (2026-02-10)  基础架构，RealSense 集成，Web 界面
+```
+
+---
+
+## 废弃功能
+
+| 版本 | 功能 | 替代方案 | 移除日期 |
+|------|------|----------|----------|
+| 1.2.0 | `dump_point` 配置 | `dump_point_a` + `dump_point_b` | 待定 |
+
+---
+
+*文档版本: v1.2*
+*最后更新: 2026-03-03*
