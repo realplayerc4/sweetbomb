@@ -330,6 +330,7 @@ class StreamController:
 
                     raw_frames = {}
                     active_streams_snapshot = []
+                    pc_enabled = False
                     should_break = False
 
                     with self.lock:
@@ -339,14 +340,17 @@ class StreamController:
                             active_streams_snapshot = list(
                                 self.active_streams[device_id]
                             )
-                            raw_frames = self._extract_raw_frames(
-                                device_id, frames, active_streams_snapshot
-                            )
+                            pc_enabled = self.is_pointcloud_enabled.get(device_id, False)
 
                     if should_break:
                         break
 
-                    # 锁外执行 OpenCV 后处理
+                    # 锁外执行 RealSense 滤波与帧提取
+                    raw_frames = self._extract_raw_frames(
+                        device_id, frames, active_streams_snapshot, pc_enabled
+                    )
+
+                    # 锁外执行 OpenCV 后处理 (局部入队时加锁)
                     self._process_and_enqueue(device_id, raw_frames)
 
                 except Exception as e:
@@ -359,9 +363,9 @@ class StreamController:
             self._emergency_cleanup(device_id)
 
     def _extract_raw_frames(
-        self, device_id: str, frames, active_streams: list
+        self, device_id: str, frames, active_streams: list, pc_enabled: bool
     ) -> dict:
-        """在锁内提取原始帧数据（RealSense 滤波须在帧有效期内完成）。"""
+        """提取原始帧数据（RealSense 滤波、点云计算移出锁外执行）。"""
         raw_frames = {}
 
         depth_frame = frames.get_depth_frame()
@@ -438,7 +442,6 @@ class StreamController:
                     print(f"[DEBUG_STREAM] Could not extract raw frame for {stream_type}. frames object contains: {[f.get_profile().stream_type().name for f in frames]}")
 
                 # 点云计算
-                pc_enabled = self.is_pointcloud_enabled.get(device_id, False)
                 if stype.lower() == "depth" and pc_enabled:
                     import time
                     now = time.time()

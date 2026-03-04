@@ -53,8 +53,11 @@ class RealSenseVideoTrack(VideoStreamTrack):
             if len(frame_data.shape) == 3 and frame_data.shape[2] == 3:
                 # 已经是 RGB 格式，无需转换
                 img = frame_data
+            elif len(frame_data.shape) == 2 or (len(frame_data.shape) == 3 and frame_data.shape[2] == 1):
+                # 灰度图转 RGB
+                img = cv2.cvtColor(frame_data, cv2.COLOR_GRAY2RGB)
             else:
-                # 转换为 RGB
+                # 转换为 RGB (宽泛兜底)
                 img = cv2.cvtColor(frame_data, cv2.COLOR_BGR2RGB)
             # 创建 VideoFrame
             video_frame = VideoFrame.from_ndarray(img, format="rgb24")

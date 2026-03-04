@@ -52,6 +52,7 @@ class MetadataSocketServer:
 
         last_cpu_load = 0.0
         last_cpu_time = 0.0
+        last_pc_timestamp = 0.0
 
         while self._is_broadcasting and not self._thread_stop_event.is_set():
             start_time = time.monotonic()
@@ -87,15 +88,17 @@ class MetadataSocketServer:
                         if (
                             stream_type == "depth"
                             and "point_cloud" in metadata
-                            and "vertices" in metadata["point_cloud"]
                         ):
-                            point_count = len(metadata["point_cloud"]["vertices"]) // 3
-                            # print(f"[MetadataBroadcaster] Point cloud data found: {point_count} points, encoding to Base64...")
-                            metadata["point_cloud"]["vertices"] = base64.b64encode(
-                                metadata["point_cloud"]["vertices"].tobytes()
-                            ).decode("utf-8")
-                        else:
-                            pass
+                            current_ts = metadata.get("timestamp", 0)
+                            if current_ts == last_pc_timestamp:
+                                # 避免重复编码并发送相同的点云
+                                del metadata["point_cloud"]
+                            else:
+                                last_pc_timestamp = current_ts
+                                if "vertices" in metadata["point_cloud"]:
+                                    metadata["point_cloud"]["vertices"] = base64.b64encode(
+                                        metadata["point_cloud"]["vertices"].tobytes()
+                                    ).decode("utf-8")
                         all_metadata[stream_type] = metadata
                     except Exception as e:
                         if hasattr(e, "status_code"):

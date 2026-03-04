@@ -13,10 +13,12 @@
       "Bash(chmod +x /home/yq/sweetbomb/start-simple.sh)",
       "Bash(/home/yq/sweetbomb/start-simple.sh)",
       "Bash(npm run dev)",
-      "Bash(bash /home/yq/sweetbomb/start-simple.sh)"
+      "Bash(bash /home/yq/sweetbomb/start-simple.sh)",
+      "Bash(git checkout -- src/app/components/SliceView.tsx)"
     ],
     "additionalDirectories": [
-      "/home/yq/sweetbomb/app/services"
+      "/home/yq/sweetbomb/app/services",
+      "/home/yq/sweetbomb/ui/frontend/src/app/components"
     ]
   },
   "model": "glm-5"
