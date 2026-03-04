@@ -73,6 +73,7 @@ IDLE → RUNNING → SUCCESS/FAILURE
 ### 3.1 BehaviorTreeEngine 类
 
 **职责**:
+
 - 行为树生命周期管理 (启动/停止/重置)
 - 执行上下文维护
 - Socket.IO 事件广播
@@ -173,6 +174,7 @@ NodeContext.blackboard:
 ### 6.2 潜在问题
 
 #### 问题 1: 循环次数逻辑冗余
+
 **位置**: [behavior_tree_engine.py:97-110](app/services/behavior_tree_engine.py#L97-L110)
 
 ```python
@@ -183,6 +185,7 @@ RepeatNode("CycleLimitChecker", ..., max_cycle=1)  # 注释说逻辑在外层处
 **建议**: 清理废弃代码。
 
 #### 问题 2: 缺少 import logging
+
 **位置**: [bt_action_nodes.py:27](app/services/bt_action_nodes.py#L27)
 
 ```python
@@ -192,6 +195,7 @@ logger = logging.getLogger(__name__)  # 但文件顶部未 import logging
 **建议**: 添加 `import logging`。
 
 #### 问题 3: 类型注解不完整
+
 **位置**: 多处 `Any` 类型
 
 ```python
@@ -202,6 +206,7 @@ navigation_service: Any = None
 **建议**: 定义 Protocol 接口，提供类型安全。
 
 #### 问题 4: ConditionNode 返回类型不一致
+
 **位置**: [bt_action_nodes.py:317](app/services/bt_action_nodes.py#L317)
 
 ```python
@@ -361,12 +366,14 @@ def to_dict(self) -> Dict[str, Any]:
 | **文档** | 7/10 | 有 docstring，但缺少架构图 |
 
 **核心优势**:
+
 - 行为树模式非常适合机器人自主决策
 - 异步设计支持高并发硬件操作
 - Socket.IO 实时可视化，便于调试
 - 黑板模式实现跨节点状态共享
 
 **待改进**:
+
 - 补充 import logging
 - 清理冗余代码
 - 添加类型注解

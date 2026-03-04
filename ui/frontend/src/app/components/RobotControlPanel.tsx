@@ -6,6 +6,7 @@ import { Slider } from './ui/slider';
 import { useRobotController } from '../hooks/useRobotController';
 import { MoveDirection, RobotState } from '../services/robotApi';
 import { cn } from '../lib/utils';
+import { RobotConnectionStatus } from './RobotConnectionStatus';
 
 interface RobotControlPanelProps {
     className?: string;
@@ -73,6 +74,10 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
 
     return (
         <Card className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[400px]', className)}>
+            {/* 右上角连接状态指示器 */}
+            <div className="absolute top-3 right-3 z-[200]">
+                <RobotConnectionStatus />
+            </div>
 
             {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
             {/* 1. Left: Set Speed */}

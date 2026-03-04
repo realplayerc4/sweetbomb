@@ -21,9 +21,11 @@ interface SliceStats {
 }
 
 // ----- 固定参数 -----
-const CELL_SIZE = 0.2;        // 格子大小 0.2m
+const CELL_SIZE = 0.02;       // 格子大小 0.02m
 const VIEW_MIN_X = 1.0;       // X(深度) 固定显示范围起点
-const VIEW_MAX_X = 3.0;       // X(深度) 固定显示范围终点
+const VIEW_MAX_X = 2.0;       // X(深度) 固定显示范围终点
+const VIEW_MIN_Y = -1.0;      // Y(宽度) 固定显示范围起点
+const VIEW_MAX_Y = 1.0;       // Y(宽度) 固定显示范围终点
 const BUCKET_HEIGHT = 0.3;    // 铲斗高度 300mm (Z2 - Z1)
 const FOCUS_HALF_WIDTH = 0.4; // 焦点区域半宽 800mm/2 = 400mm
 
@@ -51,27 +53,31 @@ function saveSettings(settings: SliceSettings) {
     }
 }
 
-// 5 级橙黄渐变色（低 → 高）
-const HEATMAP_COLORS = [
-    '#CC5500',  // 深橙
-    '#E67300',  // 橙
-    '#FD802E',  // 品牌橙
-    '#FFA940',  // 琥珀
-    '#FFD700',  // 金黄
+// 5 级橙黄渐变色（低 → 高）— RGB 元组用于 ImageData 高性能渲染
+const HEATMAP_COLORS_RGB: [number, number, number][] = [
+    [204, 85, 0],    // 深橙 #CC5500
+    [230, 115, 0],   // 橙 #E67300
+    [253, 128, 46],  // 品牌橙 #FD802E
+    [255, 169, 64],  // 琥珀 #FFA940
+    [255, 215, 0],   // 金黄 #FFD700
 ];
-const GRAY_COLOR = '#3a3a3c';  // 非焦点区域灰色
+const GRAY_RGB: [number, number, number] = [58, 58, 60]; // #3a3a3c
 
-// 根据高度获取 5 级颜色索引
-function getColorForHeight(height: number, minH: number, maxH: number, inFocus: boolean): string {
-    if (!inFocus) return GRAY_COLOR;
+// CSS 颜色字符串（仅用于图例等非性能敏感区域）
+const HEATMAP_COLORS = ['#CC5500', '#E67300', '#FD802E', '#FFA940', '#FFD700'];
+const GRAY_COLOR = '#3a3a3c';
+
+// 根据高度获取 RGB 颜色（用于 ImageData 高性能路径）
+function getColorRGBForHeight(height: number, minH: number, maxH: number, inFocus: boolean): [number, number, number] {
+    if (!inFocus) return GRAY_RGB;
 
     const range = maxH - minH;
-    if (range <= 0) return HEATMAP_COLORS[2];
+    if (range <= 0) return HEATMAP_COLORS_RGB[2];
 
     const normalized = (height - minH) / range;
     const clamped = Math.max(0, Math.min(1, normalized));
     const idx = Math.min(4, Math.floor(clamped * 5));
-    return HEATMAP_COLORS[idx];
+    return HEATMAP_COLORS_RGB[idx];
 }
 
 // 生成模拟点云数据（开发调试用，有真实数据时可删除）
@@ -147,8 +153,11 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         const fixedMinX = VIEW_MIN_X;
         const fixedMaxX = VIEW_MAX_X;
 
-        // 第一遍：过滤点并统计 Y 范围和实际 Z 范围
-        let minY = Infinity, maxY = -Infinity;
+        // Y 轴使用固定范围
+        const minY = VIEW_MIN_Y;
+        const maxY = VIEW_MAX_Y;
+
+        // 第一遍：过滤点并统计实际 Z 范围
         let actualMinZ = Infinity, actualMaxZ = -Infinity;
         let filteredCount = 0;
 
@@ -157,9 +166,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
             const y = activeData[i + 1];
             const z = activeData[i + 2];
 
-            if (x >= fixedMinX && x <= fixedMaxX && z >= minHeight && z <= maxHeight) {
-                minY = Math.min(minY, y);
-                maxY = Math.max(maxY, y);
+            if (x >= fixedMinX && x <= fixedMaxX && y >= minY && y <= maxY && z >= minHeight && z <= maxHeight) {
                 actualMinZ = Math.min(actualMinZ, z);
                 actualMaxZ = Math.max(actualMaxZ, z);
                 filteredCount++;
@@ -168,14 +175,14 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
 
         setPointCount(filteredCount);
 
-        if (filteredCount === 0 || !isFinite(minY)) {
+        if (filteredCount === 0) {
             setStats(null);
             return;
         }
 
         // 固定网格参数
         const xRange = fixedMaxX - fixedMinX;
-        const yRange = maxY - minY;
+        const yRange = VIEW_MAX_Y - VIEW_MIN_Y;
 
         const gridCols = Math.max(1, Math.ceil(yRange / CELL_SIZE));
         const gridRows = Math.ceil(xRange / CELL_SIZE);  // 10 行 (2m / 0.2m)
@@ -187,8 +194,8 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
             const y = activeData[i + 1];
             const z = activeData[i + 2];
 
-            if (x >= fixedMinX && x <= fixedMaxX && z >= minHeight && z <= maxHeight) {
-                const col = Math.min(Math.floor((y - minY) / CELL_SIZE), gridCols - 1);
+            if (x >= fixedMinX && x <= fixedMaxX && y >= minY && y <= maxY && z >= minHeight && z <= maxHeight) {
+                const col = Math.min(Math.floor((VIEW_MAX_Y - y) / CELL_SIZE), gridCols - 1);
                 const row = Math.min(Math.floor((x - fixedMinX) / CELL_SIZE), gridRows - 1);
                 const idx = row * gridCols + col;
 
@@ -226,67 +233,87 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         const focusMinY = yCenter - FOCUS_HALF_WIDTH;
         const focusMaxY = yCenter + FOCUS_HALF_WIDTH;
 
-        // 绘制网格线
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-        ctx.lineWidth = 0.5;
-        for (let row = 0; row <= gridRows; row++) {
-            const cy = offsetY + (gridRows - row) * cellSizePixels;
-            ctx.beginPath();
-            ctx.moveTo(offsetX, cy);
-            ctx.lineTo(offsetX + gridCols * cellSizePixels, cy);
-            ctx.stroke();
-        }
-        for (let col = 0; col <= gridCols; col++) {
-            const cx = offsetX + col * cellSizePixels;
-            ctx.beginPath();
-            ctx.moveTo(cx, offsetY);
-            ctx.lineTo(cx, offsetY + gridRows * cellSizePixels);
-            ctx.stroke();
-        }
+        // 使用 ImageData 像素缓冲高性能渲染热力图（替代 20,000+ 次 fillRect）
+        const heatmapWidthPx = Math.ceil(gridCols * cellSizePixels);
+        const heatmapHeightPx = Math.ceil(gridRows * cellSizePixels);
 
-        // 绘制热力图网格
-        for (let row = 0; row < gridRows; row++) {
-            for (let col = 0; col < gridCols; col++) {
-                const idx = row * gridCols + col;
-                const z = heightGrid[idx];
+        if (heatmapWidthPx > 0 && heatmapHeightPx > 0) {
+            const imgData = ctx.createImageData(heatmapWidthPx, heatmapHeightPx);
+            const pixels = imgData.data;
 
-                if (z > -Infinity) {
-                    const cellCenterY = minY + (col + 0.5) * CELL_SIZE;
-                    const inFocus = cellCenterY >= focusMinY && cellCenterY <= focusMaxY;
+            for (let row = 0; row < gridRows; row++) {
+                for (let col = 0; col < gridCols; col++) {
+                    const idx = row * gridCols + col;
+                    const z = heightGrid[idx];
 
-                    const canvasX = offsetX + col * cellSizePixels;
-                    const canvasY = offsetY + (gridRows - 1 - row) * cellSizePixels;
+                    if (z > -Infinity) {
+                        const cellCenterY = VIEW_MAX_Y - (col + 0.5) * CELL_SIZE;
+                        const inFocus = cellCenterY >= focusMinY && cellCenterY <= focusMaxY;
+                        const [r, g, b] = getColorRGBForHeight(z, minHeight, maxHeight, inFocus);
 
-                    ctx.fillStyle = getColorForHeight(z, minHeight, maxHeight, inFocus);
-                    ctx.fillRect(canvasX, canvasY, cellSizePixels + 0.5, cellSizePixels + 0.5);
+                        // 计算此格子在 ImageData 中的像素区域
+                        const pxLeft = Math.floor(col * cellSizePixels);
+                        const pxTop = Math.floor((gridRows - 1 - row) * cellSizePixels);
+                        const pxRight = Math.min(Math.ceil((col + 1) * cellSizePixels), heatmapWidthPx);
+                        const pxBottom = Math.min(Math.ceil((gridRows - row) * cellSizePixels), heatmapHeightPx);
+
+                        for (let py = pxTop; py < pxBottom; py++) {
+                            for (let px = pxLeft; px < pxRight; px++) {
+                                const pixelIdx = (py * heatmapWidthPx + px) * 4;
+                                pixels[pixelIdx] = r;
+                                pixels[pixelIdx + 1] = g;
+                                pixels[pixelIdx + 2] = b;
+                                pixels[pixelIdx + 3] = 255;
+                            }
+                        }
+                    }
                 }
+            }
+
+            ctx.putImageData(imgData, Math.round(offsetX), Math.round(offsetY));
+        }
+
+        // 仅在格子像素足够大时绘制网格线（避免密集时 300+ 次无意义 stroke）
+        if (cellSizePixels >= 4) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+            ctx.lineWidth = 0.5;
+            for (let row = 0; row <= gridRows; row++) {
+                const cy = offsetY + (gridRows - row) * cellSizePixels;
+                ctx.beginPath();
+                ctx.moveTo(offsetX, cy);
+                ctx.lineTo(offsetX + gridCols * cellSizePixels, cy);
+                ctx.stroke();
+            }
+            for (let col = 0; col <= gridCols; col++) {
+                const cx = offsetX + col * cellSizePixels;
+                ctx.beginPath();
+                ctx.moveTo(cx, offsetY);
+                ctx.lineTo(cx, offsetY + gridRows * cellSizePixels);
+                ctx.stroke();
             }
         }
 
-        // X 轴刻度标注（左侧）
+        // X 轴刻度标注（左侧）— 格子很小，按 0.5m 步进标注
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.font = '9px monospace';
         ctx.textAlign = 'right';
-        for (let row = 0; row <= gridRows; row++) {
-            const xVal = fixedMinX + row * CELL_SIZE;
+        for (let xVal = fixedMinX; xVal <= fixedMaxX + 0.001; xVal += 0.5) {
+            const row = Math.round((xVal - fixedMinX) / CELL_SIZE);
             const cy = offsetY + (gridRows - row) * cellSizePixels;
-            if (Math.abs(xVal % 1.0) < 0.01 || row === 0 || row === gridRows) {
-                ctx.fillText(`${xVal.toFixed(1)}m`, offsetX - 4, cy + 3);
-            }
+            ctx.fillText(`${xVal.toFixed(1)}m`, offsetX - 4, cy + 3);
         }
 
-        // Y 轴刻度标注（底部）
+        // Y 轴刻度标注（底部）— 按 0.5m 步进标注
         ctx.textAlign = 'center';
-        const yStep = Math.max(1, Math.floor(gridCols / 6));
-        for (let col = 0; col <= gridCols; col += yStep) {
-            const yVal = minY + col * CELL_SIZE;
+        for (let yVal = VIEW_MIN_Y; yVal <= VIEW_MAX_Y + 0.001; yVal += 0.5) {
+            const col = Math.round((VIEW_MAX_Y - yVal) / CELL_SIZE);
             const cx = offsetX + col * cellSizePixels;
             ctx.fillText(`${yVal.toFixed(1)}`, cx, offsetY + gridRows * cellSizePixels + 14);
         }
 
         // 绘制焦点区域边界线
-        const focusLeftPx = offsetX + Math.max(0, (focusMinY - minY)) * scale;
-        const focusRightPx = offsetX + Math.min(yRange, (focusMaxY - minY)) * scale;
+        const focusLeftPx = offsetX + Math.max(0, (maxY - focusMaxY)) * scale;
+        const focusRightPx = offsetX + Math.min(yRange, (maxY - focusMinY)) * scale;
         ctx.strokeStyle = 'rgba(253, 128, 46, 0.3)';
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
@@ -369,7 +396,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                     | {pointCount.toLocaleString()} PTS
                 </span>
                 <span className="text-[10px] text-slate-500 border-l border-slate-600 pl-2 ml-1 font-mono">
-                    X:{VIEW_MIN_X}~{VIEW_MAX_X}m
+                    X:{VIEW_MIN_X}~{VIEW_MAX_X}m Y:{VIEW_MIN_Y}~{VIEW_MAX_Y}m
                 </span>
             </div>
 
@@ -479,7 +506,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-green-400">→</span>
-                        <span>Y 宽度 焦点800mm</span>
+                        <span>Y 宽度 {VIEW_MIN_Y}~{VIEW_MAX_Y}m</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-slate-500">▦</span>
