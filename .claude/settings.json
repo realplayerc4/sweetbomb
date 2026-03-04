@@ -12,7 +12,8 @@
       "Bash(npm run build -- --mode production --reporter compact)",
       "Bash(chmod +x /home/yq/sweetbomb/start-simple.sh)",
       "Bash(/home/yq/sweetbomb/start-simple.sh)",
-      "Bash(npm run dev)"
+      "Bash(npm run dev)",
+      "Bash(bash /home/yq/sweetbomb/start-simple.sh)"
     ],
     "additionalDirectories": [
       "/home/yq/sweetbomb/app/services"

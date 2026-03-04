@@ -10,6 +10,7 @@ interface SliceSettings {
     teethHeight: number;   // Z1: 铲齿放平时的高度 (米)
     cameraToTeeth: number;  // 相机到铲齿前沿距离 (米)
     bucketDepth: number;    // 铲斗深度 (米)
+    bucketVolume: number;   // 铲斗目标体积 (升，默认30L)
 }
 
 // 点云选取范围统计信息
@@ -30,6 +31,16 @@ interface AdvanceInfo {
     advanceDistance: number;  // 需要前进的总距离
 }
 
+// 30L 体积目标计算结果
+interface VolumeTargetInfo {
+    targetVolume: number;      // 目标体积 0.03 m³ (30L)
+    bucketWidth: number;       // 铲斗宽度 0.6m (600mm)
+    targetDepthX: number;      // 达到 30L 时的 X 深度 (从相机起算)
+    actualVolume: number;      // 实际可达到的体积
+    isReachable: boolean;      // 是否能在当前视图中达到 30L
+    fillDepth: number;         // 需要填充的深度 (从铲齿起算)
+}
+
 // ----- 固定参数 -----
 const CELL_SIZE = 0.02;          // 格子大小 0.02m
 const DEFAULT_VIEW_DEPTH = 1.0;  // 默认观测深度 1.0m (X轴显示范围)
@@ -46,6 +57,7 @@ const DEFAULT_SETTINGS: SliceSettings = {
     teethHeight: -0.1,   // 默认铲齿高度
     cameraToTeeth: 0.8,  // 默认相机到铲齿 0.8m
     bucketDepth: 0.3,    // 默认铲斗深度 0.3m
+    bucketVolume: 30,    // 默认铲斗目标体积 30L
 };
 
 const STORAGE_KEY = 'slice-view-settings-v3';
@@ -127,6 +139,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
     const [pointCount, setPointCount] = useState(0);
     const [stats, setStats] = useState<SliceStats | null>(null);
     const [advanceInfo, setAdvanceInfo] = useState<AdvanceInfo | null>(null);
+    const [volumeInfo, setVolumeInfo] = useState<VolumeTargetInfo | null>(null);
 
     // Z1 = 铲齿高度, Z2 = Z1 + 铲斗高度 300mm
     const z1 = settings.teethHeight;
@@ -183,6 +196,16 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         let nearestX = Infinity;
         let nearestY = 0;
 
+        // 体积计算参数
+        const BUCKET_WIDTH = 0.6; // 铲斗宽度 600mm = 0.6m
+        const TARGET_VOLUME = settings.bucketVolume / 1000; // 目标体积 (L 转 m³)
+        const Y_CENTER = 0; // Y轴中心
+        const Y_HALF_WIDTH = BUCKET_WIDTH / 2; // Y方向半宽 300mm
+
+        // 按 X 位置收集高度数据 (用于体积计算)
+        // 使用 Map 存储每个 X 格子的高度数据
+        const xSliceData = new Map<number, { heights: number[]; yPositions: number[] }>();
+
         for (let i = 0; i < activeData.length; i += 3) {
             const x = activeData[i];
             const y = activeData[i + 1];
@@ -197,6 +220,18 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                 if (x < nearestX) {
                     nearestX = x;
                     nearestY = y;
+                }
+
+                // 收集 600mm 宽度范围内 (Y中心±300mm) 的高度数据用于体积计算
+                if (y >= Y_CENTER - Y_HALF_WIDTH && y <= Y_CENTER + Y_HALF_WIDTH) {
+                    // 按 X 位置分组 (每 2cm 一个 X 切片)
+                    const xBin = Math.floor((x - fixedMinX) / CELL_SIZE);
+                    if (!xSliceData.has(xBin)) {
+                        xSliceData.set(xBin, { heights: [], yPositions: [] });
+                    }
+                    const slice = xSliceData.get(xBin)!;
+                    slice.heights.push(z);
+                    slice.yPositions.push(y);
                 }
             }
         }
@@ -482,6 +517,19 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                     <span className="text-[8px] text-slate-500 font-mono">m</span>
                 </div>
 
+                {/* 铲斗目标体积 */}
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] text-green-400 font-mono w-10">目标体积</span>
+                    <input
+                        type="number"
+                        step="5"
+                        value={Math.round(settings.bucketVolume)}
+                        onChange={(e) => setSettings(prev => ({ ...prev, bucketVolume: parseFloat(e.target.value) || 30 }))}
+                        className="w-14 h-5 bg-slate-800 border border-green-600/50 rounded text-[9px] text-green-400 px-1 font-mono"
+                    />
+                    <span className="text-[8px] text-slate-500 font-mono">L</span>
+                </div>
+
                 {/* Z1 铲齿高度设置 */}
                 <div className="border-t border-slate-600 pt-2 mb-2">
                     <div className="text-[9px] text-slate-400 font-mono mb-1">切片高度</div>
@@ -569,23 +617,6 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                 </button>
             </div>
 
-            {/* 右下角：颜色图例 */}
-            <div className="absolute bottom-[10px] right-[10px] z-10 bg-black/80 backdrop-blur-md p-2 rounded-lg border border-slate-700">
-                <div className="text-[9px] text-slate-400 font-mono mb-1">高度 (Z1→Z2)</div>
-                <div className="flex items-center gap-0.5">
-                    <span className="text-[8px] text-[#CC5500] font-mono">低</span>
-                    {HEATMAP_COLORS.map((color, i) => (
-                        <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
-                    ))}
-                    <span className="text-[8px] text-[#FFD700] font-mono">高</span>
-                </div>
-                <div className="flex items-center gap-1 mt-1">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: GRAY_COLOR }} />
-                    <span className="text-[8px] text-slate-500 font-mono">焦点外</span>
-                </div>
-            </div>
-
-            {/* 悬停提示 */}
             {isHovered && (
                 <div className="absolute top-[50px] right-[10px] z-10 bg-black/80 backdrop-blur-md px-3 py-2 rounded-lg text-[9px] text-slate-400 font-mono">
                     <div className="flex items-center gap-2">
