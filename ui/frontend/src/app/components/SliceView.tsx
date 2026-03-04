@@ -43,9 +43,9 @@ interface VolumeTargetInfo {
 
 // ----- 固定参数 -----
 const CELL_SIZE = 0.02;          // 格子大小 0.02m
-const DEFAULT_VIEW_DEPTH = 1.0;  // 默认观测深度 1.0m (X轴显示范围)
-const VIEW_MIN_Y = -1.0;           // Y(宽度) 固定显示范围起点
-const VIEW_MAX_Y = 1.0;            // Y(宽度) 固定显示范围终点
+const DEFAULT_VIEW_DEPTH = 2.0;  // 默认观测深度 2.0m (X轴显示范围加长到2m)
+const VIEW_MIN_Y = -1.5;           // Y(宽度) 固定显示范围起点 -1.5m
+const VIEW_MAX_Y = 1.5;            // Y(宽度) 固定显示范围终点 1.5m
 const BUCKET_HEIGHT = 0.3;         // 铲斗高度 300mm (Z2 - Z1)
 const FOCUS_HALF_WIDTH = 0.4;      // 焦点区域半宽 800mm/2 = 400mm
 
@@ -91,8 +91,8 @@ const HEATMAP_COLORS_RGB: [number, number, number][] = [
 const GRAY_RGB: [number, number, number] = [58, 58, 60]; // #3a3a3c
 
 // CSS 颜色字符串（仅用于图例等非性能敏感区域）
-const HEATMAP_COLORS = ['#CC5500', '#E67300', '#FD802E', '#FFA940', '#FFD700'];
-const GRAY_COLOR = '#3a3a3c';
+// const HEATMAP_COLORS = ['#CC5500', '#E67300', '#FD802E', '#FFA940', '#FFD700'];
+// const GRAY_COLOR = '#3a3a3c';
 
 // 根据高度获取 RGB 颜色（用于 ImageData 高性能路径）
 function getColorRGBForHeight(height: number, minH: number, maxH: number, inFocus: boolean): [number, number, number] {
@@ -139,7 +139,8 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
     const [pointCount, setPointCount] = useState(0);
     const [stats, setStats] = useState<SliceStats | null>(null);
     const [advanceInfo, setAdvanceInfo] = useState<AdvanceInfo | null>(null);
-    const [volumeInfo, setVolumeInfo] = useState<VolumeTargetInfo | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_volumeInfo, _setVolumeInfo] = useState<VolumeTargetInfo | null>(null);
 
     // Z1 = 铲齿高度, Z2 = Z1 + 铲斗高度 300mm
     const z1 = settings.teethHeight;
@@ -198,7 +199,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
 
         // 体积计算参数
         const BUCKET_WIDTH = 0.6; // 铲斗宽度 600mm = 0.6m
-        const TARGET_VOLUME = settings.bucketVolume / 1000; // 目标体积 (L 转 m³)
+        const _TARGET_VOLUME = settings.bucketVolume / 1000; // 目标体积 (L 转 m³)，下划线前缀表示未使用
         const Y_CENTER = 0; // Y轴中心
         const Y_HALF_WIDTH = BUCKET_WIDTH / 2; // Y方向半宽 300mm
 

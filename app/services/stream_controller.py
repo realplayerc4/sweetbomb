@@ -44,7 +44,7 @@ class StreamController:
         self.active_streams: Dict[str, Set[str]] = {}
         self.frame_queues: Dict[str, Dict[str, List]] = {}
         self.metadata_queues: Dict[str, Dict[str, List[Dict]]] = {}
-        self.max_queue_size = 5
+        self.max_queue_size = 1  # 缩小堆积队列，仅保留最新一帧以保证极高实时响应
         self.is_pointcloud_enabled: Dict[str, bool] = {}
         self._last_pc_calc_time: Dict[str, float] = {}
 

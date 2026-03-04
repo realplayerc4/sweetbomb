@@ -38,6 +38,7 @@ class RealSenseVideoTrack(VideoStreamTrack):
         self.device_id = device_id
         self.stream_type = stream_type
         self._start = time.time()
+        self._last_frame_id = None
 
     async def recv(self):
         """接收视频帧。
@@ -46,9 +47,18 @@ class RealSenseVideoTrack(VideoStreamTrack):
             VideoFrame: 视频帧对象
         """
         try:
-            # 从 RealSense 获取帧数据
-            frame_data = self.realsense_manager.get_latest_frame(self.device_id, self.stream_type)
+            # 防空转重试，等待新的一帧出现
+            for _ in range(50):  # 最多等待约 0.5 秒
+                # 从 RealSense 获取帧数据
+                frame_data = self.realsense_manager.get_latest_frame(self.device_id, self.stream_type)
+                current_frame_id = id(frame_data)
+                if current_frame_id != self._last_frame_id:
+                    self._last_frame_id = current_frame_id
+                    break
+                await asyncio.sleep(0.01)
 
+            # 即使没获取到新的（极端情况），也发送手头最后这一帧，防止编码器报错
+            
             # 必要时转换为 RGB 格式
             if len(frame_data.shape) == 3 and frame_data.shape[2] == 3:
                 # 已经是 RGB 格式，无需转换
