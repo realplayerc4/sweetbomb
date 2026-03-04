@@ -52,9 +52,9 @@ export function DepthView({ isActive, depthStream, depthMetrics }: DepthViewProp
       <div className="absolute inset-0 pointer-events-none border-[12px] border-black/5" />
 
       {/* Mode indicator badge */}
-      <div className="absolute bottom-[10px] left-[10px] z-10 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700/50">
-        <div className="w-2 h-2 rounded-full bg-green-400" />
-        <span className="text-[10px] text-slate-300 font-mono uppercase">DEPTH MODE</span>
+      <div className="absolute bottom-[10px] left-[10px] z-10 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#FD802E]/40 shadow-[0_0_8px_rgba(253,128,46,0.1)]">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#FD802E]" />
+        <span className="text-[9px] text-[#FD802E] font-bold tracking-tight font-mono uppercase">DEPTH MODE</span>
       </div>
     </div>
   );
