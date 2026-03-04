@@ -7,7 +7,9 @@ interface SliceViewProps {
 }
 
 interface SliceSettings {
-    teethHeight: number;  // Z1: 铲齿放平时的高度 (米)
+    teethHeight: number;   // Z1: 铲齿放平时的高度 (米)
+    cameraToTeeth: number;  // 相机到铲齿前沿距离 (米)
+    bucketDepth: number;    // 铲斗深度 (米)
 }
 
 // 点云选取范围统计信息
@@ -20,20 +22,33 @@ interface SliceStats {
     actualMaxZ: number;  // 切片内实际最高 Z 值
 }
 
+// 前进距离计算结果
+interface AdvanceInfo {
+    nearestX: number;        // 最近物料的 X 坐标
+    nearestY: number;        // 最近物料的 Y 坐标
+    materialDistance: number; // 铲齿到物料的距离
+    advanceDistance: number;  // 需要前进的总距离
+}
+
 // ----- 固定参数 -----
-const CELL_SIZE = 0.02;       // 格子大小 0.02m
-const VIEW_MIN_X = 1.0;       // X(深度) 固定显示范围起点
-const VIEW_MAX_X = 2.0;       // X(深度) 固定显示范围终点
-const VIEW_MIN_Y = -1.0;      // Y(宽度) 固定显示范围起点
-const VIEW_MAX_Y = 1.0;       // Y(宽度) 固定显示范围终点
-const BUCKET_HEIGHT = 0.3;    // 铲斗高度 300mm (Z2 - Z1)
-const FOCUS_HALF_WIDTH = 0.4; // 焦点区域半宽 800mm/2 = 400mm
+const CELL_SIZE = 0.02;          // 格子大小 0.02m
+const DEFAULT_VIEW_DEPTH = 1.0;  // 默认观测深度 1.0m (X轴显示范围)
+const VIEW_MIN_Y = -1.0;           // Y(宽度) 固定显示范围起点
+const VIEW_MAX_Y = 1.0;            // Y(宽度) 固定显示范围终点
+const BUCKET_HEIGHT = 0.3;         // 铲斗高度 300mm (Z2 - Z1)
+const FOCUS_HALF_WIDTH = 0.4;      // 焦点区域半宽 800mm/2 = 400mm
+
+// 向后兼容：导出旧常量名用于外部引用 (实际使用 viewMinX/viewMaxX 动态值)
+export const VIEW_MIN_X = 1.0;
+export const VIEW_MAX_X = 2.0;
 
 const DEFAULT_SETTINGS: SliceSettings = {
-    teethHeight: -0.1,  // 默认铲齿高度
+    teethHeight: -0.1,   // 默认铲齿高度
+    cameraToTeeth: 0.8,  // 默认相机到铲齿 0.8m
+    bucketDepth: 0.3,    // 默认铲斗深度 0.3m
 };
 
-const STORAGE_KEY = 'slice-view-settings-v2';
+const STORAGE_KEY = 'slice-view-settings-v3';
 
 function loadSettings(): SliceSettings {
     try {
@@ -111,10 +126,15 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
     const [isHovered, setIsHovered] = useState(false);
     const [pointCount, setPointCount] = useState(0);
     const [stats, setStats] = useState<SliceStats | null>(null);
+    const [advanceInfo, setAdvanceInfo] = useState<AdvanceInfo | null>(null);
 
     // Z1 = 铲齿高度, Z2 = Z1 + 铲斗高度 300mm
     const z1 = settings.teethHeight;
     const z2 = z1 + BUCKET_HEIGHT;
+
+    // 动态计算 X 轴视图范围
+    const viewMinX = settings.cameraToTeeth;
+    const viewMaxX = settings.cameraToTeeth + DEFAULT_VIEW_DEPTH;
 
     // 无真实数据时使用模拟数据（开发调试）。如果接入了真机，activeData 就是真实点云。
     const activeData = (pointCloudData && pointCloudData.length > 0) ? pointCloudData : getMockPointCloud();
@@ -150,16 +170,18 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
 
         const minHeight = z1;
         const maxHeight = z2;
-        const fixedMinX = VIEW_MIN_X;
-        const fixedMaxX = VIEW_MAX_X;
+        const fixedMinX = viewMinX;
+        const fixedMaxX = viewMaxX;
 
         // Y 轴使用固定范围
         const minY = VIEW_MIN_Y;
         const maxY = VIEW_MAX_Y;
 
-        // 第一遍：过滤点并统计实际 Z 范围
+        // 第一遍：过滤点并统计实际 Z 范围，同时找出最近的物料点
         let actualMinZ = Infinity, actualMaxZ = -Infinity;
         let filteredCount = 0;
+        let nearestX = Infinity;
+        let nearestY = 0;
 
         for (let i = 0; i < activeData.length; i += 3) {
             const x = activeData[i];
@@ -170,10 +192,30 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                 actualMinZ = Math.min(actualMinZ, z);
                 actualMaxZ = Math.max(actualMaxZ, z);
                 filteredCount++;
+
+                // 追踪最近的物料点（最小的 X 值）
+                if (x < nearestX) {
+                    nearestX = x;
+                    nearestY = y;
+                }
             }
         }
 
         setPointCount(filteredCount);
+
+        // 计算前进距离
+        if (nearestX !== Infinity) {
+            const materialDistance = nearestX - settings.cameraToTeeth;
+            const advanceDistance = materialDistance + settings.bucketDepth;
+            setAdvanceInfo({
+                nearestX,
+                nearestY,
+                materialDistance,
+                advanceDistance,
+            });
+        } else {
+            setAdvanceInfo(null);
+        }
 
         if (filteredCount === 0) {
             setStats(null);
@@ -297,7 +339,10 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.font = '9px monospace';
         ctx.textAlign = 'right';
-        for (let xVal = fixedMinX; xVal <= fixedMaxX + 0.001; xVal += 0.5) {
+        // 动态步进：根据显示范围选择合适的刻度间隔
+        const xRangeMeters = fixedMaxX - fixedMinX;
+        const xStep = xRangeMeters <= 1.0 ? 0.2 : (xRangeMeters <= 2.0 ? 0.5 : 1.0);
+        for (let xVal = fixedMinX; xVal <= fixedMaxX + 0.001; xVal += xStep) {
             const row = Math.round((xVal - fixedMinX) / CELL_SIZE);
             const cy = offsetY + (gridRows - row) * cellSizePixels;
             ctx.fillText(`${xVal.toFixed(1)}m`, offsetX - 4, cy + 3);
@@ -396,7 +441,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                     | {pointCount.toLocaleString()} PTS
                 </span>
                 <span className="text-[10px] text-slate-500 border-l border-slate-600 pl-2 ml-1 font-mono">
-                    X:{VIEW_MIN_X}~{VIEW_MAX_X}m Y:{VIEW_MIN_Y}~{VIEW_MAX_Y}m
+                    X:{viewMinX.toFixed(1)}~{viewMaxX.toFixed(1)}m Y:{VIEW_MIN_Y}~{VIEW_MAX_Y}m
                 </span>
             </div>
 
@@ -410,30 +455,59 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
 
             {/* 左下角控制面板 */}
             <div className="absolute bottom-[10px] left-[10px] z-10 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-slate-700 max-w-[210px]">
-                {/* Z1 铲齿高度设置 */}
-                <div className="text-[9px] text-slate-400 font-mono mb-2">铲齿高度 Z1 (米)</div>
+                {/* 相机到铲齿距离 */}
+                <div className="text-[9px] text-slate-400 font-mono mb-2">安装参数</div>
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] text-[#FD802E] font-mono w-6">Z1</span>
+                    <span className="text-[9px] text-[#FD802E] font-mono w-10">相机→齿</span>
                     <input
                         type="number"
-                        step="0.01"
-                        value={settings.teethHeight.toFixed(2)}
-                        onChange={(e) => setSettings(prev => ({ ...prev, teethHeight: parseFloat(e.target.value) || 0 }))}
-                        className="w-16 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
+                        step="0.05"
+                        value={settings.cameraToTeeth.toFixed(2)}
+                        onChange={(e) => setSettings(prev => ({ ...prev, cameraToTeeth: parseFloat(e.target.value) || 0 }))}
+                        className="w-14 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
                     />
-                    <span className="text-[8px] text-slate-500 font-mono">→ Z2: {z2.toFixed(2)}</span>
+                    <span className="text-[8px] text-slate-500 font-mono">m</span>
+                </div>
+
+                {/* 铲斗深度 */}
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] text-[#FD802E] font-mono w-10">铲斗深度</span>
+                    <input
+                        type="number"
+                        step="0.05"
+                        value={settings.bucketDepth.toFixed(2)}
+                        onChange={(e) => setSettings(prev => ({ ...prev, bucketDepth: parseFloat(e.target.value) || 0 }))}
+                        className="w-14 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
+                    />
+                    <span className="text-[8px] text-slate-500 font-mono">m</span>
+                </div>
+
+                {/* Z1 铲齿高度设置 */}
+                <div className="border-t border-slate-600 pt-2 mb-2">
+                    <div className="text-[9px] text-slate-400 font-mono mb-1">切片高度</div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-[#FD802E] font-mono w-6">Z1</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={settings.teethHeight.toFixed(2)}
+                            onChange={(e) => setSettings(prev => ({ ...prev, teethHeight: parseFloat(e.target.value) || 0 }))}
+                            className="w-16 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
+                        />
+                        <span className="text-[8px] text-slate-500 font-mono">→ Z2: {z2.toFixed(2)}</span>
+                    </div>
                 </div>
 
                 {/* 固定参数 */}
                 <div className="border-t border-slate-600 pt-2 mb-2">
-                    <div className="text-[9px] text-slate-400 font-mono mb-1">固定参数</div>
+                    <div className="text-[9px] text-slate-400 font-mono mb-1">视图参数</div>
                     <div className="space-y-0.5 text-[8px] font-mono">
                         <div className="flex justify-between">
-                            <span className="text-slate-500">深度</span>
-                            <span className="text-white">{VIEW_MIN_X}~{VIEW_MAX_X}m</span>
+                            <span className="text-slate-500">深度范围</span>
+                            <span className="text-white">{viewMinX.toFixed(1)}~{viewMaxX.toFixed(1)}m</span>
                         </div>
                         <div className="flex justify-between">
-                            <span className="text-slate-500">格子</span>
+                            <span className="text-slate-500">格子大小</span>
                             <span className="text-white">{(CELL_SIZE * 100).toFixed(0)}cm</span>
                         </div>
                         <div className="flex justify-between">
@@ -442,6 +516,24 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                         </div>
                     </div>
                 </div>
+
+                {/* 前进距离计算结果 */}
+                {advanceInfo && (
+                    <div className="border-t border-[#FD802E]/30 pt-2 mb-2">
+                        <div className="text-[9px] text-[#FD802E] font-mono mb-1.5">作业建议</div>
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-[8px] text-slate-500 font-mono">铲齿→物料</span>
+                            <span className="text-[9px] text-cyan-400 font-mono">{advanceInfo.materialDistance.toFixed(2)}m</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[8px] text-slate-500 font-mono">建议前进</span>
+                            <span className="text-[14px] text-[#FD802E] font-mono font-bold">{advanceInfo.advanceDistance.toFixed(2)}m</span>
+                        </div>
+                        <div className="text-[7px] text-slate-600 font-mono mt-1">
+                            = 齿距→物料 + 铲斗深度
+                        </div>
+                    </div>
+                )}
 
                 {/* 选取范围统计 */}
                 {stats && (
@@ -502,7 +594,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-cyan-400">↑</span>
-                        <span>X 深度 {VIEW_MIN_X}~{VIEW_MAX_X}m</span>
+                        <span>X 深度 {viewMinX.toFixed(1)}~{viewMaxX.toFixed(1)}m</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="text-green-400">→</span>
