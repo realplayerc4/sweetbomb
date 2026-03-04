@@ -13,6 +13,9 @@
       "Bash(chmod +x /home/yq/sweetbomb/start-simple.sh)",
       "Bash(/home/yq/sweetbomb/start-simple.sh)",
       "Bash(npm run dev)"
+    ],
+    "additionalDirectories": [
+      "/home/yq/sweetbomb/app/services"
     ]
   },
   "model": "glm-5"
