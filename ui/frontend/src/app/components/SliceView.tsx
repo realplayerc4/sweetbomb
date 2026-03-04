@@ -47,7 +47,7 @@ const DEFAULT_VIEW_DEPTH = 2.0;  // 默认观测深度 2.0m (X轴显示范围加
 const VIEW_MIN_Y = -1.5;           // Y(宽度) 固定显示范围起点 -1.5m
 const VIEW_MAX_Y = 1.5;            // Y(宽度) 固定显示范围终点 1.5m
 const BUCKET_HEIGHT = 0.3;         // 铲斗高度 300mm (Z2 - Z1)
-const FOCUS_HALF_WIDTH = 0.4;      // 焦点区域半宽 800mm/2 = 400mm
+const FOCUS_HALF_WIDTH = 0.3;      // 焦点区域半宽 600mm/2 = 300mm
 
 // 向后兼容：导出旧常量名用于外部引用 (实际使用 viewMinX/viewMaxX 动态值)
 export const VIEW_MIN_X = 1.0;
@@ -197,42 +197,28 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         let nearestX = Infinity;
         let nearestY = 0;
 
-        // 体积计算参数
-        const BUCKET_WIDTH = 0.6; // 铲斗宽度 600mm = 0.6m
-        const _TARGET_VOLUME = settings.bucketVolume / 1000; // 目标体积 (L 转 m³)，下划线前缀表示未使用
-        const Y_CENTER = 0; // Y轴中心
-        const Y_HALF_WIDTH = BUCKET_WIDTH / 2; // Y方向半宽 300mm
-
-        // 按 X 位置收集高度数据 (用于体积计算)
-        // 使用 Map 存储每个 X 格子的高度数据
-        const xSliceData = new Map<number, { heights: number[]; yPositions: number[] }>();
+        // 最近物料点的工作范围定义：
+        // X方向：铲齿前方完整2m范围（观测范围）
+        // Y方向：只在铲斗宽度600mm范围内（-0.3m ~ +0.3m）
+        const BUCKET_HALF_WIDTH = 0.3; // 铲斗半宽 300mm
 
         for (let i = 0; i < activeData.length; i += 3) {
             const x = activeData[i];
             const y = activeData[i + 1];
             const z = activeData[i + 2];
 
+            // 主过滤：在完整视野范围内统计
             if (x >= fixedMinX && x <= fixedMaxX && y >= minY && y <= maxY && z >= minHeight && z <= maxHeight) {
                 actualMinZ = Math.min(actualMinZ, z);
                 actualMaxZ = Math.max(actualMaxZ, z);
                 filteredCount++;
 
-                // 追踪最近的物料点（最小的 X 值）
-                if (x < nearestX) {
-                    nearestX = x;
-                    nearestY = y;
-                }
-
-                // 收集 600mm 宽度范围内 (Y中心±300mm) 的高度数据用于体积计算
-                if (y >= Y_CENTER - Y_HALF_WIDTH && y <= Y_CENTER + Y_HALF_WIDTH) {
-                    // 按 X 位置分组 (每 2cm 一个 X 切片)
-                    const xBin = Math.floor((x - fixedMinX) / CELL_SIZE);
-                    if (!xSliceData.has(xBin)) {
-                        xSliceData.set(xBin, { heights: [], yPositions: [] });
+                // 只在铲斗宽度范围内（Y方向±0.3m）追踪最近物料点
+                if (y >= -BUCKET_HALF_WIDTH && y <= BUCKET_HALF_WIDTH) {
+                    if (x < nearestX) {
+                        nearestX = x;
+                        nearestY = y;
                     }
-                    const slice = xSliceData.get(xBin)!;
-                    slice.heights.push(z);
-                    slice.yPositions.push(y);
                 }
             }
         }
@@ -414,7 +400,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         ctx.fillStyle = 'rgba(253, 128, 46, 0.5)';
         ctx.font = '8px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('800mm焦点区域', (focusLeftPx + focusRightPx) / 2, offsetY - 4);
+        ctx.fillText('600mm焦点区域', (focusLeftPx + focusRightPx) / 2, offsetY - 4);
 
         // 指南针
         const compassCX = canvas.width - 40;

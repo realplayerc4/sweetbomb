@@ -458,11 +458,28 @@ class StreamController:
                                 .reshape(-1, 3)
                                 .copy()
                             )
-                            print(f"[PointCloudCalc] Raw vertices count: {len(verts) // 3}")
+                            print(f"[PointCloudCalc] Raw vertices count: {len(verts)}")
 
                             # 使用统一的坐标转换模块（转换为 ROS 坐标系）
                             verts = transform_realsense_to_robot(verts)
-                            print(f"[PointCloudCalc] Transformed vertices count: {len(verts) // 3}")
+                            
+                            # 【精细化空间分区采样】
+                            # 中心焦点区 [-0.3m, 0.3m] 且深度 <= 4m 用于体积和切面高度积分，不抽稀保准
+                            # 边缘区或深度超过 4m 的区域由于仅作周围地形辅助呈现，予以 1/30 重度抽稀以防前端计算假死
+                            x_coords = verts[:, 0]
+                            y_coords = verts[:, 1]
+                            in_roi = (y_coords >= -0.3) & (y_coords <= 0.3) & (x_coords <= 4.0)
+                            
+                            verts_roi = verts[in_roi]
+                            verts_outside = verts[~in_roi][::30]  # 边缘及远端强力裁切
+                            
+                            if len(verts_roi) > 0 or len(verts_outside) > 0:
+                                # 合并并保证内存连续性用于 Socket 转字节传输
+                                verts = np.vstack((verts_roi, verts_outside)).copy()
+                            else:
+                                verts = np.empty((0, 3), dtype=np.float32)
+
+                            print(f"[PointCloudCalc] ROI points (X<=4m, Y±0.3m): {len(verts_roi)}, Outside points: {len(verts_outside)}, Total Final: {len(verts)}")
 
                             raw_frames[stream_type]["point_cloud"] = {
                                 "vertices": verts,
