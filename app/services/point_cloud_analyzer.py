@@ -119,8 +119,8 @@ class PointCloudAnalyzer:
         actual_volume = max(0.0, avg_height * base_area)
 
         # 计算堆体高度（在X≤3m, Y∈[-0.3,0.3]范围内找最高点）
-        # 默认相机高度1m
-        camera_height = 1.0
+        # 相机高度0.6m（从地面起算）
+        camera_height = 0.6
         pile_search_range_x = 3.0  # X≤3m
 
         # 在valid_points中进一步筛选X≤3m的点
@@ -128,10 +128,12 @@ class PointCloudAnalyzer:
         pile_points = valid_points[pile_mask]
 
         if len(pile_points) > 0:
-            # 找到最高点的Z坐标
+            # 找到最高点的Z坐标（Z坐标是相机直接输出的值）
             pile_max_z = np.max(pile_points[:, 2])
-            # 堆体高度 = 相机高度 - 最高点Z坐标
-            pile_height = camera_height - pile_max_z
+            # 堆体高度 = 相机高度 + 最高点Z坐标
+            # 例如：相机高度0.6m，最高点Z=0.2m
+            # 堆体高度 = 0.6 + 0.2 = 0.8m
+            pile_height = camera_height + pile_max_z
         else:
             pile_max_z = None
             pile_height = 0.0

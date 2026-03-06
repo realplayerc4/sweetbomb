@@ -22,8 +22,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         scoop,
         dump,
         dock,
-        error,
-        clearError,
     } = useRobotController();
 
     const [servoAngles, setServoAngles] = useState({ lift: 0, dump: 0 });
@@ -58,19 +56,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         return labels[state] || state;
     };
 
-    if (error) {
-        return (
-            <Card className={cn('relative p-6 bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px]', className)}>
-                <div className="text-red-500 text-center py-10">
-                    <p className="font-medium text-lg text-[#FD802E]">系统错误</p>
-                    <p className="text-sm mt-1 mb-4 opacity-80">{error}</p>
-                    <Button onClick={clearError} variant="outline" className="border-[#FD802E]/50 text-[#FD802E] hover:bg-[#FD802E]/10">
-                        清除错误
-                    </Button>
-                </div>
-            </Card>
-        );
-    }
 
     return (
         <Card className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[400px]', className)}>

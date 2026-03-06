@@ -146,14 +146,15 @@ function CircularHarvestFlow({
     onStartCycle?: () => void,
     isHarvestRunning?: boolean
 }) {
-    // Adjusted radius and dimensions for fewer nodes
-    const radius = 100;
+    // Adjusted radii for elliptical flow (vertical spacing reduced by half)
+    const radiusX = 100;
+    const radiusY = 50;
     const totalNodes = nodes.length;
 
     return (
-        <div className="relative w-full h-[280px] flex items-center justify-center mt-6">
+        <div className="relative w-full h-[180px] flex items-center justify-start ml-24 mt-4">
             {/* Background SVG Canvas for connecting arcs */}
-            <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] pointer-events-none z-0">
+            <svg className="absolute left-0 top-1/2 -translate-y-1/2 w-[300px] h-[200px] pointer-events-none z-0 overflow-visible">
                 <defs>
                     <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                         <path d="M 0 0 L 10 5 L 0 10 z" fill="#4B5563" />
@@ -163,18 +164,18 @@ function CircularHarvestFlow({
                     </marker>
                 </defs>
 
-                {/* Fixed Circular path with markers */}
-                <circle cx="140" cy="140" r={radius} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
+                {/* Ellgetical path with markers */}
+                <ellipse cx="0" cy="100" rx={radiusX} ry={radiusY} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
 
-                {/* Generate directional arrows precisely spaced on the circle track */}
+                {/* Generate directional arrows precisely spaced on the elliptical track */}
                 {nodes.map((_, i) => {
                     const angleOffset = (i * 360 / totalNodes - 90 + (180 / totalNodes)) * (Math.PI / 180);
-                    const cx = 140;
-                    const cy = 140;
-                    const startX = cx + Math.cos(angleOffset - 0.1) * radius;
-                    const startY = cy + Math.sin(angleOffset - 0.1) * radius;
-                    const endX = cx + Math.cos(angleOffset) * radius;
-                    const endY = cy + Math.sin(angleOffset) * radius;
+                    const cx = 0;
+                    const cy = 100;
+                    const startX = cx + Math.cos(angleOffset - 0.1) * radiusX;
+                    const startY = cy + Math.sin(angleOffset - 0.1) * radiusY;
+                    const endX = cx + Math.cos(angleOffset) * radiusX;
+                    const endY = cy + Math.sin(angleOffset) * radiusY;
 
                     const currentIdx = nodes.findIndex(n => n.name === currentNode);
                     const isFlowActive = status === 'running' && (currentIdx === i || currentIdx === (i + 1) % totalNodes);
@@ -193,20 +194,19 @@ function CircularHarvestFlow({
                 })}
 
                 {status === 'running' && (
-                    <circle cx="140" cy="140" r={radius} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: '140px 140px' }} />
+                    <ellipse cx="0" cy="100" rx={radiusX} ry={radiusY} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: '0px 100px' }} />
                 )}
             </svg>
 
             {nodes.map((node, i) => {
                 const angle = (i * 360 / totalNodes - 90) * (Math.PI / 180);
-                const x = Math.cos(angle) * radius;
-                const y = Math.sin(angle) * radius;
+                const x = Math.cos(angle) * radiusX;
+                const y = Math.sin(angle) * radiusY;
                 const isCurrent = node.name === currentNode;
                 const currentIdx = nodes.findIndex(n => n.name === currentNode);
                 const isSuccess = currentIdx > -1 && i < currentIdx;
 
                 const isNavNode = node.name === 'NavigateToSugarPoint' || node.name === 'NavigateToDumpPoint';
-                // First node (NavigateToSugarPoint) should act as a button if idle
                 const isInteractive = node.name === 'NavigateToSugarPoint' && !isHarvestRunning;
 
                 const baseNodeContent = (
@@ -236,9 +236,6 @@ function CircularHarvestFlow({
                         {isSuccess && (
                             <span className="ml-1 text-[12px] text-green-500/80 mr-0.5">✓</span>
                         )}
-                        {isInteractive && (
-                            <span className="ml-1 text-[10px] bg-black/40 px-1.5 py-0.5 rounded text-white group-hover:bg-white/20">点击启动</span>
-                        )}
                     </div>
                 );
 
@@ -250,7 +247,9 @@ function CircularHarvestFlow({
                             isCurrent ? 'scale-110 z-10' : 'scale-100 z-0 opacity-90'
                         )}
                         style={{
-                            transform: `translate(${x}px, ${y}px)`,
+                            left: '0px',
+                            top: '50%',
+                            transform: `translate(${x}px, calc(-50% + ${y}px))`,
                         }}
                     >
                         {baseNodeContent}
