@@ -32,9 +32,6 @@ const SUGAR_HARVEST_TREE: BTNodeConfig = {
     children: [
         { name: 'NavigateToSugarPoint', type: 'action' },
         { name: 'CheckShovelFlat', type: 'action' },
-        { name: 'AnalyzeSugarDistance', type: 'action' },
-        { name: 'MoveForwardToScoop', type: 'action' },
-        { name: 'ReverseToNavPoint', type: 'action' },
         { name: 'NavigateToDumpPoint', type: 'action' },
         { name: 'DumpAction', type: 'action' },
     ],
@@ -63,7 +60,7 @@ const STEP_NAMES: Record<string, string> = {
     'SugarHarvestMainLoop': '铲糖主循环',
     'PushModeMainLoop': '推垛模式',
     'HeightCheck': '检查糖堆高度',
-    'CheckShovelFlat': '监控车铲放平',
+    'CheckShovelFlat': '翻斗加载',
 };
 
 const STEP_ICONS: Record<string, string> = {
@@ -149,14 +146,14 @@ function CircularHarvestFlow({
     onStartCycle?: () => void,
     isHarvestRunning?: boolean
 }) {
-    // Expand radius slightly for the extra node
-    const radius = 135;
+    // Adjusted radius and dimensions for fewer nodes
+    const radius = 100;
     const totalNodes = nodes.length;
 
     return (
-        <div className="relative w-full h-[380px] flex items-center justify-center mt-4">
+        <div className="relative w-full h-[280px] flex items-center justify-center mt-6">
             {/* Background SVG Canvas for connecting arcs */}
-            <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[380px] h-[380px] pointer-events-none">
+            <svg className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] pointer-events-none z-0">
                 <defs>
                     <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                         <path d="M 0 0 L 10 5 L 0 10 z" fill="#4B5563" />
@@ -167,13 +164,13 @@ function CircularHarvestFlow({
                 </defs>
 
                 {/* Fixed Circular path with markers */}
-                <circle cx="190" cy="190" r={radius} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
+                <circle cx="140" cy="140" r={radius} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
 
                 {/* Generate directional arrows precisely spaced on the circle track */}
                 {nodes.map((_, i) => {
                     const angleOffset = (i * 360 / totalNodes - 90 + (180 / totalNodes)) * (Math.PI / 180);
-                    const cx = 190;
-                    const cy = 190;
+                    const cx = 140;
+                    const cy = 140;
                     const startX = cx + Math.cos(angleOffset - 0.1) * radius;
                     const startY = cy + Math.sin(angleOffset - 0.1) * radius;
                     const endX = cx + Math.cos(angleOffset) * radius;
@@ -196,7 +193,7 @@ function CircularHarvestFlow({
                 })}
 
                 {status === 'running' && (
-                    <circle cx="190" cy="190" r={radius} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: '190px 190px' }} />
+                    <circle cx="140" cy="140" r={radius} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: '140px 140px' }} />
                 )}
             </svg>
 
@@ -208,20 +205,21 @@ function CircularHarvestFlow({
                 const currentIdx = nodes.findIndex(n => n.name === currentNode);
                 const isSuccess = currentIdx > -1 && i < currentIdx;
 
+                const isNavNode = node.name === 'NavigateToSugarPoint' || node.name === 'NavigateToDumpPoint';
                 // First node (NavigateToSugarPoint) should act as a button if idle
-                const isStartNode = node.name === 'NavigateToSugarPoint';
-                const isInteractive = isStartNode && !isHarvestRunning;
+                const isInteractive = node.name === 'NavigateToSugarPoint' && !isHarvestRunning;
 
                 const baseNodeContent = (
                     <div
                         className={cn(
-                            'group flex items-center gap-2.5 px-3 py-2 rounded-full font-bold tracking-wider transition-all duration-300 w-auto select-none backdrop-blur-md whitespace-nowrap shadow-lg cursor-default',
+                            'group flex items-center gap-2.5 px-3 py-2 rounded-full font-bold tracking-wider transition-all duration-300 w-auto select-none backdrop-blur-md whitespace-nowrap shadow-lg',
+                            isInteractive ? 'cursor-pointer' : 'cursor-default',
                             isSuccess
                                 ? 'bg-[#1c1c1e] text-[#FD802E] border border-white/5'
                                 : isCurrent
                                     ? 'bg-[#FD802E]/15 border border-[#FD802E]/60 text-white ring-2 ring-[#FD802E]/40 shadow-[0_0_25px_rgba(253,128,46,0.3)]'
-                                    : isInteractive
-                                        ? 'bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E] shadow-[0_0_15px_rgba(253,128,46,0.2)] hover:bg-[#FD802E] hover:text-white cursor-pointer scale-105'
+                                    : isNavNode
+                                        ? 'bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E] shadow-[0_0_15px_rgba(253,128,46,0.2)] hover:bg-[#FD802E] hover:text-white hover:scale-105 scale-105'
                                         : 'bg-[#1c1c1e]/60 border border-transparent text-slate-400 hover:text-slate-200'
                         )}
                         onClick={isInteractive ? onStartCycle : undefined}
@@ -286,7 +284,7 @@ export function BehaviorTreeViz({
     return (
         <Card
             data-vibe="bt-panel-v5"
-            className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[400px]', className)}
+            className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[300px]', className)}
         >
             {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
             {/* 1. Left: System Cycles */}

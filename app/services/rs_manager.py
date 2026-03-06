@@ -161,6 +161,12 @@ class RealSenseManager:
     def get_latest_metadata(self, device_id: str, stream_type: str) -> Dict:
         return self._stream.get_latest_metadata(device_id, stream_type)
 
+    def check_all_streams_health(self):
+        """遍历所有正在进行的流并进行健康检查。"""
+        active_device_ids = list(self.pipelines.keys())
+        for device_id in active_device_ids:
+            self._stream.check_stream_health(device_id)
+
     # ========== 点云 API ==========
 
     def activate_point_cloud(self, device_id: str, enable: bool) -> PointCloudStatus:

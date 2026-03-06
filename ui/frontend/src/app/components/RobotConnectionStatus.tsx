@@ -61,12 +61,11 @@ export function RobotConnectionStatus({ className }: RobotConnectionStatusProps)
     >
       {/* 4像素小圆点 */}
       <div
-        className={`w-1 h-1 rounded-full ${
-          connected ? 'bg-green-500' : 'bg-red-500'
-        }`}
+        className={`w-1 h-1 rounded-full ${connected ? 'bg-green-500' : 'bg-[#FD802E]'
+          }`}
         style={{ width: '4px', height: '4px' }}
       />
-      <span className="text-xs text-muted-foreground">
+      <span className={connected ? "text-xs text-muted-foreground" : "text-xs text-[#FD802E]"}>
         {connected ? '已连接' : '未连接'}
       </span>
     </div>

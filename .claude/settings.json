@@ -14,7 +14,8 @@
       "Bash(/home/yq/sweetbomb/start-simple.sh)",
       "Bash(npm run dev)",
       "Bash(bash /home/yq/sweetbomb/start-simple.sh)",
-      "Bash(git checkout -- src/app/components/SliceView.tsx)"
+      "Bash(git checkout -- src/app/components/SliceView.tsx)",
+      "Bash(./start-simple.sh)"
     ],
     "additionalDirectories": [
       "/home/yq/sweetbomb/app/services",

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pickaxe, RotateCw, AlertOctagon, RotateCcw, Cpu, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
+import { Pickaxe, RotateCw, AlertOctagon, RotateCcw, Cpu, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Slider } from './ui/slider';
@@ -74,9 +74,29 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
 
     return (
         <Card className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[400px]', className)}>
-            {/* 右上角连接状态指示器 */}
-            <div className="absolute top-3 right-3 z-[200]">
+            {/* 右侧连接状态与开关 - 定位与上箭头平齐 */}
+            <div className="absolute right-[50px] top-[calc(50%-75px)] -translate-y-1/2 z-[200] flex flex-col items-end gap-3">
                 <RobotConnectionStatus />
+
+                {/* REMOTE 拨档开关 (左右带图标) */}
+                <div className="flex flex-col items-center gap-2 mt-4">
+                    <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">
+                        Mode
+                    </span>
+                    <div className="flex items-center gap-2 bg-[#1c1c1e] p-1.5 rounded-full border border-[#FD802E]/20 shadow-[inset_0_0_15px_rgba(0,0,0,0.5)]">
+                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-2 cursor-pointer hover:text-white transition-colors duration-200">
+                            Local
+                        </div>
+                        {/* 仿物理拨杆 */}
+                        <label className="relative inline-flex items-center cursor-pointer mx-1">
+                            <input type="checkbox" className="sr-only peer" defaultChecked />
+                            <div className="w-10 h-5 bg-[#2a2a2e] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gradient-to-b after:from-[#ffa060] after:to-[#FD802E] after:rounded-full after:h-4 after:w-4 after:transition-all after:shadow-[0_0_10px_rgba(253,128,46,0.8)] shadow-inner"></div>
+                        </label>
+                        <div className="text-[9px] font-black text-[#FD802E] uppercase tracking-wider px-2 drop-shadow-[0_0_8px_rgba(253,128,46,0.8)] cursor-pointer">
+                            Remote
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
@@ -162,57 +182,57 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     </div>
                 </div>
 
-                {/* Right Controls: Direction Arrows (Right Middle) */}
-                <div className="absolute right-[50px] top-1/2 -translate-y-1/2">
-                    <div className="p-6 rounded-[2rem] bg-[#FD802E]/5 border border-[#FD802E]/10 shadow-[inset_0_0_30px_rgba(253,128,46,0.1)]">
+                {/* Center Controls: Direction Arrows (Center Middle) */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="p-8 rounded-[2rem] bg-[#FD802E]/5 border border-[#FD802E]/10 shadow-[inset_0_0_30px_rgba(253,128,46,0.1)]">
                         <div className="grid grid-cols-3 gap-4">
                             <div />
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.FORWARD)}
                                 disabled={status?.state === RobotState.EMERGENCY_STOP}
                             >
-                                <ChevronUp className="w-8 h-8" />
+                                <ChevronUp className="w-10 h-10" />
                             </Button>
                             <div />
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.LEFT)}
                                 disabled={status?.state === RobotState.EMERGENCY_STOP}
                             >
-                                <span className="text-3xl font-light pr-1">←</span>
+                                <ChevronLeft className="w-10 h-10" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="w-14 h-14 bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E]/60 rounded-2xl hover:bg-[#FD802E]/40 transition-all shadow-[0_0_15px_rgba(253,128,46,0.3)]"
+                                className="w-[68px] h-[68px] bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E]/60 rounded-2xl hover:bg-[#FD802E]/40 transition-all shadow-[0_0_15px_rgba(253,128,46,0.3)]"
                                 onClick={() => handleDirectionClick(MoveDirection.STOP)}
                                 disabled={status?.state === RobotState.EMERGENCY_STOP}
                             >
-                                <div className="w-5 h-5 bg-current rounded-sm shadow-[0_0_10px_currentColor]" />
+                                <div className="w-6 h-6 bg-current rounded-sm shadow-[0_0_10px_currentColor]" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.RIGHT)}
                                 disabled={status?.state === RobotState.EMERGENCY_STOP}
                             >
-                                <span className="text-3xl font-light pl-1">→</span>
+                                <ChevronRight className="w-10 h-10" />
                             </Button>
                             <div />
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="w-14 h-14 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
+                                className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.BACKWARD)}
                                 disabled={status?.state === RobotState.EMERGENCY_STOP}
                             >
-                                <ChevronDown className="w-8 h-8" />
+                                <ChevronDown className="w-10 h-10" />
                             </Button>
                             <div />
                         </div>

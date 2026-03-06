@@ -16,6 +16,7 @@ import pyrealsense2 as rs
 from app.core.errors import RealSenseError
 from app.models.stream import StreamConfig, StreamStatus
 from app.services.coordinate_transform import transform_realsense_to_robot
+from app.services.point_cloud_analyzer import PointCloudAnalyzer
 
 
 class StreamController:
@@ -50,6 +51,14 @@ class StreamController:
 
         self.metadata_socket_server = metadata_socket_server
 
+        # 点云分析器（用于后端计算体积、距离等）
+        self.point_cloud_analyzer = PointCloudAnalyzer()
+        self.latest_analysis_result = None  # 存储最新分析结果
+
+        # 健康监控相关
+        self.last_frame_time: Dict[str, float] = {}  # device_id -> timestamp
+        self._stream_configs_cache: Dict[str, dict] = {}  # device_id -> {configs, align_to}
+
     def start_stream(
         self,
         device_id: str,
@@ -69,6 +78,13 @@ class StreamController:
                 is_streaming=True,
                 active_streams=list(self.active_streams[device_id]),
             )
+
+        # 缓存启动配置以便后续健康检查时自动重启
+        self._stream_configs_cache[device_id] = {
+            "configs": configs,
+            "align_to": align_to
+        }
+        self.last_frame_time[device_id] = time.time()
 
         pipeline = rs.pipeline(self.ctx)
         config = rs.config()
@@ -194,6 +210,27 @@ class StreamController:
                     detail=f"No frames available for stream {stream_type}",
                 )
             return self.frame_queues[device_id][stream_type][-1]
+
+    def check_stream_health(self, device_id: str) -> bool:
+        """检查流健康状况。如果超过 10 秒无帧且流应该在运行，则返回 False。"""
+        if device_id not in self.pipelines:
+            return True # 未启动流不视为不健康
+
+        last_time = self.last_frame_time.get(device_id, 0)
+        if time.time() - last_time > 10.0:
+            print(f"[HealthCheck] Device {device_id} has no frames for 10s. Triggering restart...")
+            try:
+                # 尝试重启
+                cache = self._stream_configs_cache.get(device_id)
+                if cache:
+                    self.stop_stream(device_id)
+                    time.sleep(1) # 等待释放
+                    self.start_stream(device_id, cache["configs"], cache["align_to"])
+                    return True
+            except Exception as e:
+                print(f"[HealthCheck] Failed to auto-restart device {device_id}: {str(e)}")
+            return False
+        return True
 
     def get_latest_metadata(self, device_id: str, stream_type: str) -> Dict:
         """获取指定流的最新元数据。"""
@@ -353,6 +390,10 @@ class StreamController:
                     # 锁外执行 OpenCV 后处理 (局部入队时加锁)
                     self._process_and_enqueue(device_id, raw_frames)
 
+                    # 更新最后一次成功采集到的帧的时间戳
+                    if raw_frames:
+                        self.last_frame_time[device_id] = time.time()
+
                 except Exception as e:
                     print(f"Error collecting frames loop: {str(e)}")
                     traceback.print_exc()
@@ -485,6 +526,53 @@ class StreamController:
                                 "vertices": verts,
                                 "texture_coordinates": [],
                             }
+
+                            # 执行点云分析（体积、距离计算等）
+                            try:
+                                # 从设备信息或默认值获取参数
+                                # 注意：这些参数应该从配置中读取，这里使用合理默认值
+                                teeth_height = getattr(self, 'slice_z1', -0.1)
+                                bucket_volume = getattr(self, 'target_volume', 30.0)  # 默认30L
+                                bucket_depth = getattr(self, 'bucket_depth', 0.3)
+                                camera_to_teeth = getattr(self, 'camera_to_teeth', 0.8)  # 默认0.8m
+
+                                analysis_result = self.point_cloud_analyzer.analyze(
+                                    point_cloud=verts,
+                                    target_volume=bucket_volume,
+                                    camera_to_teeth=camera_to_teeth,
+                                    z1=teeth_height,
+                                    z2=teeth_height + 0.3,  # 铲斗高度0.3m
+                                )
+
+                                # 将分析结果转换为可序列化的字典
+                                self.latest_analysis_result = {
+                                    "volume": {
+                                        "current": round(analysis_result.actual_volume * 1000, 2),  # 转换为升
+                                        "target": round(analysis_result.target_volume * 1000, 1),
+                                        "reached": analysis_result.volume_reached,
+                                    },
+                                    "distances": {
+                                        "nearest_material": round(analysis_result.material_distance, 3) if analysis_result.material_distance else None,
+                                        "nearest_x": round(analysis_result.nearest_x, 3) if analysis_result.nearest_x else None,
+                                        "nearest_y": round(analysis_result.nearest_y, 3) if analysis_result.nearest_y else None,
+                                    },
+                                    "pile_height": round(analysis_result.pile_height, 3) if hasattr(analysis_result, 'pile_height') else None,
+                                    "pile_height": round(analysis_result.pile_height, 3) if hasattr(analysis_result, 'pile_height') else None,
+                                    "target_depth": {
+                                        "x": round(analysis_result.target_depth_x, 3) if analysis_result.target_depth_x else None,
+                                    },
+                                    "has_material": analysis_result.has_material,
+                                    "timestamp": time.time(),
+                                }
+
+                                print(f"[PointCloudAnalysis] Volume: {self.latest_analysis_result['volume']['current']:.2f}L, "
+                                      f"Nearest: {self.latest_analysis_result['distances']['nearest_material']:.3f}m")
+
+                            except Exception as e:
+                                print(f"[PointCloudAnalysis] Error during analysis: {e}")
+                                import traceback
+                                traceback.print_exc()
+
                         else:
                             print(f"[PointCloudCalc] No frame data available for {device_id}")
                 else:
@@ -522,7 +610,8 @@ class StreamController:
                         depth_normalized, cv2.COLORMAP_INFERNO
                     )
                     edges = cv2.Canny(depth_normalized, 25, 100)
-                    edges = cv2.dilate(edges, None)
+                    # 取消膨胀操作或者设积极细小的核，这里选择使用极其细微的核以保持微弱连接（如果不要任何扩展可以直接注销）
+                    # edges = cv2.dilate(edges, None)
                     depth_colormap[edges > 0] = [0, 0, 0]
                     frame = cv2.cvtColor(depth_colormap, cv2.COLOR_BGR2RGB)
 

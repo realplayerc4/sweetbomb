@@ -4,6 +4,25 @@ import { Layers } from 'lucide-react';
 interface SliceViewProps {
     isActive: boolean;
     pointCloudData: Float32Array | null;
+    // 新增：后端分析结果（可选，如果提供则直接使用，否则自行计算）
+    pointCloudAnalysis?: {
+        volume: {
+            current: number;
+            target: number;
+            reached: boolean;
+        };
+        distances: {
+            nearest_material: number | null;
+            nearest_x: number | null;
+            nearest_y: number | null;
+        };
+        target_depth: {
+            x: number | null;
+        };
+        pile_height?: number;  // 堆体高度 (m)
+        has_material: boolean;
+        timestamp: number;
+    } | null;
 }
 
 interface SliceSettings {
@@ -13,17 +32,7 @@ interface SliceSettings {
     bucketVolume: number;   // 铲斗目标体积 (升，默认30L)
 }
 
-// 点云选取范围统计信息
-interface SliceStats {
-    widthY: number;      // Y 轴跨度 (宽度, 米)
-    depthX: number;      // X 轴跨度 (深度, 米)
-    z1: number;          // 铲齿高度 (Z1)
-    z2: number;          // 铲齿 + 斗高 (Z2 = Z1 + 0.3m)
-    actualMinZ: number;  // 切片内实际最低 Z 值
-    actualMaxZ: number;  // 切片内实际最高 Z 值
-}
 
-// 前进距离计算结果
 interface AdvanceInfo {
     nearestX: number;        // 最近物料的 X 坐标
     nearestY: number;        // 最近物料的 Y 坐标
@@ -132,12 +141,11 @@ function getMockPointCloud(): Float32Array {
     return _mockData;
 }
 
-export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
+export function SliceView({ isActive, pointCloudData, pointCloudAnalysis }: SliceViewProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [settings, setSettings] = useState<SliceSettings>(loadSettings);
     const [isHovered, setIsHovered] = useState(false);
     const [pointCount, setPointCount] = useState(0);
-    const [stats, setStats] = useState<SliceStats | null>(null);
     const [advanceInfo, setAdvanceInfo] = useState<AdvanceInfo | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [_volumeInfo, _setVolumeInfo] = useState<VolumeTargetInfo | null>(null);
@@ -165,7 +173,6 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         const canvas = canvasRef.current;
         if (!canvas || !dataAvailable) {
             setPointCount(0);
-            setStats(null);
             if (canvas) {
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
@@ -240,7 +247,6 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         }
 
         if (filteredCount === 0) {
-            setStats(null);
             return;
         }
 
@@ -428,16 +434,6 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
         ctx.font = '8px monospace';
         ctx.fillText('X深度', compassCX, compassCY + 20);
 
-        // 更新统计
-        setStats({
-            widthY: yRange,
-            depthX: xRange,
-            z1,
-            z2,
-            actualMinZ,
-            actualMaxZ,
-        });
-
     }, [activeData, z1, z2]);
 
     const handleResetView = () => {
@@ -475,82 +471,82 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                 className="w-full h-full"
             />
 
-            {/* 左下角控制面板 */}
-            <div className="absolute bottom-[10px] left-[10px] z-10 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-slate-700 max-w-[210px]">
+            {/* 控制面板（移至右下角并减小宽度） */}
+            <div className="absolute bottom-[10px] right-[10px] z-[100] bg-black/80 backdrop-blur-md p-2 rounded-lg border border-slate-700 max-w-[130px]">
                 {/* 相机到铲齿距离 */}
                 <div className="text-[9px] text-slate-400 font-mono mb-2">安装参数</div>
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] text-[#FD802E] font-mono w-10">相机→齿</span>
+                    <span className="text-[8px] text-[#FD802E] font-mono w-9">相机→齿</span>
                     <input
                         type="number"
                         step="0.05"
                         value={settings.cameraToTeeth.toFixed(2)}
                         onChange={(e) => setSettings(prev => ({ ...prev, cameraToTeeth: parseFloat(e.target.value) || 0 }))}
-                        className="w-14 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
+                        className="w-[32px] h-4 bg-transparent border border-[#FD802E] rounded text-[9px] text-[#FD802E] text-center font-mono focus:outline-none"
                     />
                     <span className="text-[8px] text-slate-500 font-mono">m</span>
                 </div>
 
                 {/* 铲斗深度 */}
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] text-[#FD802E] font-mono w-10">铲斗深度</span>
+                    <span className="text-[8px] text-[#FD802E] font-mono w-9">铲斗深度</span>
                     <input
                         type="number"
                         step="0.05"
                         value={settings.bucketDepth.toFixed(2)}
                         onChange={(e) => setSettings(prev => ({ ...prev, bucketDepth: parseFloat(e.target.value) || 0 }))}
-                        className="w-14 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
+                        className="w-[32px] h-4 bg-transparent border border-[#FD802E] rounded text-[9px] text-[#FD802E] text-center font-mono focus:outline-none"
                     />
                     <span className="text-[8px] text-slate-500 font-mono">m</span>
                 </div>
 
                 {/* 铲斗目标体积 */}
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[9px] text-green-400 font-mono w-10">目标体积</span>
+                    <span className="text-[8px] text-green-400 font-mono w-9">目标体积</span>
                     <input
                         type="number"
                         step="5"
                         value={Math.round(settings.bucketVolume)}
                         onChange={(e) => setSettings(prev => ({ ...prev, bucketVolume: parseFloat(e.target.value) || 30 }))}
-                        className="w-14 h-5 bg-slate-800 border border-green-600/50 rounded text-[9px] text-green-400 px-1 font-mono"
+                        className="w-[32px] h-4 bg-transparent border border-[#FD802E] rounded text-[9px] text-[#FD802E] text-center font-mono focus:outline-none"
                     />
                     <span className="text-[8px] text-slate-500 font-mono">L</span>
+                </div>
+
+                {/* 堆体高度显示 */}
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[8px] text-[#FD802E] font-mono w-9">堆体高度</span>
+                    <span className="text-[9px] text-[#FD802E] font-mono w-[32px] text-right">
+                        {(() => {
+                            // 优先使用后端传来的分析结果
+                            if (pointCloudAnalysis?.pile_height !== undefined) {
+                                return pointCloudAnalysis.pile_height.toFixed(2);
+                            }
+                            return '--';
+                        })()}
+                    </span>
+                    <span className="text-[8px] text-slate-500 font-mono">m</span>
                 </div>
 
                 {/* Z1 铲齿高度设置 */}
                 <div className="border-t border-slate-600 pt-2 mb-2">
                     <div className="text-[9px] text-slate-400 font-mono mb-1">切片高度</div>
-                    <div className="flex items-center gap-2">
-                        <span className="text-[9px] text-[#FD802E] font-mono w-6">Z1</span>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={settings.teethHeight.toFixed(2)}
-                            onChange={(e) => setSettings(prev => ({ ...prev, teethHeight: parseFloat(e.target.value) || 0 }))}
-                            className="w-16 h-5 bg-slate-800 border border-slate-600 rounded text-[9px] text-white px-1 font-mono"
-                        />
-                        <span className="text-[8px] text-slate-500 font-mono">→ Z2: {z2.toFixed(2)}</span>
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                            <span className="text-[8px] text-[#FD802E] font-mono w-6">Z1</span>
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={settings.teethHeight.toFixed(2)}
+                                onChange={(e) => setSettings(prev => ({ ...prev, teethHeight: parseFloat(e.target.value) || 0 }))}
+                                className="w-[32px] h-4 bg-transparent border border-[#FD802E] rounded text-[9px] text-[#FD802E] text-center font-mono focus:outline-none"
+                            />
+                        </div>
+                        <span className="text-[7px] text-slate-500 font-mono">→ Z2: {z2.toFixed(2)}</span>
                     </div>
                 </div>
 
-                {/* 固定参数 */}
-                <div className="border-t border-slate-600 pt-2 mb-2">
-                    <div className="text-[9px] text-slate-400 font-mono mb-1">视图参数</div>
-                    <div className="space-y-0.5 text-[8px] font-mono">
-                        <div className="flex justify-between">
-                            <span className="text-slate-500">深度范围</span>
-                            <span className="text-white">{viewMinX.toFixed(1)}~{viewMaxX.toFixed(1)}m</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-slate-500">格子大小</span>
-                            <span className="text-white">{(CELL_SIZE * 100).toFixed(0)}cm</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-slate-500">焦点宽度</span>
-                            <span className="text-white">{FOCUS_HALF_WIDTH * 2 * 1000}mm</span>
-                        </div>
-                    </div>
-                </div>
+
 
                 {/* 前进距离计算结果 */}
                 {advanceInfo && (
@@ -562,38 +558,12 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-[8px] text-slate-500 font-mono">建议前进</span>
-                            <span className="text-[14px] text-[#FD802E] font-mono font-bold">{advanceInfo.advanceDistance.toFixed(2)}m</span>
-                        </div>
-                        <div className="text-[7px] text-slate-600 font-mono mt-1">
-                            = 齿距→物料 + 铲斗深度
+                            <span className="text-[12px] text-[#FD802E] font-mono font-bold pr-1">{advanceInfo.advanceDistance.toFixed(2)}m</span>
                         </div>
                     </div>
                 )}
 
-                {/* 选取范围统计 */}
-                {stats && (
-                    <div className="border-t border-slate-600 pt-2 mb-2">
-                        <div className="text-[9px] text-slate-400 font-mono mb-1.5">选取范围</div>
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[8px] text-slate-500 font-mono">宽度Y</span>
-                                <span className="text-[9px] text-green-400 font-mono">{stats.widthY.toFixed(2)}m</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-[8px] text-slate-500 font-mono">深度X</span>
-                                <span className="text-[9px] text-cyan-400 font-mono">{stats.depthX.toFixed(1)}m</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-[8px] text-slate-500 font-mono">Z1低</span>
-                                <span className="text-[9px] text-[#CC5500] font-mono">{stats.z1.toFixed(2)}m</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-[8px] text-slate-500 font-mono">Z2高</span>
-                                <span className="text-[9px] text-[#FFD700] font-mono">{stats.z2.toFixed(2)}m</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* 重置按钮 */}
                 <button
@@ -604,7 +574,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                 </button>
             </div>
 
-            {isHovered && (
+            {/* {isHovered && (
                 <div className="absolute top-[50px] right-[10px] z-10 bg-black/80 backdrop-blur-md px-3 py-2 rounded-lg text-[9px] text-slate-400 font-mono">
                     <div className="flex items-center gap-2">
                         <span className="text-[#FD802E]">●</span>
@@ -623,7 +593,7 @@ export function SliceView({ isActive, pointCloudData }: SliceViewProps) {
                         <span>格子 {(CELL_SIZE * 100).toFixed(0)}cm</span>
                     </div>
                 </div>
-            )}
+            )} */}
 
             {/* 未连接后端时，仍让底层 canvas 显示出来，给一个半透明遮罩说明状态 */}
             {!isActive && (
