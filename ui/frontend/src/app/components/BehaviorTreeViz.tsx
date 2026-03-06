@@ -109,7 +109,14 @@ function TreeNode({ node, currentNode, depth = 0 }: { node: BTNodeConfig; curren
                 </div>
                 <span className="flex items-center gap-2">
                     <span className="text-[14px] filter drop-shadow-sm transition-transform group-hover:scale-110">{STEP_ICONS[node.name] || '⚡'}</span>
-                    <span className="whitespace-nowrap transition-colors text-slate-200 group-hover:text-white translate-y-[0.5px]">{STEP_NAMES[node.name] || node.name}</span>
+                    <span className={cn(
+                        "whitespace-nowrap transition-colors translate-y-[0.5px]",
+                        (STEP_NAMES[node.name] === '翻斗加载' || STEP_NAMES[node.name] === '翻斗卸载')
+                            ? "text-[#FD802E]"
+                            : "text-slate-200 group-hover:text-white"
+                    )}>
+                        {STEP_NAMES[node.name] || node.name}
+                    </span>
                 </span>
                 {isCurrent && (
                     <span className="ml-1.5 flex items-center justify-center relative w-2 h-2">
@@ -147,14 +154,15 @@ function CircularHarvestFlow({
     isHarvestRunning?: boolean
 }) {
     // Adjusted radii for elliptical flow (vertical spacing reduced by half)
-    const radiusX = 100;
+    const radiusX = 80;
     const radiusY = 50;
     const totalNodes = nodes.length;
+    const cx = 120; // Re-centered to avoid clipping when justified start
 
     return (
-        <div className="relative w-full h-[180px] flex items-center justify-start ml-24 mt-4">
+        <div className="relative w-full h-[180px] flex items-center justify-start ml-4 mt-4">
             {/* Background SVG Canvas for connecting arcs */}
-            <svg className="absolute left-0 top-1/2 -translate-y-1/2 w-[300px] h-[200px] pointer-events-none z-0 overflow-visible">
+            <svg className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-[200px] pointer-events-none z-0 overflow-visible">
                 <defs>
                     <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                         <path d="M 0 0 L 10 5 L 0 10 z" fill="#4B5563" />
@@ -165,12 +173,11 @@ function CircularHarvestFlow({
                 </defs>
 
                 {/* Ellgetical path with markers */}
-                <ellipse cx="0" cy="100" rx={radiusX} ry={radiusY} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
+                <ellipse cx={cx} cy="100" rx={radiusX} ry={radiusY} stroke="#2a2a2e" strokeWidth="2" strokeDasharray="4 6" fill="none" />
 
                 {/* Generate directional arrows precisely spaced on the elliptical track */}
                 {nodes.map((_, i) => {
                     const angleOffset = (i * 360 / totalNodes - 90 + (180 / totalNodes)) * (Math.PI / 180);
-                    const cx = 0;
                     const cy = 100;
                     const startX = cx + Math.cos(angleOffset - 0.1) * radiusX;
                     const startY = cy + Math.sin(angleOffset - 0.1) * radiusY;
@@ -194,7 +201,7 @@ function CircularHarvestFlow({
                 })}
 
                 {status === 'running' && (
-                    <ellipse cx="0" cy="100" rx={radiusX} ry={radiusY} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: '0px 100px' }} />
+                    <ellipse cx={cx} cy="100" rx={radiusX} ry={radiusY} stroke="#FD802E" strokeWidth="2" strokeDasharray="80 1000" fill="none" strokeLinecap="round" className="animate-[spin_3s_linear_infinite]" style={{ transformOrigin: `${cx}px 100px` }} />
                 )}
             </svg>
 
@@ -225,7 +232,14 @@ function CircularHarvestFlow({
                         onClick={isInteractive ? onStartCycle : undefined}
                     >
                         <span className="text-[16px] drop-shadow-sm">{STEP_ICONS[node.name] || '⚡'}</span>
-                        <span className="text-[14px]">{STEP_NAMES[node.name] || node.name}</span>
+                        <span className={cn(
+                            "text-[14px]",
+                            (STEP_NAMES[node.name] === '翻斗加载' || STEP_NAMES[node.name] === '翻斗卸载')
+                                ? "text-[#FD802E]"
+                                : ""
+                        )}>
+                            {STEP_NAMES[node.name] || node.name}
+                        </span>
 
                         {isCurrent && (
                             <span className="ml-1 flex items-center justify-center relative w-2 h-2">
@@ -247,9 +261,9 @@ function CircularHarvestFlow({
                             isCurrent ? 'scale-110 z-10' : 'scale-100 z-0 opacity-90'
                         )}
                         style={{
-                            left: '0px',
+                            left: `${cx}px`,
                             top: '50%',
-                            transform: `translate(${x}px, calc(-50% + ${y}px))`,
+                            transform: `translate(${x}px, calc(-50% + ${y}px)) translate(-50%, 0)`,
                         }}
                     >
                         {baseNodeContent}
