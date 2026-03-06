@@ -20,6 +20,8 @@ export default function App() {
     depthStream,
     pointCloudData,
     streamMetrics,
+    systemStats,
+    pointCloudAnalysis,
     error,
     startConnection,
     stopConnection
@@ -117,6 +119,8 @@ export default function App() {
           <SliceView
             isActive={isStreaming}
             pointCloudData={pointCloudData}
+            systemStats={systemStats}
+            pointCloudAnalysis={pointCloudAnalysis}
           />
           <DepthView
             isActive={isStreaming}

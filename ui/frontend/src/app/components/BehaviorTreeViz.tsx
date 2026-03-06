@@ -1,12 +1,9 @@
-/**
- * Behavior Tree Visualization
- * Final Strict Version: Absolute Centered Header, Pill-Only Nodes, No Lines.
- */
-
 import { useState } from 'react';
 import { Card } from './ui/card';
 import { cn } from '../lib/utils';
 import { Network } from 'lucide-react';
+import { useRobotController } from '../hooks/useRobotController';
+import type { SugarHarvestConfig } from '../services/robotApi';
 
 interface BTNodeConfig {
     name: string;
@@ -157,7 +154,7 @@ function CircularHarvestFlow({
     const radiusX = 80;
     const radiusY = 50;
     const totalNodes = nodes.length;
-    const cx = 120; // Re-centered to avoid clipping when justified start
+    const cx = 170; // Re-centered to avoid clipping when justified start
 
     return (
         <div className="relative w-full h-[180px] flex items-center justify-start ml-4 mt-4">
@@ -274,8 +271,7 @@ function CircularHarvestFlow({
     );
 }
 
-import { useRobotController } from '../hooks/useRobotController';
-import type { SugarHarvestConfig } from '../services/robotApi';
+
 
 export function BehaviorTreeViz({
     className,
@@ -297,7 +293,7 @@ export function BehaviorTreeViz({
     return (
         <Card
             data-vibe="bt-panel-v5"
-            className={cn('relative bg-[#1A1A1E] border-[#2a2a2e] shadow-2xl rounded-[10px] flex flex-col h-full overflow-hidden min-h-[300px]', className)}
+            className={cn('relative bg-[#1A1A1E] border-[#FD802E]/20 shadow-[0_0_25px_rgba(253,128,46,0.1)] rounded-[10px] flex flex-col h-full overflow-hidden min-h-[300px]', className)}
         >
             {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
             {/* 1. Left: System Cycles */}
@@ -330,7 +326,7 @@ export function BehaviorTreeViz({
             <div className="flex-1 relative mt-[60px] mb-[60px] overflow-y-auto no-scrollbar px-6">
                 {/* Tree Visual Area */}
                 <div className="space-y-4">
-                    <div className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] px-1 opacity-80">
+                    <div className="text-[10px] font-black text-[#FD802E] uppercase tracking-[0.4em] px-1">
                         {activeTab === 'harvest' ? 'HARVEST FLOW' : 'PUSH FLOW'}
                     </div>
                     <div className="max-h-[500px]">
@@ -381,9 +377,8 @@ export function BehaviorTreeViz({
                     </div>
                 )}
             </div>
-
             {/* Bottom Tabs (Excel Sheet Style) */}
-            <div className="absolute bottom-0 left-0 right-0 flex justify-start px-2 bg-[#121214] pt-2 border-t border-[#2a2a2e] rounded-b-[10px] z-[120]">
+            <div className="absolute bottom-0 left-0 right-0 flex justify-start px-2 bg-[#121214] pt-2 border-t border-[#FD802E]/20 rounded-b-[10px] z-[120]">
                 <button
                     onClick={() => setActiveTab('harvest')}
                     className={cn(

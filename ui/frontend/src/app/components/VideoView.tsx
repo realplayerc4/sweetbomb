@@ -23,7 +23,7 @@ export function VideoView({ isActive, rgbStream, rgbMetrics }: VideoViewProps) {
   }, [rgbStream]);
 
   return (
-    <div className="relative w-full h-full bg-[#1c1c1e] rounded-[10px] overflow-hidden group shadow-md">
+    <div className="relative w-full h-full bg-[#1c1c1e] rounded-[10px] overflow-hidden group border border-[#FD802E]/20 shadow-[0_0_25px_rgba(253,128,46,0.1)]">
       {/* 悬浮状态胶囊 */}
       <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-10 flex items-center justify-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-6 py-2 rounded-full border border-[#FD802E]/60 shadow-[0_0_10px_rgba(253,128,46,0.2)]">
         {isActive ? (

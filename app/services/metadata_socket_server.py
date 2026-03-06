@@ -127,8 +127,8 @@ class MetadataSocketServer:
                 ax = all_metadata["accel"]["motion_data"]["x"]
                 ay = all_metadata["accel"]["motion_data"]["y"]
                 az = all_metadata["accel"]["motion_data"]["z"]
-                # Roll and Pitch approximation directly from gravity vector
-                roll = math.atan2(ay, az) * 180.0 / math.pi
+                # Roll and Pitch approximation directly from gravity vector (Camera is mounted vertically)
+                roll = math.atan2(ay, az) * 180.0 / math.pi + 90.0
                 pitch = math.atan2(-ax, math.sqrt(ay*ay + az*az)) * 180.0 / math.pi
                 # D455 IMU lacks magnetometer. Keep yaw simulated or integrate gyro (hard).
                 yaw = 0.0

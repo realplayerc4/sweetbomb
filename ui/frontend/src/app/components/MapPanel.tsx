@@ -3,7 +3,7 @@ import { Card } from './ui/card';
 
 export function MapPanel() {
     return (
-        <Card className="relative overflow-hidden h-full p-0 bg-[#1c1c1e] border-[#2a2a2e] rounded-[10px] shadow-md group">
+        <Card className="relative overflow-hidden h-full p-0 bg-[#1c1c1e] border-[#FD802E]/20 rounded-[10px] shadow-[0_0_25px_rgba(253,128,46,0.1)] group">
             {/* Top Status Capsule */}
             <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-10 flex items-center justify-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-6 py-2 rounded-full border border-[#FD802E]/60 shadow-[0_0_10px_rgba(253,128,46,0.2)]">
                 <BarChart3 className="w-3.5 h-3.5 text-[#FD802E]" />
@@ -14,8 +14,8 @@ export function MapPanel() {
             </div>
 
             {/* Map Placeholder */}
-            <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center border-2 border-dashed border-slate-700/30 rounded-xl m-4 mt-16">
-                <span className="text-slate-600 font-mono tracking-widest uppercase text-xs animate-pulse">Waiting for Map Data...</span>
+            <div className="absolute inset-0 bg-slate-900/50 border-2 border-dashed border-slate-700/10 rounded-xl m-4 mt-16">
+                {/* Reserved for Grid Map */}
             </div>
 
             {/* Subtle overlay for industrial look - matching VideoView */}

@@ -23,6 +23,7 @@ export function useRobotConnection() {
         hostname: string;
         imu?: { roll: number; pitch: number; yaw: number };
     } | null>(null);
+    const [pointCloudAnalysis, setPointCloudAnalysis] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
@@ -115,6 +116,12 @@ export function useRobotConnection() {
                 } catch (e) {
                     console.error("Error parsing point cloud:", e);
                 }
+            }
+            // 点云分析数据 (如有)
+            if (data.metadata_streams?.depth?.point_cloud?.analysis) {
+                setPointCloudAnalysis(data.metadata_streams.depth.point_cloud.analysis);
+            } else if (data.point_cloud_analysis) {
+                setPointCloudAnalysis(data.point_cloud_analysis);
             }
         });
 
@@ -295,6 +302,7 @@ export function useRobotConnection() {
         pointCloudData,
         streamMetrics,
         systemStats,
+        pointCloudAnalysis,
         error,
         startConnection,
         stopConnection
