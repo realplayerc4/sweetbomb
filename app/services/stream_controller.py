@@ -361,7 +361,8 @@ class StreamController:
         try:
             while device_id in self.pipelines:
                 try:
-                    frames = self.pipelines[device_id].wait_for_frames()
+                    # Use 5000ms timeout to prevent indefinite blocking
+                    frames = self.pipelines[device_id].wait_for_frames(5000)
                     if align_processor:
                         frames = align_processor.process(frames)
 
