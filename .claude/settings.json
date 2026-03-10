@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__zai-mcp-server__ui_to_artifact",
+      "Bash(ss -tlnp)",
+      "Bash(node node_modules/pm2/bin/pm2 restart sweetbomb-5173 sweetbomb-8000)",
+      "Bash(node node_modules/pm2/bin/pm2 start ecosystem.config.cjs)",
+      "Read(//home/yq/sweetbomb/**)",
+      "Bash(pip show python-socketio)",
+      "Bash(xargs -r kill -9)",
+      "Read(//home/yq/.pm2/logs/**)",
+      "Bash(npm run build -- --mode production --reporter compact)",
+      "Bash(chmod +x /home/yq/sweetbomb/start-simple.sh)",
+      "Bash(/home/yq/sweetbomb/start-simple.sh)",
+      "Bash(npm run dev)",
+      "Bash(bash /home/yq/sweetbomb/start-simple.sh)",
+      "Bash(git checkout -- src/app/components/SliceView.tsx)",
+      "Bash(./start-simple.sh)",
+      "Bash(apt-get install -y sshpass)",
+      "Bash(sshpass -p \"jetson\" ssh -o StrictHostKeyChecking=no jetson@192.168.3.101 \":*)",
+      "Bash(sshpass -p \"jetson\" ssh -o StrictHostKeyChecking=no jetson@192.168.3.101 \"cat /home/jetson/sweetbomb/config.py\")",
+      "Bash(__NEW_LINE_c42777bb2da1b631__ echo \"\")",
+      "Bash(sshpass -p:*)",
+      "Bash(ip route show)",
+      "Bash(ip addr show)",
+      "Read(//home/yq/librealsense/**)",
+      "Bash(git ls-remote https://github.com/realsenseai/librealsense.git)",
+      "Read(//home/yq/.claude/**)",
+      "Bash(__NEW_LINE_d745dfa6f4a0a36b__ echo \"\")",
+      "Read(//home/yq/.claude/agents/**)",
+      "Read(//home/yq/.claude/rules/**)",
+      "Bash(__NEW_LINE_24a9e9b4b67491c5__ echo \"\")",
+      "Bash(ping -c 2 -W 2 192.168.1.101)"
+    ],
+    "additionalDirectories": [
+      "/home/yq/sweetbomb/app/services",
+      "/home/yq/sweetbomb/ui/frontend/src/app/components"
+    ]
+  },
+  "model": "glm-5"
+}

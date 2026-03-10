@@ -1,0 +1,5 @@
+const { spawn } = require('child_process');
+const proc = spawn('python3', ['-m', 'uvicorn', 'main:combined_app', '--host', '0.0.0.0', '--port', '8000'], {
+  cwd: __dirname, stdio: 'inherit', windowsHide: true
+});
+proc.on('close', (code) => process.exit(code));

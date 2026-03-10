@@ -1,0 +1,22 @@
+🚀 启动 Sweetbomb 项目...
+🧹 清理旧进程...
+📡 启动后端 (http://0.0.0.0:8000)...
+🎨 启动前端 (http://0.0.0.0:5173)...
+
+✅ 服务已启动!
+  - 前端: http://localhost:5173
+  - 后端: http://localhost:8000
+
+按 Ctrl+C 停止所有服务
+
+> frontend@0.0.0 dev
+> vite --host 0.0.0.0
+
+
+  VITE v7.3.1  ready in 459 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.2.101:5173/
+  ➜  Network: http://192.168.1.101:5173/
+./start-simple.sh: line 44: 10480 Killed                  python3 -m uvicorn main:combined_app --host 0.0.0.0 --port 8000 --reload > "$BASE_DIR/logs/sweetbomb.log" 2>&1  (wd: ~/sweetbomb)
+Killed

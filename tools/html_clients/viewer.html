@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>restrealsenseMonitor Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #44ff44;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, #ff416c, #ff4b2b);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 65, 108, 0.4);
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+        }
+
+        .video-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-card-header {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .video-card-header h3 {
+            font-size: 1.1rem;
+        }
+
+        .stream-type {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            aspect-ratio: 4/3;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .logs {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.success {
+            color: #51cf66;
+        }
+
+        .log-entry.info {
+            color: #74c0fc;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎥 restrealsenseMonitor Viewer</h1>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">未连接</span>
+            </div>
+            <div>
+                <button class="btn btn-primary" id="connectBtn" onclick="startWebRTC()">连接视频流</button>
+                <button class="btn btn-danger" id="disconnectBtn" onclick="stopWebRTC()"
+                    style="display:none;">断开连接</button>
+            </div>
+        </div>
+
+        <div class="video-grid">
+            <div class="video-card">
+                <div class="video-card-header">
+                    <h3>RGB 彩色图像</h3>
+                    <span class="stream-type">COLOR</span>
+                </div>
+                <div class="video-container">
+                    <video id="colorVideo" autoplay playsinline muted></video>
+                </div>
+            </div>
+            <div class="video-card">
+                <div class="video-card-header">
+                    <h3>深度图像</h3>
+                    <span class="stream-type">DEPTH</span>
+                </div>
+                <div class="video-container">
+                    <video id="depthVideo" autoplay playsinline muted></video>
+                </div>
+            </div>
+        </div>
+
+        <div class="logs" id="logs"></div>
+    </div>
+
+    <script>
+        const DEVICE_ID = '029522250337';
+        const API_BASE = 'http://localhost:8000/api';
+        let sessionId = null;
+        let peerConnection = null;
+
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.insertBefore(entry, logs.firstChild);
+        }
+
+        function updateStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = '已连接 - 流式传输中';
+                connectBtn.style.display = 'none';
+                disconnectBtn.style.display = 'inline-block';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = '未连接';
+                connectBtn.style.display = 'inline-block';
+                disconnectBtn.style.display = 'none';
+            }
+        }
+
+        async function startStreams() {
+            log('正在尝试启动视频流...', 'info');
+            const streamConfig = {
+                "configs": [
+                    {
+                        "sensor_id": `${DEVICE_ID}-sensor-0`,
+                        "stream_type": "depth",
+                        "format": "z16",
+                        "resolution": { "width": 1280, "height": 720 },
+                        "framerate": 15,
+                        "enable": true
+                    },
+                    {
+                        "sensor_id": `${DEVICE_ID}-sensor-1`,
+                        "stream_type": "color",
+                        "format": "rgb8",
+                        "resolution": { "width": 1280, "height": 720 },
+                        "framerate": 30,
+                        "enable": true
+                    }
+                ],
+                "align_to": "color"
+            };
+
+            const resp = await fetch(`${API_BASE}/devices/${DEVICE_ID}/stream/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(streamConfig)
+            });
+
+            if (!resp.ok) {
+                const errText = await resp.text();
+                log(`警告: 启动流返回 ${resp.status} (${errText})`, 'warning');
+                // We proceed anyway, in case it was a minor error or already started in a way ensuring success
+            } else {
+                log('视频流服务已就绪', 'success');
+            }
+        }
+
+        async function startWebRTC() {
+            try {
+                await startStreams(); // Ensure streams are running
+                log('正在创建 WebRTC 会话...', 'info');
+
+                // 1. 从服务器获取 offer
+                const offerResp = await fetch(`${API_BASE}/webrtc/offer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        device_id: DEVICE_ID,
+                        stream_types: ['color', 'depth']
+                    })
+                });
+
+                if (!offerResp.ok) throw new Error('无法获取 WebRTC offer');
+                const offerData = await offerResp.json();
+                sessionId = offerData.session_id;
+                log(`会话 ID: ${sessionId}`, 'success');
+
+                // 2. 创建 RTCPeerConnection
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                // 3. 处理远程流
+                peerConnection.ontrack = (event) => {
+                    log(`收到视频轨道: ${event.track.kind}, ID: ${event.track.id}, Label: ${event.track.label}`, 'success');
+                    const mid = event.transceiver.mid;
+                    const streamType = offerData.stream_map ? offerData.stream_map[mid] : null;
+
+                    // Create a new MediaStream for this specific track to avoid bundled stream issues
+                    // This ensures the video element plays THIS track, not just the first one in the bundle.
+                    const newStream = new MediaStream([event.track]);
+
+                    const colorVideo = document.getElementById('colorVideo');
+                    const depthVideo = document.getElementById('depthVideo');
+
+                    log(`收到轨道: ${streamType} (MID: ${mid})`, 'info');
+
+                    if (streamType === 'color') {
+                        log('分配给 RGB 视图', 'success');
+                        colorVideo.srcObject = newStream;
+                    } else if (streamType === 'depth') {
+                        log('分配给深度视图', 'success');
+                        depthVideo.srcObject = newStream;
+                    } else {
+                        log(`未知流类型: ${streamType}`, 'warning');
+                    }
+                };
+
+                // 4. ICE 候选处理
+                peerConnection.onicecandidate = async (event) => {
+                    if (event.candidate) {
+                        log('发送 ICE 候选...', 'info');
+                        await fetch(`${API_BASE}/webrtc/ice-candidates`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                session_id: sessionId,
+                                candidate: event.candidate.candidate,
+                                sdpMid: event.candidate.sdpMid,
+                                sdpMLineIndex: event.candidate.sdpMLineIndex
+                            })
+                        });
+                    }
+                };
+
+                peerConnection.onconnectionstatechange = () => {
+                    log(`连接状态: ${peerConnection.connectionState}`,
+                        peerConnection.connectionState === 'connected' ? 'success' : 'info');
+                    updateStatus(peerConnection.connectionState === 'connected');
+                };
+
+                // 5. 设置远程描述 (服务器的 offer)
+                await peerConnection.setRemoteDescription({
+                    type: offerData.type,
+                    sdp: offerData.sdp
+                });
+                log('已设置远程描述', 'success');
+
+                // 6. 创建并发送 answer
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                await fetch(`${API_BASE}/webrtc/answer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        sdp: answer.sdp,
+                        type: answer.type
+                    })
+                });
+                log('已发送 Answer', 'success');
+
+                // 7. 获取服务器的 ICE 候选
+                setTimeout(async () => {
+                    const icResp = await fetch(`${API_BASE}/webrtc/sessions/${sessionId}/ice-candidates`);
+                    const candidates = await icResp.json();
+                    for (const c of candidates) {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(c));
+                    }
+                    log(`添加了 ${candidates.length} 个 ICE 候选`, 'success');
+                }, 1000);
+
+            } catch (error) {
+                log(`错误: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        async function stopWebRTC() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (sessionId) {
+                await fetch(`${API_BASE}/webrtc/sessions/${sessionId}`, { method: 'DELETE' });
+                sessionId = null;
+            }
+            document.getElementById('colorVideo').srcObject = null;
+            document.getElementById('depthVideo').srcObject = null;
+            updateStatus(false);
+            log('已断开连接', 'info');
+        }
+
+        log('页面已加载，点击 "连接视频流" 开始', 'info');
+    </script>
+</body>
+
+</html>

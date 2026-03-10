@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RealSense D455 3D 点云查看器</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: sans-serif;
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: #00d2ff;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #00a5cf;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: #ccc;
+            font-size: 14px;
+        }
+    </style>
+    <!-- Import maps polyfill -->
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.js"></script>
+</head>
+
+<body>
+    <div id="info">
+        <h1>RealSense D455 Point Cloud</h1>
+        <p>Left Click: Rotate | Right Click: Pan | Scroll: Zoom</p>
+    </div>
+
+    <div id="controls">
+        <button id="startBtn">启动点云</button>
+        <button id="stopBtn" disabled>停止点云</button>
+        <div id="status">状态: 未连接</div>
+        <div id="stats" style="margin-top:5px; color:#aaa;">FPS: 0 | Points: 0</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const DEVICE_ID = '038122250462'; // D455 Serial
+        const API_BASE = 'http://localhost:8000/api';
+
+        // Three.js Variables
+        let scene, camera, renderer, controls, points;
+        let geometry;
+
+        // Stats
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let lastStatUpdate = 0;
+
+        // Socket.IO
+        const socket = io('http://localhost:8000', {
+            path: '/socket',
+            transports: ['websocket']
+        });
+
+        init();
+        animate();
+
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            // Add some fog for depth perception
+            scene.fog = new THREE.Fog(0x050505, 2, 10);
+
+            // Camera (RealSense coordinates: Z forward, Y down. Three.js: Y up)
+            // We'll need to rotate the camera or the object points to match
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 50);
+            camera.position.set(0, 0, -1); // Check from behind/front
+            camera.lookAt(0, 0, 1);
+            camera.up.set(0, -1, 0); // Rotate camera to match RealSense coordinate system (Y down)
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Geometry (BufferGeometry for performance)
+            geometry = new THREE.BufferGeometry();
+            // Initial large buffer
+            const maxPoints = 640 * 480;
+            const positions = new Float32Array(maxPoints * 3);
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setDrawRange(0, 0);
+
+            // Material
+            const material = new THREE.PointsMaterial({
+                color: 0x00d2ff,
+                size: 0.005,
+                sizeAttenuation: true
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+
+            // Grid helper for reference
+            const gridHelper = new THREE.GridHelper(5, 10);
+            gridHelper.position.z = 2; // Move grid forward
+            scene.add(gridHelper);
+
+            // Axis helper
+            const axesHelper = new THREE.AxesHelper(0.5);
+            scene.add(axesHelper);
+
+            // Listeners
+            window.addEventListener('resize', onWindowResize);
+
+            // Socket Events
+            socket.on('connect', () => {
+                updateStatus('Socket Connected');
+                console.log('Socket connected');
+            });
+
+            socket.on('disconnect', () => {
+                updateStatus('Socket Disconnected');
+            });
+
+            socket.on('metadata_update', (data) => {
+                if (data.device_id === DEVICE_ID && data.metadata_streams && data.metadata_streams.depth) {
+                    const depthMeta = data.metadata_streams.depth;
+                    if (depthMeta && depthMeta.point_cloud && depthMeta.point_cloud.vertices) {
+                        updatePointCloud(depthMeta.point_cloud.vertices);
+                    }
+                }
+            });
+
+            // Button Events
+            document.getElementById('startBtn').addEventListener('click', startPointCloud);
+            document.getElementById('stopBtn').addEventListener('click', stopPointCloud);
+        }
+
+        async function startPointCloud() {
+            try {
+                updateStatus('正在启动点云...');
+                const res = await fetch(`${API_BASE}/devices/${DEVICE_ID}/point_cloud/activate`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    updateStatus('点云已激活');
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                } else {
+                    updateStatus('启动失败: ' + res.statusText);
+                }
+            } catch (e) {
+                updateStatus('错误: ' + e.message);
+            }
+        }
+
+        async function stopPointCloud() {
+            try {
+                updateStatus('正在停止...');
+                const res = await fetch(`${API_BASE}/devices/${DEVICE_ID}/point_cloud/deactivate`, {
+                    method: 'POST'
+                });
+                if (res.ok) {
+                    updateStatus('点云已停止');
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    geometry.setDrawRange(0, 0); // Clear screen
+                }
+            } catch (e) {
+                updateStatus('错误: ' + e.message);
+            }
+        }
+
+        function updatePointCloud(base64Vertices) {
+            try {
+                // Decode Base64 to binary string
+                const binaryString = window.atob(base64Vertices);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Convert to Float32Array (X, Y, Z coordinates)
+                const vertices = new Float32Array(bytes.buffer);
+                const numPoints = vertices.length / 3;
+
+                // Update geometry
+                const positions = geometry.attributes.position.array;
+
+                // Copy data (handling potential size mismatch if buffer is too small)
+                if (positions.length < vertices.length) {
+                    // Reallocate if needed (expensive, assume max size 640x480 is enough mostly)
+                    console.warn('Resize needed');
+                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                } else {
+                    positions.set(vertices);
+                    geometry.attributes.position.needsUpdate = true;
+                }
+
+                geometry.setDrawRange(0, numPoints);
+
+                // Stats update
+                frameCount++;
+                const now = performance.now();
+                if (now - lastStatUpdate > 1000) {
+                    const fps = Math.round((frameCount * 1000) / (now - lastStatUpdate));
+                    document.getElementById('stats').innerText = `FPS: ${fps} | Points: ${numPoints}`;
+                    frameCount = 0;
+                    lastStatUpdate = now;
+                }
+
+            } catch (e) {
+                console.error('Error parsing point cloud:', e);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function updateStatus(text) {
+            document.getElementById('status').innerText = '状态: ' + text;
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,52 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+*.o
+*.a
+*.so
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Colcon
+colcon_build.rc
+
+# ROS 2
+.ros/
+devel/
+
+# Temporary files
+*.tmp
+*.bak
+
+# AI Agent Skills
+.agent/
+
+
+.config/
+
+# Logs
+logs/
+.config/
+
+# Logs
+logs/
+rest-api/logs/
+
+# Environments
+venv/
+.venv/
