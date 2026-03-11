@@ -50,3 +50,6 @@ rest-api/logs/
 # Environments
 venv/
 .venv/
+
+# Claude
+.claude/
