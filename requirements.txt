@@ -1,7 +1,23 @@
+# Sweetbomb Backend Dependencies
+#
+# 注意：在 Jetson (ARM64) 上部署时的特殊处理
+#
+# 1. pyrealsense2: 不要通过 pip 安装！
+#    使用系统已编译的版本：
+#    echo "/usr/lib/python3/dist-packages" > venv/lib/python3.10/site-packages/pyrealsense2.pth
+#
+# 2. numpy/opencv: 如果系统已安装，优先使用系统版本
+#    避免编译 ARM64 二进制包时的内存问题
+#
+# 3. aiortc: 在 ARM64 上可能需要手动编译依赖
+
 fastapi==0.115.12
 uvicorn==0.34.0
 pydantic==2.10.6
-pyrealsense2==2.56.4.9191
+
+# pyrealsense2: Jetson 上使用系统版本，x86 可以用 pip
+# pyrealsense2==2.56.4.9191
+
 aiortc==1.5.0
 opencv-python==4.11.0.86
 numpy==2.0.2

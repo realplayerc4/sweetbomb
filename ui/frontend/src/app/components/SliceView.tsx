@@ -5,9 +5,7 @@ import { useRobotController } from '../hooks/useRobotController';
 interface SliceViewProps {
     isActive: boolean;
     pointCloudData: Float32Array | null;
-    systemStats?: {
-        imu?: { roll: number; pitch: number; yaw: number };
-    } | null;
+    systemStats?: Record<string, never> | null;
     pointCloudAnalysis?: {
         volume: {
             current: number;
@@ -345,18 +343,6 @@ export function SliceView({
                 <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 ml-1 font-mono font-bold">
                     | {pointCount.toLocaleString()} PTS
                 </span>
-            </div>
-
-            {/* IMU Telemetry (Top Right) */}
-            <div className="absolute top-[15px] right-[15px] z-[100] flex flex-col items-end gap-1 opacity-90 select-none">
-                <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end">
-                        <span className="text-[7px] text-slate-500 font-bold uppercase tracking-widest pl-1">Roll</span>
-                        <span className="text-[11px] text-[#FD802E] font-black font-mono leading-none w-10 inline-block text-right">
-                            {(systemStats?.imu?.roll ?? status?.imu?.roll ?? status?.orientation?.[0] ?? 0).toFixed(1)}°
-                        </span>
-                    </div>
-                </div>
             </div>
 
             <canvas ref={canvasRef} width={600} height={330} className="w-full h-full" />

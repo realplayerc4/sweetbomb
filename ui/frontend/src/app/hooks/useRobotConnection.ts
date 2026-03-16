@@ -21,7 +21,6 @@ export function useRobotConnection() {
         temperature: number;
         signal: number;
         hostname: string;
-        imu?: { roll: number; pitch: number; yaw: number };
     } | null>(null);
     const [pointCloudAnalysis, setPointCloudAnalysis] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
