@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Locate } from 'lucide-react';
-import { useRobotController } from '../hooks/useRobotController';
 
 interface SliceViewProps {
     isActive: boolean;
     pointCloudData: Float32Array | null;
-    systemStats?: Record<string, never> | null;
+    systemStats?: {
+        cpu_load?: number;
+        battery?: number;
+        temperature?: number;
+        signal?: number;
+        hostname?: string;
+    } | null;
     pointCloudAnalysis?: {
         volume: {
             current: number;
@@ -118,10 +123,9 @@ function getMockPointCloud(): Float32Array {
 export function SliceView({
     isActive,
     pointCloudData,
-    systemStats,
+    systemStats: _systemStats,
     pointCloudAnalysis
 }: SliceViewProps) {
-    const { status } = useRobotController();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [settings, setSettings] = useState<SliceSettings>(loadSettings);
     const [pointCount, setPointCount] = useState(0);
