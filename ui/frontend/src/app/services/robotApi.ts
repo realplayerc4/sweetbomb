@@ -46,11 +46,6 @@ export interface RobotStatus {
     battery_level: number;
     current_position: [number, number, number];
     orientation: [number, number, number]; // [Roll, Pitch, Yaw]
-    imu?: {
-        roll: number;
-        pitch: number;
-        yaw: number;
-    };
     left_track_speed: number;
     right_track_speed: number;
     servos: Record<string, ServoState>;

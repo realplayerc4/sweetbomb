@@ -95,14 +95,6 @@ class StreamController:
         for stream_config in configs:
             self._enable_single_stream(device_id, config, stream_config, active_streams)
 
-        # 尝试自动开启 IMU
-        try:
-            config.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 250)
-            config.enable_stream(rs.stream.gyro, rs.format.motion_xyz32f, 200)
-            active_streams.add("accel")
-            active_streams.add("gyro")
-        except RuntimeError:
-            print("[Warning] Could not enable IMU streams. Device might not support it.")
 
         try:
             pipeline.start(config)
@@ -461,23 +453,6 @@ class StreamController:
                         "width": data_array.shape[1],
                         "height": data_array.shape[0],
                     }
-                elif stype == rs.stream.gyro.name or stype == rs.stream.accel.name:
-                    motion_data = None
-                    frame_data = None
-                    for f in frames:
-                        if f.get_profile().stream_type().name == stype:
-                            frame_data = f.as_motion_frame()
-                            motion_data = frame_data.get_motion_data()
-                    if motion_data is None:
-                        continue
-                    raw_frames[stream_type] = {
-                        "type": "motion",
-                        "motion_data": motion_data,
-                        "timestamp": frame_data.get_timestamp(),
-                        "frame_number": frame_data.get_frame_number(),
-                        "width": 640,
-                        "height": 480,
-                    }
 
                 if stream_type not in raw_frames:
                     print(f"[DEBUG_STREAM] Could not extract raw frame for {stream_type}. frames object contains: {[f.get_profile().stream_type().name for f in frames]}")
@@ -621,30 +596,6 @@ class StreamController:
                 elif raw["type"] == "infrared":
                     frame = raw["data"]
 
-                elif raw["type"] == "motion":
-                    motion_data = raw["motion_data"]
-                    metadata["motion_data"] = {
-                        "x": float(motion_data.x),
-                        "y": float(motion_data.y),
-                        "z": float(motion_data.z),
-                    }
-                    text = f"x: {motion_data.x:.6f}\ny: {motion_data.y:.6f}\nz: {motion_data.z:.6f}".split(
-                        "\n"
-                    )
-                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                    y0, dy = 50, 40
-                    for i, coord in enumerate(text):
-                        y = y0 + dy * i
-                        cv2.putText(
-                            frame,
-                            coord,
-                            (10, y),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1,
-                            (255, 255, 255),
-                            2,
-                            cv2.LINE_AA,
-                        )
 
                 if frame is None:
                     continue

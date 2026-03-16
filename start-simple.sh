@@ -12,7 +12,7 @@ sleep 1
 
 # 启动后端 (在后台)
 echo "📡 启动后端 (http://localhost:8000)..."
-cd /home/yq/sweetbomb
+cd /home/jetson/sweetbomb
 python3 -m uvicorn main:combined_app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 
@@ -21,7 +21,7 @@ sleep 2
 
 # 启动前端 (在后台)
 echo "🎨 启动前端 (http://localhost:5173)..."
-cd /home/yq/sweetbomb/ui/frontend
+cd /home/jetson/sweetbomb/ui/frontend
 npm run dev &
 FRONTEND_PID=$!
 

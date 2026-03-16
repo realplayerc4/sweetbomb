@@ -4,6 +4,117 @@
 
 ---
 
+## 🚀 Jetson 部署指南
+
+### 环境要求
+- **硬件**: Jetson Orin Nano / Orin NX / Xavier NX
+- **系统**: JetPack 6.x (Ubuntu 22.04)
+- **Python**: 3.10+
+- **Node.js**: 20.x (推荐) 或 18.x
+
+### 快速部署步骤
+
+#### 1. 系统准备
+```bash
+# 更新系统
+sudo apt update
+sudo apt install -y python3.10 python3.10-venv python3.10-dev git curl
+
+# 安装 Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+#### 2. 克隆项目
+```bash
+cd ~
+git clone <repository-url> sweetbomb
+cd sweetbomb
+```
+
+#### 3. 后端配置
+```bash
+# 创建虚拟环境
+python3.10 -m venv venv
+source venv/bin/activate
+
+# 安装依赖
+pip install fastapi uvicorn pydantic python-socketio aiortc psutil
+
+# 链接系统 pyrealsense2
+echo "/usr/lib/python3/dist-packages" > venv/lib/python3.10/site-packages/pyrealsense2.pth
+
+# 创建日志目录
+mkdir -p logs
+```
+
+#### 4. 前端配置
+```bash
+cd ui/frontend
+
+# 安装依赖
+npm install
+
+# 确保 vite.config.ts 配置正确 (已配置 host: '0.0.0.0')
+
+# 编译前端
+npm run build
+
+cd ../..
+```
+
+#### 5. 启动服务
+```bash
+# 使用启动脚本
+./start-simple.sh
+
+# 或手动启动
+source venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+### 常见问题
+
+#### 1. Node.js 版本不兼容
+**现象**: `Vite requires Node.js version 20.19+ or 22.12+`
+**解决**: 升级到 Node.js 20.x
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+#### 2. pyrealsense2 导入失败
+**现象**: `ModuleNotFoundError: No module named 'pyrealsense2'`
+**解决**: 创建 .pth 文件链接系统 pyrealsense2
+```bash
+echo "/usr/lib/python3/dist-packages" > venv/lib/python3.10/site-packages/pyrealsense2.pth
+```
+
+#### 3. 前端无法访问 (跨设备)
+**现象**: 其他设备无法访问 `http://<jetson-ip>:5173`
+**解决**: 修改 `ui/frontend/vite.config.ts`，添加 `server.host: '0.0.0.0'`
+
+#### 4. RealSense 设备权限错误
+**现象**: `RuntimeError: No device connected` 或权限错误
+**解决**: 安装 udev 规则并重新插拔设备
+```bash
+sudo cp config/99-realsense-libusb.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+### 路径修改总结 (从 x86 迁移到 Jetson)
+
+主要修改了以下文件中的路径 `/home/yq` → `/home/jetson`:
+
+1. `app/core/logging_config.py` - 日志目录路径
+2. `start-simple.sh` - 启动脚本工作目录
+3. `deploy/setup_systemd.py` - systemd 服务配置
+4. `deploy/clean_remote_deploy.py` - 部署脚本
+5. `.claude/settings.json` - Claude 配置
+
+---
+
 ## 🌟 核心功能 (Features)
 
 ### 设备与视频流
