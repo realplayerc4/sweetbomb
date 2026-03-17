@@ -12,14 +12,6 @@ export function MapPanel() {
                     | GRID MAP
                 </span>
             </div>
-
-            {/* Map Placeholder - 保留背景但不显示边框 */}
-            <div className="absolute inset-0 bg-slate-900/30 m-4 mt-16">
-                {/* Reserved for Grid Map */}
-            </div>
-
-            {/* Subtle overlay for industrial look - matching VideoView */}
-            <div className="absolute inset-0 pointer-events-none border-[12px] border-black/5" />
         </Card>
     );
 }
