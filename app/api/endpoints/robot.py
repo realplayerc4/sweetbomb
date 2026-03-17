@@ -14,7 +14,7 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from app.services.robot_controller import (
@@ -482,3 +482,56 @@ async def get_tcp_robot_status(
         "message": f"{len(robots)} 个机器人已连接" if robots else "无机器人连接",
         "robots": robots
     }
+
+
+# ==================== WebSocket 端点 ====================
+
+
+@router.websocket("/ws")
+async def robot_websocket(websocket: WebSocket):
+    """WebSocket 端点，用于实时推送机器人连接状态。
+
+    连接建立后，服务器会每 1 秒检查一次机器人 TCP 连接状态，
+    并在状态变化时推送给客户端。
+
+    消息格式:
+    - 连接状态: {"type": "robot_connection", "connected": true/false}
+    """
+    await websocket.accept()
+    logger.info("机器人状态 WebSocket 连接已建立")
+
+    # 获取 TCP Server 实例
+    tcp_server = get_robot_tcp_server()
+
+    # 上一次的状态，用于检测变化
+    last_connected = None
+
+    try:
+        while True:
+            # 检查当前连接状态
+            current_connected = False
+            if tcp_server:
+                robot_ids = tcp_server.get_robot_ids()
+                current_connected = len(robot_ids) > 0
+
+            # 状态变化时推送
+            if current_connected != last_connected:
+                message = {
+                    "type": "robot_connection",
+                    "connected": current_connected
+                }
+                await websocket.send_json(message)
+                logger.debug(f"机器人连接状态推送: {current_connected}")
+                last_connected = current_connected
+
+            # 每 1 秒检查一次
+            await asyncio.sleep(1)
+
+    except WebSocketDisconnect:
+        logger.info("机器人状态 WebSocket 连接已断开")
+    except Exception as e:
+        logger.error(f"WebSocket 错误: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass

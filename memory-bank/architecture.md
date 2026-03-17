@@ -108,6 +108,36 @@
 
 **依赖**: NumPy, Open3D (可选)
 
+### 7. robot_tcp_server (机器人TCP服务器)
+
+| 职责 | 描述 |
+|------|------|
+| 连接管理 | 管理机器人TCP连接（端口9090） |
+| 协议解析 | 解析UTF-8文本协议报文 |
+| 状态同步 | 实时同步机器人状态数据 |
+| 任务下发 | 发送任务、命令到机器人 |
+| 相机联动 | 发送相机检测距离到机器人 |
+
+**协议格式**:
+```
+{
+MessageType=xxx
+Key1=Value1
+Key2=Value2
+}
+```
+
+**支持的消息类型**:
+- `status` - 状态查询/上报
+- `task` - 任务下发
+- `taskFinish` - 任务完成
+- `cancelTask` - 取消任务
+- `command` - 控制命令
+- `remoteControl` - 远程控制
+- `cameraCheckDistance` - 相机检测距离
+
+**依赖**: asyncio
+
 ---
 
 ## Communication Protocols
@@ -117,7 +147,41 @@
 | 视频流 | WebRTC | RGB/Depth 实时传输 | < 100ms |
 | 元数据 | Socket.IO | 设备状态、任务事件 | < 500ms |
 | 控制 | REST API | 参数配置、任务管理 | < 1s |
-| 机器人 | WebSocket | 运动控制、状态反馈 | < 100ms |
+| 机器人 | TCP/IP | 机器人控制、状态同步 | < 50ms |
+
+### 机器人TCP协议详解
+
+**服务器配置**:
+- 监听地址: `0.0.0.0:9090`
+- 编码: UTF-8
+- 报文格式: 文本协议，以 `{` 开头 `}` 结尾
+
+**报文结构**:
+```
+{
+MessageType=<类型>
+Key1=Value1
+Key2=Value2
+...
+}
+```
+
+**状态数据字段**:
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| Mode | string | 模式: auto/handle/remote |
+| Status | string | 状态: idle/running |
+| Charge | float | 电量 0-100 |
+| Speed | float | 速度 m/s |
+| X/Y/Z | int | 坐标 mm |
+| A | float | 车体角度 ° |
+| Boom | float | 臂位置 mm |
+| Bucket | float | 铲斗角度 ° |
+
+**心跳机制**:
+- 机器人定时发送状态查询报文
+- 服务端回复完整状态数据
+- 服务端10秒无报文判定为超时断开
 
 ---
 

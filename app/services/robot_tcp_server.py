@@ -193,9 +193,10 @@ class RobotTCPServer:
         Returns:
             bool: 是否发送成功
 
-        协议格式: {MessageType=cameraCheckDistance=xxxx}
+        协议格式:
+        {\nMessageType=cameraCheckDistance\nDistance=xxxx\n}
         """
-        message = f"{{MessageType=cameraCheckDistance={distance_mm}}}"
+        message = f"{{\nMessageType=cameraCheckDistance\nDistance={distance_mm}\n}}"
 
         if robot_id:
             # 发送到指定机器人
