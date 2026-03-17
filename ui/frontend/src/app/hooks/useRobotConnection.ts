@@ -141,7 +141,7 @@ export function useRobotConnection() {
                         sensor_id: `${device.device_id}-sensor-0`, // Assuming sensor 0 is depth, checking later
                         stream_type: "depth",
                         format: "z16",
-                        resolution: { width: 640, height: 480 },
+                        resolution: { width: 640, height: 360 },
                         framerate: 15,
                         enable: true
                     },
@@ -149,7 +149,7 @@ export function useRobotConnection() {
                         sensor_id: `${device.device_id}-sensor-1`, // Assuming sensor 1 is RGB
                         stream_type: "color",
                         format: "rgb8",
-                        resolution: { width: 640, height: 480 },
+                        resolution: { width: 640, height: 360 },
                         framerate: 30,
                         enable: true
                     }

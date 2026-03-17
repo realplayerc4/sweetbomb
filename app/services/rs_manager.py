@@ -130,21 +130,31 @@ class RealSenseManager:
             time.sleep(5)  # 每5秒检查一次
 
     def _auto_start_device_stream(self, device_id: str) -> None:
-        """自动启动设备的 depth 流并激活点云处理。"""
+        """自动启动设备的 color 和 depth 流并激活点云处理。"""
         from app.models.stream import StreamConfig
 
-        # 创建 depth 流配置
+        # 创建 depth 流配置 (640x360 降低带宽压力)
         depth_config = StreamConfig(
             sensor_id=f"{device_id}-sensor-0",
             stream_type="depth",
             format="z16",
-            resolution={"width": 1280, "height": 720},
+            resolution={"width": 640, "height": 360},
             framerate=15,
             enable=True
         )
 
-        # 启动流
-        self._stream.start_stream(device_id, [depth_config], align_to="color")
+        # 创建 color 流配置 (640x360 降低带宽压力)
+        color_config = StreamConfig(
+            sensor_id=f"{device_id}-sensor-1",
+            stream_type="color",
+            format="rgb8",
+            resolution={"width": 640, "height": 360},
+            framerate=30,
+            enable=True
+        )
+
+        # 启动流 (color 和 depth 同时启动)
+        self._stream.start_stream(device_id, [depth_config, color_config], align_to="color")
 
         # 激活点云处理
         self._pointcloud.activate(device_id, True)
