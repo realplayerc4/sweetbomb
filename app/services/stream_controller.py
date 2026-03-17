@@ -31,6 +31,7 @@ class StreamController:
         filters: dict,
         point_cloud_ref,
         metadata_socket_server,
+        analysis_result_callback=None,  # 回调函数，用于将结果保存到 RealSenseManager
     ):
         self.ctx = ctx
         self.lock = lock
@@ -54,6 +55,9 @@ class StreamController:
         # 点云分析器（用于后端计算体积、距离等）
         self.point_cloud_analyzer = PointCloudAnalyzer()
         self.latest_analysis_result = None  # 存储最新分析结果
+
+        # 回调函数，用于将结果保存到 RealSenseManager
+        self._analysis_result_callback = analysis_result_callback
 
         # 健康监控相关
         self.last_frame_time: Dict[str, float] = {}  # device_id -> timestamp

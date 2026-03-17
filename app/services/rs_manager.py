@@ -9,6 +9,7 @@
 
 import threading
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 import numpy as np
 import pyrealsense2 as rs
@@ -25,6 +26,7 @@ from app.services.sensor_control import SensorControl
 from app.services.stream_controller import StreamController
 from app.services.point_cloud_processor import PointCloudProcessor
 from app.services.metadata_socket_server import MetadataSocketServer
+from app.services.point_cloud_analyzer import PointCloudAnalysisResult
 
 
 class RealSenseManager:
@@ -76,6 +78,7 @@ class RealSenseManager:
             filters=self.filters,
             point_cloud_ref=self.pc,
             metadata_socket_server=self.metadata_socket_server,
+            analysis_result_callback=self._on_analysis_result,
         )
 
         # 让 DeviceDiscovery 能感知到 pipelines 的存在
@@ -98,6 +101,34 @@ class RealSenseManager:
 
         # 初始化设备列表
         self._discovery.refresh_devices()
+
+        # 初始化点云分析结果存储
+        self._latest_analysis_results: Dict[str, PointCloudAnalysisResult] = {}
+        self._latest_move_distances: Dict[str, float] = {}
+        self._analysis_timestamps: Dict[str, datetime] = {}
+
+    def _on_analysis_result(self, device_id: str, result: PointCloudAnalysisResult) -> None:
+        """回调函数：保存点云分析结果。"""
+        approach_offset = 0.05
+        self._latest_analysis_results[device_id] = result
+        self._analysis_timestamps[device_id] = datetime.now()
+
+        if result.material_distance is not None:
+            move_distance = result.material_distance - approach_offset
+            if move_distance <= 0:
+                move_distance = 0.1
+            self._latest_move_distances[device_id] = move_distance
+        else:
+            self._latest_move_distances[device_id] = 0.0
+
+    def get_analysis_result(self, device_id: str) -> Optional[PointCloudAnalysisResult]:
+        return self._latest_analysis_results.get(device_id)
+
+    def get_move_distance(self, device_id: str) -> Optional[float]:
+        return self._latest_move_distances.get(device_id)
+
+    def get_analysis_timestamp(self, device_id: str) -> Optional[datetime]:
+        return self._analysis_timestamps.get(device_id)
 
     # ========== 设备管理 API ==========
 
