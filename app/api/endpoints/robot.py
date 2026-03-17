@@ -127,70 +127,11 @@ def get_distance_analyzer_service() -> DistanceAnalyzer:
 # ==================== 运动控制端点 ====================
 
 
-@router.post("/move", response_model=Dict[str, Any])
-async def move_robot(
-    request: MoveRequest,
-    robot: RobotController = Depends(get_robot_ctrl)
-):
-    """控制机器人移动。
-
-    支持方向：
-    - forward: 前进
-    - backward: 后退
-    - left: 左移
-    - right: 右移
-    - rotate_left: 原地左转
-    - rotate_right: 原地右转
-    - stop: 停止
-    """
-    try:
-        success = await robot.move(
-            direction=request.direction,
-            speed=request.speed,
-            duration=request.duration,
-        )
-
-        return {
-            "success": success,
-            "message": f"移动指令已发送: {request.direction}",
-            "status": robot.get_status().state,
-        }
-
-    except Exception as e:
-        logger.error(f"移动控制失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# 注：原有的运动控制、伺服控制等API端点已删除，改用TCP协议直接与机器人通信
 
 
-@router.post("/stop", response_model=Dict[str, Any])
-async def stop_robot(robot: RobotController = Depends(get_robot_ctrl)):
-    """紧急停止机器人。"""
-    try:
-        success = await robot.stop()
-        return {
-            "success": success,
-            "message": "紧急停止指令已发送",
-            "status": robot.get_status().state,
-        }
-
-    except Exception as e:
-        logger.error(f"紧急停止失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/reset", response_model=Dict[str, Any])
-async def reset_robot(robot: RobotController = Depends(get_robot_ctrl)):
-    """重置机器人紧急停止状态。"""
-    try:
-        success = await robot.reset_emergency_stop()
-        return {
-            "success": success,
-            "message": "机器人状态已重置",
-            "status": robot.get_status().state,
-        }
-
-    except Exception as e:
-        logger.error(f"重置失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== 伺服控制端点 ====================

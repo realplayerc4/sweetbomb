@@ -293,8 +293,8 @@ class RobotTCPServer:
         client.state.bucket = float(data.get('Bucket', 0))
         client.state.last_update = datetime.now()
 
-        # 发送状态回复
-        response = "{\nMessageType=status\n}"
+        # 发送状态回复 (包含完整状态数据)
+        response = f"{{\nMessageType=status\nMode={client.state.mode.value}\nStatus={client.state.status.value}\nCharge={client.state.charge:.1f}\nSpeed={client.state.speed:.2f}\nFault={client.state.fault}\nFaultLevel={client.state.fault_level}\nTaskId={client.state.task_id}\nStation={client.state.station}\nMap={client.state.map_name}\nX={int(client.state.x)}\nY={int(client.state.y)}\nZ={int(client.state.z)}\nA={client.state.a:.2f}\nBoom={client.state.boom:.2f}\nBucket={client.state.bucket:.2f}\n}}"
         await client.send_message(response)
 
         # 触发回调
