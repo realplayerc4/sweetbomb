@@ -33,6 +33,8 @@ from app.services.behavior_tree_engine import (
     BehaviorTreeEngine,
     create_sugar_harvest_engine,
 )
+from app.services.robot_tcp_server import RobotTCPServer
+from app.api.dependencies import get_robot_tcp_server
 
 logger = logging.getLogger(__name__)
 
@@ -489,3 +491,53 @@ async def get_sugar_harvest_status():
         })
 
     return status_info
+
+
+@router.get("/tcp/status", response_model=Dict[str, Any])
+async def get_tcp_robot_status(
+    tcp_server: Optional[RobotTCPServer] = Depends(get_robot_tcp_server)
+):
+    """获取通过 TCP 连接的机器人状态。
+
+    返回:
+    - 连接状态: 是否有机器人连接
+    - 连接数: 当前连接的机器人数量
+    - 每个机器人的详细状态: 电量、位置、模式等
+    """
+    if not tcp_server:
+        return {
+            "connected": False,
+            "count": 0,
+            "message": "TCP 服务器未启动",
+            "robots": []
+        }
+
+    robot_ids = tcp_server.get_robot_ids()
+    robots = []
+
+    for rid in robot_ids:
+        state = tcp_server.get_robot_state(rid)
+        if state:
+            robots.append({
+                "id": rid,
+                "mode": state.mode.value,
+                "status": state.status.value,
+                "charge": state.charge,
+                "speed": state.speed,
+                "fault": state.fault,
+                "fault_level": state.fault_level,
+                "task_id": state.task_id,
+                "station": state.station,
+                "map_name": state.map_name,
+                "position": {"x": state.x, "y": state.y, "z": state.z, "a": state.a},
+                "boom": state.boom,
+                "bucket": state.bucket,
+                "last_update": state.last_update.isoformat() if state.last_update else None
+            })
+
+    return {
+        "connected": len(robots) > 0,
+        "count": len(robots),
+        "message": f"{len(robots)} 个机器人已连接" if robots else "无机器人连接",
+        "robots": robots
+    }

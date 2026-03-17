@@ -1,7 +1,26 @@
-from fastapi import APIRouter
-from app.api.endpoints import devices, sensors, options, streams, webrtc, point_cloud, tasks, waypoints, robot
+"""API Router Configuration.
 
+This module aggregates all API endpoint routers.
+"""
+
+from fastapi import APIRouter
+
+from app.api.endpoints import (
+    devices,
+    options,
+    point_cloud,
+    robot,
+    sensors,
+    streams,
+    tasks,
+    waypoints,
+    webrtc,
+)
+
+# Create main API router
 api_router = APIRouter()
+
+# Include all endpoint routers
 api_router.include_router(devices.router, prefix="/devices", tags=["devices"])
 api_router.include_router(sensors.router, prefix="/devices/{device_id}/sensors", tags=["sensors"])
 api_router.include_router(options.router, prefix="/devices/{device_id}/sensors/{sensor_id}/options", tags=["options"])

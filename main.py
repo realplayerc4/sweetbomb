@@ -9,7 +9,7 @@ from config import settings
 import socketio
 from app.services.socketio import sio
 from app.core.logging_config import setup_logging
-from app.api.dependencies import get_realsense_manager, get_webrtc_manager
+from app.api.dependencies import get_realsense_manager, get_webrtc_manager, set_robot_tcp_server
 from app.services.robot_tcp_server import RobotTCPServer
 
 # Initialize logging
@@ -62,6 +62,24 @@ async def startup_event():
     # 启动机器人 TCP Server (端口 9090)
     try:
         robot_tcp_server = RobotTCPServer(host="0.0.0.0", port=9090)
+
+        # 设置状态更新回调，通过 Socket.IO 推送
+        async def on_state_update(robot_id: str, state):
+            await sio.emit("robot_status_update", {
+                "robot_id": robot_id,
+                "state": {
+                    "mode": state.mode.value,
+                    "status": state.status.value,
+                    "charge": state.charge,
+                    "position": {"x": state.x, "y": state.y, "a": state.a},
+                }
+            })
+
+        robot_tcp_server.on_state_update = on_state_update
+
+        # 注册到依赖注入系统
+        set_robot_tcp_server(robot_tcp_server)
+
         await robot_tcp_server.start()
         print("[TCP Server] 机器人 TCP 服务器已启动: 0.0.0.0:9090")
     except Exception as e:
