@@ -99,13 +99,57 @@ class RealSenseManager:
             refresh_fn=self._discovery.refresh_devices,
         )
 
-        # 初始化设备列表
-        self._discovery.refresh_devices()
-
         # 初始化点云分析结果存储
         self._latest_analysis_results: Dict[str, PointCloudAnalysisResult] = {}
         self._latest_move_distances: Dict[str, float] = {}
         self._analysis_timestamps: Dict[str, datetime] = {}
+
+        # 启动自动流管理后台线程
+        self._auto_stream_enabled = True
+        self._auto_stream_thread = threading.Thread(target=self._auto_stream_manager, daemon=True)
+        self._auto_stream_thread.start()
+
+        # 初始化设备列表（启动流）
+        self.refresh_devices()
+
+    def _auto_stream_manager(self) -> None:
+        """后台线程：自动管理设备流的启动和停止。"""
+        import time
+        while self._auto_stream_enabled:
+            try:
+                for device_id in list(self._discovery.devices.keys()):
+                    # 如果设备没有在流传输，自动启动
+                    if device_id not in self._stream.pipelines:
+                        try:
+                            print(f"[AutoStream] Auto-starting stream for {device_id}")
+                            self._auto_start_device_stream(device_id)
+                        except Exception as e:
+                            print(f"[AutoStream] Failed to start stream for {device_id}: {e}")
+            except Exception as e:
+                print(f"[AutoStream] Error in auto stream manager: {e}")
+            time.sleep(5)  # 每5秒检查一次
+
+    def _auto_start_device_stream(self, device_id: str) -> None:
+        """自动启动设备的 depth 流并激活点云处理。"""
+        from app.models.stream import StreamConfig
+
+        # 创建 depth 流配置
+        depth_config = StreamConfig(
+            sensor_id=f"{device_id}-sensor-0",
+            stream_type="depth",
+            format="z16",
+            resolution={"width": 1280, "height": 720},
+            framerate=15,
+            enable=True
+        )
+
+        # 启动流
+        self._stream.start_stream(device_id, [depth_config], align_to="color")
+
+        # 激活点云处理
+        self._pointcloud.activate(device_id, True)
+
+        print(f"[AutoStart] Stream and point cloud activated for {device_id}")
 
     def _on_analysis_result(self, device_id: str, result: PointCloudAnalysisResult) -> None:
         """回调函数：保存点云分析结果。"""

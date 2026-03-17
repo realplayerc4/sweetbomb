@@ -182,6 +182,44 @@ class RobotTCPServer:
             await self.server.wait_closed()
         logger.info("机器人TCP服务器已停止")
 
+    async def send_camera_distance(self, distance_mm: int, robot_id: Optional[str] = None) -> bool:
+        """
+        发送相机检测距离到机器人
+
+        Args:
+            distance_mm: 距离值，单位毫米
+            robot_id: 指定机器人ID，为None则发送到所有连接的机器人
+
+        Returns:
+            bool: 是否发送成功
+
+        协议格式: {MessageType=cameraCheckDistance=xxxx}
+        """
+        message = f"{{MessageType=cameraCheckDistance={distance_mm}}}"
+
+        if robot_id:
+            # 发送到指定机器人
+            client = self.clients.get(robot_id)
+            if not client:
+                logger.warning(f"机器人 {robot_id} 未连接，无法发送相机距离")
+                return False
+            await client.send_message(message)
+            logger.debug(f"发送相机距离到 {robot_id}: {distance_mm}mm")
+        else:
+            # 发送到所有连接的机器人
+            if not self.clients:
+                logger.debug("没有连接的机器人，跳过发送相机距离")
+                return False
+
+            for rid, client in list(self.clients.items()):
+                try:
+                    await client.send_message(message)
+                    logger.debug(f"发送相机距离到 {rid}: {distance_mm}mm")
+                except Exception as e:
+                    logger.error(f"发送相机距离到 {rid} 失败: {e}")
+
+        return True
+
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """处理客户端连接"""
         client = RobotTCPClient(reader, writer, self)

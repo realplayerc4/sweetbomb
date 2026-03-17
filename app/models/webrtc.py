@@ -1,9 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 
 class WebRTCOffer(BaseModel):
-    device_id: str
-    stream_types: List[str]  # Types of streams to include (color, depth, etc.)
+    device_id: str = Field(..., description="Device ID")
+    stream_types: List[str] = Field(..., description="Types of streams to include (color, depth, etc.)")
 
 class WebRTCSession(BaseModel):
     session_id: str

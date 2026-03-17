@@ -465,7 +465,7 @@ class StreamController:
                 if stype.lower() == "depth" and pc_enabled:
                     import time
                     now = time.time()
-                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
+                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.25:
                         self._last_pc_calc_time[device_id] = now
                         fd = raw_frames.get(stream_type, {}).get("frame_data")
                         if fd:
