@@ -6,7 +6,6 @@ import { Slider } from './ui/slider';
 import { useRobotController } from '../hooks/useRobotController';
 import { MoveDirection, RobotState } from '../services/robotApi';
 import { cn } from '../lib/utils';
-import { RobotConnectionStatus } from './RobotConnectionStatus';
 
 interface RobotControlPanelProps {
     className?: string;
@@ -64,8 +63,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         )}>
             {/* 右侧连接状态与开关 - 定位与上箭头平齐 */}
             <div className="absolute right-[50px] top-[calc(50%-75px)] -translate-y-1/2 z-[200] flex flex-col items-end gap-3">
-                <RobotConnectionStatus />
-
                 {/* REMOTE 拨档开关 (左右带图标) */}
             </div>
 

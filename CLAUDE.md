@@ -26,7 +26,7 @@ rest-api/knowledge.md            → 技术知识、配置参考
 ### Priority 3 - 变更历史
 
 ```
-rest-api/changelog.md            → 版本变更记录
+docs/changelog.md                → 版本变更记录
 memory-bank/progress.md          → 项目进度
 ```
 
@@ -34,13 +34,16 @@ memory-bank/progress.md          → 项目进度
 
 ## Module Boundaries (模块边界)
 
-### 后端模块 (rest-api/)
+### 后端模块 (app/)
 
 | 模块 | 职责 | 允许修改 |
 |------|------|----------|
-| `routers/` | API 路由定义 | 是 |
+| `api/endpoints/` | API 路由端点 | 是 |
+| `api/router.py` | API 路由聚合 | 是 |
+| `api/dependencies.py` | 依赖注入 | 是 |
 | `services/` | 业务逻辑 | 是 |
 | `models/` | 数据模型 | 是 |
+| `core/` | 核心配置 | 是 |
 | `tests/` | 单元测试 | 是 |
 
 ### 前端模块 (rest-api/ui/)
