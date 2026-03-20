@@ -44,8 +44,6 @@
 | **Sensor** | 传感器组件 | id, name, options |
 | **Stream** | 数据流 | type (RGB/Depth), resolution, fps |
 | **Task** | 后台任务 | id, type, status, progress |
-| **BTNode** | 行为树节点 | type, name, children, status |
-| **SugarHarvestConfig** | 铲糖配置 | navigation_point, dump_point_a, dump_point_b |
 
 ---
 
@@ -87,7 +85,6 @@ NodeContext.blackboard:
 | API P99 | ~30ms | < 50ms |
 | 并发任务 | 4 | 4 |
 | 测试覆盖率 | 60% | 80% |
-| 铲糖任务成功率 | 85% | 95% |
 
 ---
 

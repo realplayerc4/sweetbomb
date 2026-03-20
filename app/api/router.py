@@ -9,11 +9,9 @@ from app.api.endpoints import (
     devices,
     options,
     point_cloud,
-    robot,
     sensors,
     streams,
     tasks,
-    waypoints,
     webrtc,
 )
 
@@ -28,5 +26,3 @@ api_router.include_router(streams.router, prefix="/devices/{device_id}/stream", 
 api_router.include_router(point_cloud.router, prefix="/devices/{device_id}/point_cloud", tags=["point_cloud"])
 api_router.include_router(webrtc.router, prefix="/webrtc", tags=["webrtc"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
-api_router.include_router(waypoints.router, prefix="/waypoints", tags=["waypoints"])
-api_router.include_router(robot.router, tags=["robot"])
