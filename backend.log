@@ -1,2 +1,1 @@
-INFO:     Will watch for changes in these directories: ['/home/jetson/sweetbomb']
-ERROR:    [Errno 98] Address already in use
+/bin/bash: line 1: uvicorn: command not found

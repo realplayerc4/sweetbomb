@@ -13,7 +13,7 @@ sleep 1
 # 启动后端 (在后台)
 echo "📡 启动后端 (http://localhost:8000)..."
 cd /home/jetson/sweetbomb
-python3 -m uvicorn main:combined_app --host 0.0.0.0 --port 8000 --reload &
+/home/jetson/sweetbomb/venv/bin/python -m uvicorn main:combined_app --host 0.0.0.0 --port 8000 --reload &
 BACKEND_PID=$!
 
 # 等待后端启动

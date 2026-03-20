@@ -1,4 +1,4 @@
-#!/home/yq/sweetbomb/venv/bin/python3
+#!/home/jetson/sweetbomb/venv/bin/python3.10
 # -*- coding: utf-8 -*-
 import re
 import sys

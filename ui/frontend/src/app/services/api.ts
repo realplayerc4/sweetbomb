@@ -26,6 +26,13 @@ export interface StreamRequest {
 }
 
 export const api = {
+    /** 通用 GET 请求 */
+    async get(path: string): Promise<any> {
+        const res = await fetch(`${API_BASE}${path}`);
+        if (!res.ok) throw new Error(`GET ${path} failed: ${res.statusText}`);
+        return res.json();
+    },
+
     /** 获取所有设备列表 */
     async getDevices(): Promise<DeviceInfo[]> {
         const res = await fetch(`${API_BASE}/devices/`);

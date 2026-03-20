@@ -161,7 +161,7 @@ export function useRobotConnection() {
             await api.activatePointCloud(device.device_id);
 
             // 3. WebRTC Offer (with retry logic)
-            let offerData;
+            let offerData: any;
             let retryCount = 0;
             const maxRetries = 5;
             const retryDelay = 500;
