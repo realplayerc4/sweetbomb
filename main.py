@@ -10,9 +10,14 @@ import socketio
 from app.services.socketio import sio
 from app.core.logging_config import setup_logging
 from app.api.dependencies import get_realsense_manager, get_webrtc_manager
+from app.services.robot_tcp_server import RobotTCPServer
+from app.api.endpoints.robot import set_robot_server
 
 # Initialize logging
 setup_logging()
+
+# 全局 TCP Server 实例
+robot_tcp_server: RobotTCPServer | None = None
 
 
 # --- Create FastAPI App ---
@@ -47,12 +52,19 @@ combined_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app)
 
 @app.on_event("startup")
 async def startup_event():
+    global robot_tcp_server
+
     # 启动 WebRTC 清理循环
     webrtc_manager = get_webrtc_manager()
     await webrtc_manager.start_cleanup_loop()
 
     # 启动 10 分钟健康检查循环
     asyncio.create_task(health_check_loop())
+
+    # 启动机器人 TCP Server
+    robot_tcp_server = RobotTCPServer(host="0.0.0.0", port=9090)
+    set_robot_server(robot_tcp_server)
+    await robot_tcp_server.start()
 
 
 async def health_check_loop():

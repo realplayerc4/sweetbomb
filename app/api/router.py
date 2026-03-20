@@ -10,6 +10,7 @@ from app.api.endpoints import (
     map as map_endpoint,
     options,
     point_cloud,
+    robot,
     sensors,
     streams,
     webrtc,
@@ -26,3 +27,4 @@ api_router.include_router(streams.router, prefix="/devices/{device_id}/stream", 
 api_router.include_router(point_cloud.router, prefix="/devices/{device_id}/point_cloud", tags=["point_cloud"])
 api_router.include_router(webrtc.router, prefix="/webrtc", tags=["webrtc"])
 api_router.include_router(map_endpoint.router, prefix="/map", tags=["map"])
+api_router.include_router(robot.router, prefix="/robot", tags=["robot"])

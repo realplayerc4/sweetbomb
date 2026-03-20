@@ -103,12 +103,20 @@ class RobotTCPClient:
         self.remote_control_active = False
         self.last_remote_control_time: Optional[datetime] = None
 
+        # 心跳计数 - 用于检测掉线
+        self.missed_heartbeats = 0
+        self.max_missed_heartbeats = 20  # 20次未回复判定为掉线
+
     async def send_message(self, message: str):
         """发送报文"""
         try:
-            self.writer.write(message.encode('utf-8'))
+            # 确保报文以UTF-8编码，包含正确的换行符
+            encoded = message.encode('utf-8')
+            self.writer.write(encoded)
             await self.writer.drain()
-            logger.debug(f"发送给 {self.addr}: {message[:100]}...")
+            # 记录十六进制前50字节用于调试
+            hex_str = ' '.join(f'{b:02x}' for b in encoded[:50])
+            logger.debug(f"发送给 {self.addr}: {hex_str}")
         except Exception as e:
             logger.error(f"发送失败 {self.addr}: {e}")
             self.connected = False
@@ -274,10 +282,45 @@ class RobotTCPServer:
             logger.warning(f"未实现的消息处理器: {msg_type}")
 
     async def _handle_status(self, client: RobotTCPClient, data: Dict):
-        """处理状态查询"""
+        """处理状态查询回复"""
+        # 收到回复，重置未回复计数
+        client.missed_heartbeats = 0
+
         # 更新机器人状态
-        client.state.mode = RobotMode(data.get('Mode', 'auto'))
-        client.state.status = RobotStatus(data.get('Status', 'idle'))
+        # 模式下位机返回中文：手柄控制/自动任务/远程控制
+        mode_map = {
+            '手柄控制': RobotMode.HANDLE,
+            '自动任务': RobotMode.AUTO,
+            '远程控制': RobotMode.REMOTE,
+            'auto': RobotMode.AUTO,
+            'handle': RobotMode.HANDLE,
+            'remote': RobotMode.REMOTE,
+        }
+        try:
+            mode_str = data.get('Mode', 'auto')
+            if mode_str in mode_map:
+                client.state.mode = mode_map[mode_str]
+            elif mode_str in [m.value for m in RobotMode]:
+                client.state.mode = RobotMode(mode_str)
+        except (ValueError, KeyError):
+            pass
+
+        # 状态下位机返回中文：空闲/运行中
+        status_map = {
+            '空闲': RobotStatus.IDLE,
+            '运行中': RobotStatus.RUNNING,
+            'idle': RobotStatus.IDLE,
+            'running': RobotStatus.RUNNING,
+        }
+        try:
+            status_str = data.get('Status', 'idle')
+            if status_str in status_map:
+                client.state.status = status_map[status_str]
+            elif status_str in [s.value for s in RobotStatus]:
+                client.state.status = RobotStatus(status_str)
+        except (ValueError, KeyError):
+            pass
+
         client.state.charge = float(data.get('Charge', 0))
         client.state.speed = float(data.get('Speed', 0))
         client.state.fault = data.get('Fault', '')
@@ -293,9 +336,7 @@ class RobotTCPServer:
         client.state.bucket = float(data.get('Bucket', 0))
         client.state.last_update = datetime.now()
 
-        # 发送状态回复
-        response = "{\nMessageType=status\n}"
-        await client.send_message(response)
+        # 状态查询不需要回复（因为是上位机主动查询，下位机回复）
 
         # 触发回调
         if self.on_state_update and client.robot_id:
@@ -360,22 +401,28 @@ class RobotTCPServer:
         # 远程控制无回复报文
 
     async def _heartbeat_checker(self):
-        """心跳检测器"""
+        """心跳检测器 - 每250ms发送status查询，20次未回复判定掉线"""
         while self.running:
             try:
-                await asyncio.sleep(5)  # 每5秒检查一次
+                await asyncio.sleep(0.25)  # 每250ms发送一次
 
-                now = datetime.now()
-                timeout_clients = []
+                for robot_id, client in list(self.clients.items()):
+                    if not client.connected:
+                        continue
 
-                for robot_id, client in self.clients.items():
-                    if client.is_timeout(timeout_seconds=10):
-                        logger.warning(f"机器人 {robot_id} 心跳超时")
-                        timeout_clients.append(client)
+                    # 发送status查询报文
+                    status_query = "{\nMessageType=status\n}"
+                    try:
+                        await client.send_message(status_query)
+                        client.missed_heartbeats += 1
 
-                # 关闭超时连接
-                for client in timeout_clients:
-                    await self._remove_client(client)
+                        # 检查是否超过20次未回复（5秒）
+                        if client.missed_heartbeats >= 20:
+                            logger.warning(f"机器人 {robot_id} 超过20次未回复状态查询，判定掉线")
+                            await self._remove_client(client)
+                    except Exception as e:
+                        logger.error(f"发送状态查询失败 {robot_id}: {e}")
+                        await self._remove_client(client)
 
             except Exception as e:
                 logger.error(f"心跳检测错误: {e}")
