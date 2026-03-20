@@ -4,53 +4,42 @@ interface RobotConnectionStatusProps {
   className?: string;
 }
 
+interface ConnectionStatus {
+  connected: boolean;
+  robot_id?: string;
+  missed_heartbeats: number;
+  client_count: number;
+}
+
 export function RobotConnectionStatus({ className }: RobotConnectionStatusProps) {
   const [connected, setConnected] = useState(false);
-  const [ws, setWs] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    // 连接WebSocket服务器（由后端TCP服务器转发）
-    const connectWebSocket = () => {
-      const socket = new WebSocket('ws://localhost:8000/ws/robot');
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-      socket.onopen = () => {
-        console.log('机器人连接状态WebSocket已连接');
-        setConnected(true);
-      };
-
-      socket.onclose = () => {
-        console.log('机器人连接状态WebSocket已断开');
-        setConnected(false);
-        // 3秒后重连
-        setTimeout(connectWebSocket, 3000);
-      };
-
-      socket.onerror = (error) => {
-        console.error('机器人连接状态WebSocket错误:', error);
-        setConnected(false);
-      };
-
-      // 监听机器人连接状态消息
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'robot_connection') {
-            setConnected(data.connected);
-          }
-        } catch (e) {
-          console.error('解析机器人状态消息失败:', e);
+    const fetchConnectionStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/robot/connection`);
+        if (response.ok) {
+          const data: ConnectionStatus = await response.json();
+          setConnected(data.connected);
+        } else {
+          setConnected(false);
         }
-      };
-
-      setWs(socket);
+      } catch (error) {
+        console.error('获取机器人连接状态失败:', error);
+        setConnected(false);
+      }
     };
 
-    connectWebSocket();
+    // 立即获取一次
+    fetchConnectionStatus();
+
+    // 每1秒轮询一次
+    const intervalId = setInterval(fetchConnectionStatus, 1000);
 
     return () => {
-      if (ws) {
-        ws.close();
-      }
+      clearInterval(intervalId);
     };
   }, []);
 
