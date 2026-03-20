@@ -153,12 +153,11 @@ def convert_to_png(input_path: str, output_path: str, point_size: float = 1.0, d
 
 
 def convert_to_svg(input_path: str, output_path: str, point_size: float = 1.0):
-    """将 txt 地图转换为 SVG 图片"""
+    """将 txt 地图转换为 SVG 矢量图"""
     try:
         import xml.etree.ElementTree as ET
     except ImportError:
-        print("错误: xml.etree.ElementTree 模块不可用")
-        sys.exit(1)
+        raise ImportError("xml.etree.ElementTree 模块不可用")
 
     # 解析地图
     print(f"正在解析地图文件: {input_path}")
@@ -181,58 +180,77 @@ def convert_to_svg(input_path: str, output_path: str, point_size: float = 1.0):
     height = max_y - min_y
 
     # 创建 SVG
+    ET.register_namespace('', 'http://www.w3.org/2000/svg')
     svg = ET.Element('svg')
     svg.set('xmlns', 'http://www.w3.org/2000/svg')
     svg.set('viewBox', f'{min_x} {min_y} {width} {height}')
     svg.set('width', '100%')
     svg.set('height', '100%')
 
-    # 设置背景
-    rect = ET.SubElement(svg, 'rect')
-    rect.set('x', str(min_x))
-    rect.set('y', str(min_y))
-    rect.set('width', str(width))
-    rect.set('height', str(height))
-    rect.set('fill', COLORS["background"])
+    # 添加样式
+    style = ET.SubElement(svg, 'style')
+    style.text = f"""
+        .background {{ fill: {COLORS['background']}; }}
+        .grid {{ stroke: {COLORS['grid']}; stroke-width: {resolution * 0.1}; opacity: 0.3; }}
+        .point {{ fill: {COLORS['graphite_orange_mix']}; }}
+        .title {{ fill: {COLORS['text']}; font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; text-anchor: middle; }}
+        .label {{ fill: {COLORS['text']}; font-family: Arial, sans-serif; font-size: 11px; text-anchor: middle; }}
+    """
 
-    # 绘制网格线 (可选)
+    # 设置背景
+    bg = ET.SubElement(svg, 'rect')
+    bg.set('class', 'background')
+    bg.set('x', str(min_x))
+    bg.set('y', str(min_y))
+    bg.set('width', str(width))
+    bg.set('height', str(height))
+
+    # 绘制网格
     grid_group = ET.SubElement(svg, 'g')
-    grid_group.set('stroke', COLORS["grid"])
-    grid_group.set('stroke-width', str(resolution * 0.1))
-    grid_group.set('opacity', '0.3')
+    grid_group.set('class', 'grid')
 
     # 垂直网格线
-    x = min_x
-    while x < max_x:
+    x = (min_x // (resolution * 10)) * (resolution * 10)
+    while x < min_x + width:
         line = ET.SubElement(grid_group, 'line')
         line.set('x1', str(x))
         line.set('y1', str(min_y))
         line.set('x2', str(x))
-        line.set('y2', str(max_y))
+        line.set('y2', str(min_y + height))
         x += resolution * 10
 
     # 水平网格线
-    y = min_y
-    while y < max_y:
+    y = (min_y // (resolution * 10)) * (resolution * 10)
+    while y < min_y + height:
         line = ET.SubElement(grid_group, 'line')
         line.set('x1', str(min_x))
         line.set('y1', str(y))
-        line.set('x2', str(max_x))
+        line.set('x2', str(min_x + width))
         line.set('y2', str(y))
         y += resolution * 10
 
     # 绘制点
     points_group = ET.SubElement(svg, 'g')
-    points_group.set('fill', COLORS["graphite_orange_mix"])
+    points_group.set('class', 'point')
+
+    r = resolution * point_size * 0.5
 
     for px, py in points:
         circle = ET.SubElement(points_group, 'circle')
         circle.set('cx', str(px))
         circle.set('cy', str(py))
-        circle.set('r', str(resolution * point_size * 0.5))
+        circle.set('r', str(r))
+
+    # 添加标题
+    title = ET.SubElement(svg, 'text')
+    title.set('class', 'title')
+    title.set('x', str(min_x + width / 2))
+    title.set('y', str(min_y + height * 0.05))
+    title.text = 'Grid Map'
 
     # 保存 SVG
     tree = ET.ElementTree(svg)
+    ET.indent(tree, space='  ')
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
     print(f"SVG 地图已保存到: {output_path}")
