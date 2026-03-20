@@ -343,7 +343,6 @@ export function BehaviorTreeViz({
                                             navigation_point: [1.0, 0.0],
                                             dump_point: [0.0, 1.0],
                                             bucket_width_m: 0.6,
-                                            approach_offset_m: 0.05,
                                             scoop_position: 90.0,
                                             dump_position: 135.0,
                                             max_cycles: 10,

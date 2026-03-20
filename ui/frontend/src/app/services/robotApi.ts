@@ -86,7 +86,6 @@ export interface SugarHarvestConfig {
     navigation_point: [number, number];
     dump_point: [number, number];
     bucket_width_m?: number;
-    approach_offset_m?: number;
     scoop_position?: number;
     dump_position?: number;
     max_cycles?: number;

@@ -24,10 +24,47 @@
 
 ### Planned
 
-- [ ] 铲糖任务成功率统计与优化建议
 - [ ] 远程节点管理功能上线
 - [ ] 多语言支持 (i18n)
 - [ ] 数据导出功能 (CSV/JSON)
+
+---
+
+## [2.0.0] - 2026-03-20
+
+### [Removed]
+
+- **移除任务系统 (Task Management)**
+  - 删除 `TaskManager` 及相关服务
+  - 删除 `/api/tasks` 端点
+  - 删除任务数据模型
+  - 移除 Socket.IO 任务事件
+
+- **移除行为树系统 (Behavior Tree)**
+  - 删除 `bt_nodes.py` 行为树节点
+  - 删除 `bt_action_nodes.py` 动作节点
+  - 删除 `bt_dump_action.py` 倾倒动作
+  - 删除 `bt_scoop_action.py` 铲糖动作
+  - 删除 `behavior_tree_engine.py` 引擎
+
+- **移除路径点系统 (Waypoints)**
+  - 删除 `/api/waypoints` 端点
+  - 删除路径点管理服务
+
+- **移除机器人控制系统 (Robot Control)**
+  - 删除 `/api/robot` 端点
+  - 删除 `RobotTCPServer`
+  - 删除机器人命令协议
+
+### [Changed]
+
+- 简化架构，专注 RealSense 视频流和点云处理
+- WebRTC 成为主要视频传输方式
+- 保留 Socket.IO 用于元数据推送
+
+### [Migration Guide]
+
+如需机器人控制功能，请使用独立的机器人控制服务。
 
 ---
 

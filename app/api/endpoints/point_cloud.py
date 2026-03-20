@@ -32,7 +32,6 @@ class MoveDistanceResponse(BaseModel):
     device_id: str
     move_distance: float  # 计算后的前进距离 (m)
     material_distance: Optional[float]  # 原始物料距离 (m)
-    approach_offset: float  # 安全偏移量 (m)
     timestamp: Optional[datetime]  # 计算时间戳
 
     class Config:
@@ -115,15 +114,11 @@ async def get_point_cloud_analysis(
 @router.get("/move_distance", response_model=MoveDistanceResponse)
 async def get_move_distance(
     device_id: str,
-    approach_offset: float = 0.05,
     rs_manager: RealSenseManager = Depends(get_realsense_manager)
 ):
     """获取计算后的前进距离（move_distance）。
 
-    此端点返回后端计算的 move_distance：
-    - move_distance = material_distance - approach_offset
-    - 默认 approach_offset = 0.05m (5cm)
-
+    此端点返回后端计算的 move_distance。
     结果由后端独立计算，可直接用于机器人控制。
     """
     try:
@@ -143,7 +138,6 @@ async def get_move_distance(
             device_id=device_id,
             move_distance=move_distance,
             material_distance=material_distance,
-            approach_offset=approach_offset,
             timestamp=rs_manager.get_analysis_timestamp(device_id),
         )
     except HTTPException:

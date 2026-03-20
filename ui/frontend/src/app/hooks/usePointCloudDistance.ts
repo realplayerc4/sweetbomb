@@ -4,7 +4,6 @@ import { api } from '../services/api';
 interface PointCloudDistanceData {
   move_distance: number;
   material_distance: number;
-  approach_offset: number;
   timestamp: string;
 }
 

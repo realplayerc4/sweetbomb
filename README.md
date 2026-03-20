@@ -144,6 +144,19 @@ sudo udevadm trigger
 - **航点管理**: 持久化航点存储，支持添加、删除、查询航点
 - **导航接口**: 标准化导航服务接口，支持目标点导航与状态追踪
 
+### 地图管理
+- **地图转换**: 自动将 txt 栅格地图转换为 PNG/SVG 图片
+- **地图API**: RESTful API 提供地图列表、地图图片、地图信息查询
+- **前端组件**: React 组件支持地图显示、缩放、参数调节
+- **颜色主题**: 石墨橙色 (#c25e1f) 点图配色，深色背景
+- **缓存机制**: 自动缓存转换后的地图图片，支持强制刷新
+
+**API 端点**:
+- `GET /api/map/` - 获取地图列表
+- `GET /api/map/{name}.png` - 获取地图 PNG 图片（支持 dpi、point_size 参数）
+- `GET /api/map/{name}/info` - 获取地图详细信息
+- `POST /api/map/cache/clear` - 清理地图缓存
+
 ---
 
 ## 🏗️ 技术架构 (Architecture)
