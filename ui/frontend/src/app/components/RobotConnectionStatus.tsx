@@ -6,9 +6,7 @@ interface RobotConnectionStatusProps {
 
 interface ConnectionStatus {
   connected: boolean;
-  robot_id?: string;
   missed_heartbeats: number;
-  client_count: number;
 }
 
 export function RobotConnectionStatus({ className }: RobotConnectionStatusProps) {

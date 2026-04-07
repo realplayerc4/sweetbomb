@@ -42,7 +42,6 @@ export interface ServoState {
 
 /** 机器人状态 - 匹配后端 RobotStatusResponse */
 export interface RobotStatus {
-    robot_id: string;
     connected: boolean;
     mode: string;
     status: string;  // 对应前端的 state

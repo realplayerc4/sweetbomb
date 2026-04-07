@@ -22,6 +22,22 @@
 
 ## [Unreleased]
 
+### [Fixed]
+
+- **修复机器人 TCP 通信心跳检测失败问题**
+  - 客户端连接后未注册到服务端字典，导致心跳查询无法发送
+  - 根因：`robot_id` 为 `None`，未被加入 `self.clients`
+
+### [Refactor]
+
+- **简化 TCP 服务器为单客户端模式**
+  - 移除 `robot_id` 多机器人支持，本项目只有一台机器人
+  - `self.clients: Dict[str, Client]` → `self.client: Optional[Client]`
+  - 连接建立立即注册，心跳检测直接对 `self.client` 发送
+  - `/api/robot/status` 返回单个对象（不再返回列表）
+  - 删除 `/api/robot/status/{robot_id}` 端点
+  - 前端 `RobotStatus` 类型移除 `robot_id` 字段
+
 ### Planned
 
 - [ ] 远程节点管理功能上线

@@ -1,7 +1,7 @@
 """机器人状态 API 端点"""
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, List, Optional
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -26,7 +26,6 @@ def get_robot_server() -> Optional[RobotTCPServer]:
 
 class RobotStatusResponse(BaseModel):
     """机器人状态响应"""
-    robot_id: str
     connected: bool
     mode: str
     status: str
@@ -49,59 +48,40 @@ class RobotStatusResponse(BaseModel):
 class ConnectionStatusResponse(BaseModel):
     """连接状态响应"""
     connected: bool
-    robot_id: Optional[str] = None
     missed_heartbeats: int = 0
-    client_count: int = 0
 
 
-@router.get("/status", response_model=List[RobotStatusResponse])
-async def get_all_robot_status():
-    """获取所有连接的机器人状态"""
+@router.get("/status", response_model=RobotStatusResponse)
+async def get_robot_status():
+    """获取机器人状态"""
     server = get_robot_server()
     if not server:
         raise HTTPException(status_code=503, detail="机器人服务未启动")
 
-    results = []
-    for robot_id, client in server.clients.items():
-        state = client.state
-        results.append(RobotStatusResponse(
-            robot_id=robot_id,
-            connected=client.connected,
-            mode=state.mode.value,
-            status=state.status.value,
-            charge=state.charge,
-            speed=state.speed,
-            fault=state.fault,
-            fault_level=state.fault_level,
-            task_id=state.task_id,
-            station=state.station,
-            map_name=state.map_name,
-            x=state.x,
-            y=state.y,
-            z=state.z,
-            a=state.a,
-            boom=state.boom,
-            bucket=state.bucket,
-            last_update=state.last_update
-        ))
-
-    return results
-
-
-@router.get("/status/{robot_id}", response_model=RobotStatusResponse)
-async def get_robot_status(robot_id: str):
-    """获取指定机器人的状态"""
-    server = get_robot_server()
-    if not server:
-        raise HTTPException(status_code=503, detail="机器人服务未启动")
-
-    client = server.clients.get(robot_id)
+    client = server.client
     if not client:
-        raise HTTPException(status_code=404, detail=f"机器人 {robot_id} 未连接")
+        # 返回未连接状态
+        return RobotStatusResponse(
+            connected=False,
+            mode="auto",
+            status="idle",
+            charge=0,
+            speed=0,
+            fault="",
+            fault_level="",
+            task_id="",
+            station="",
+            map_name="",
+            x=0,
+            y=0,
+            z=0,
+            a=0,
+            boom=0,
+            bucket=0,
+        )
 
     state = client.state
     return RobotStatusResponse(
-        robot_id=robot_id,
         connected=client.connected,
         mode=state.mode.value,
         status=state.status.value,
@@ -129,19 +109,17 @@ async def get_connection_status():
     if not server:
         return ConnectionStatusResponse(
             connected=False,
-            client_count=0
+            missed_heartbeats=0
         )
 
-    # 获取第一个连接的客户端
-    connected_client = None
-    for client in server.clients.values():
-        if client.connected:
-            connected_client = client
-            break
+    client = server.client
+    if not client:
+        return ConnectionStatusResponse(
+            connected=False,
+            missed_heartbeats=0
+        )
 
     return ConnectionStatusResponse(
-        connected=connected_client is not None,
-        robot_id=connected_client.robot_id if connected_client else None,
-        missed_heartbeats=connected_client.missed_heartbeats if connected_client else 0,
-        client_count=len(server.clients)
+        connected=client.connected,
+        missed_heartbeats=client.missed_heartbeats
     )
