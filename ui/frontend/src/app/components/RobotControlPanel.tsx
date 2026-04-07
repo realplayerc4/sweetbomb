@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Slider } from './ui/slider';
 import { useRobotController } from '../hooks/useRobotController';
-import { MoveDirection, RobotState } from '../services/robotApi';
+import { MoveDirection } from '../services/robotApi';
 import { cn } from '../lib/utils';
 import { RobotConnectionStatus } from './RobotConnectionStatus';
 
@@ -44,16 +44,16 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         }
     };
 
-    const getStateLabel = (state: RobotState) => {
-        const labels: Record<RobotState, string> = {
-            [RobotState.IDLE]: '空闲',
-            [RobotState.MOVING]: '移动中',
-            [RobotState.SCOOPING]: '铲取中',
-            [RobotState.DUMPING]: '倾倒中',
-            [RobotState.ERROR]: '错误',
-            [RobotState.EMERGENCY_STOP]: '紧急停止',
+    const getStateLabel = (statusStr: string) => {
+        const labels: Record<string, string> = {
+            'idle': '空闲',
+            'moving': '移动中',
+            'scooping': '铲取中',
+            'dumping': '倾倒中',
+            'error': '错误',
+            'emergency_stop': '紧急停止',
         };
-        return labels[state] || state;
+        return labels[statusStr] || statusStr;
     };
 
 
@@ -79,10 +79,10 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
             {/* 2. Center: Status Capsule - PHYSICALLY CENTERED */}
             <div className="absolute top-[12px] left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 bg-[#1c1c1e]/95 backdrop-blur-xl px-8 py-2.5 rounded-full border border-[#FD802E]/40 shadow-[0_0_25px_rgba(253,128,46,0.5)]">
                 <div className={cn('w-2 h-2 rounded-full animate-pulse shadow-[0_0_12px_rgba(253,128,46,1)]',
-                    status?.state === RobotState.IDLE ? 'bg-green-500' : 'bg-[#FD802E]')} />
+                    status?.status === 'idle' ? 'bg-green-500' : 'bg-[#FD802E]')} />
                 <Cpu className="w-4 h-4 text-[#FD802E]" />
                 <span className="text-[10px] text-[#FD802E] font-black tracking-[0.2em] uppercase font-mono whitespace-nowrap">
-                    机器人控制 | {getStateLabel(status?.state || RobotState.IDLE)}
+                    机器人控制 | {getStateLabel(status?.status || 'idle')}
                 </span>
             </div>
 
@@ -118,10 +118,10 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     </div>
                 </div>
 
-                {status && (
+                {status?.charge !== undefined && (
                     <div className="flex flex-col items-end opacity-40">
                         <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">Energy</span>
-                        <span className="text-[12px] font-black text-[#FD802E] leading-none">{status.battery_level.toFixed(0)}%</span>
+                        <span className="text-[12px] font-black text-[#FD802E] leading-none">{status.charge.toFixed(0)}%</span>
                     </div>
                 )}
             </div>
@@ -149,7 +149,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                     max={180}
                                     step={1}
                                     className="absolute inset-0 z-10 opacity-0 cursor-ns-resize disabled:cursor-not-allowed"
-                                    disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                    disabled={!isRemote || status?.status === 'emergency_stop'}
                                 />
                             </div>
                             <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
@@ -175,7 +175,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                     max={180}
                                     step={1}
                                     className="absolute inset-0 z-10 opacity-0 cursor-ns-resize disabled:cursor-not-allowed"
-                                    disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                    disabled={!isRemote || status?.status === 'emergency_stop'}
                                 />
                             </div>
                             <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
@@ -194,7 +194,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                 size="icon"
                                 className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.FORWARD)}
-                                disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                disabled={!isRemote || status?.status === 'emergency_stop'}
                             >
                                 <ChevronUp className="w-10 h-10" />
                             </Button>
@@ -204,7 +204,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                 size="icon"
                                 className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.LEFT)}
-                                disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                disabled={!isRemote || status?.status === 'emergency_stop'}
                             >
                                 <ChevronLeft className="w-10 h-10" />
                             </Button>
@@ -213,7 +213,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                 size="icon"
                                 className="w-[68px] h-[68px] bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E]/60 rounded-2xl hover:bg-[#FD802E]/40 transition-all shadow-[0_0_15px_rgba(253,128,46,0.3)]"
                                 onClick={() => handleDirectionClick(MoveDirection.STOP)}
-                                disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                disabled={!isRemote || status?.status === 'emergency_stop'}
                             >
                                 <div className="w-6 h-6 bg-current rounded-sm shadow-[0_0_10px_currentColor]" />
                             </Button>
@@ -222,7 +222,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                 size="icon"
                                 className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.RIGHT)}
-                                disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                disabled={!isRemote || status?.status === 'emergency_stop'}
                             >
                                 <ChevronRight className="w-10 h-10" />
                             </Button>
@@ -232,7 +232,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                 size="icon"
                                 className="w-[68px] h-[68px] bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/30 hover:scale-110 transition-all font-black"
                                 onClick={() => handleDirectionClick(MoveDirection.BACKWARD)}
-                                disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                                disabled={!isRemote || status?.status === 'emergency_stop'}
                             >
                                 <ChevronDown className="w-10 h-10" />
                             </Button>
@@ -247,7 +247,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 1. Scoop */}
                 <Button
                     onClick={scoop}
-                    disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                    disabled={!isRemote || status?.status === 'emergency_stop'}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <Pickaxe className="w-5 h-5" />
@@ -257,7 +257,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 2. Dump */}
                 <Button
                     onClick={dump}
-                    disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                    disabled={!isRemote || status?.status === 'emergency_stop'}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <RotateCw className="w-5 h-5" />
@@ -267,7 +267,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 3. Center: EMERGENCY STOP (Anchors the group) */}
                 <Button
                     onClick={stop}
-                    disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                    disabled={!isRemote || status?.status === 'emergency_stop'}
                     className="w-[160px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/20 text-[#FD802E] border border-[#FD802E]/40 rounded-2xl hover:bg-red-500 hover:text-white transition-all font-black shadow-2xl shadow-[#FD802E]/20 ring-1 ring-[#FD802E]/20 disabled:opacity-30 disabled:grayscale"
                 >
                     <AlertOctagon className="w-6 h-6" />
@@ -277,7 +277,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 4. Dock */}
                 <Button
                     onClick={dock}
-                    disabled={!isRemote || status?.state === RobotState.EMERGENCY_STOP}
+                    disabled={!isRemote || status?.status === 'emergency_stop'}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <LogOut className="w-5 h-5 -rotate-90" />

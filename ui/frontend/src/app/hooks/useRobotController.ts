@@ -141,8 +141,8 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         if (isConnected) return; // Don't poll if socket is connected
 
         pollIntervalRef.current = setInterval(() => {
-            refreshStatus();
-            refreshHarvestStatus();
+            refreshStatus().catch(() => {});
+            refreshHarvestStatus().catch(() => {});
         }, pollInterval);
 
         return () => {
@@ -152,10 +152,10 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         };
     }, [isConnected, pollInterval, refreshStatus, refreshHarvestStatus]);
 
-    // Initial fetch
+    // Initial fetch - wrapped in try-catch to prevent app crash
     useEffect(() => {
-        refreshStatus();
-        refreshHarvestStatus();
+        refreshStatus().catch(() => {});
+        refreshHarvestStatus().catch(() => {});
     }, [refreshStatus, refreshHarvestStatus]);
 
     // --- Actions ---

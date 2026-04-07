@@ -40,16 +40,26 @@ export interface ServoState {
     is_moving: boolean;
 }
 
-/** 机器人状态 */
+/** 机器人状态 - 匹配后端 RobotStatusResponse */
 export interface RobotStatus {
-    state: RobotState;
-    battery_level: number;
-    current_position: [number, number, number];
-    orientation: [number, number, number]; // [Roll, Pitch, Yaw]
-    left_track_speed: number;
-    right_track_speed: number;
-    servos: Record<string, ServoState>;
-    timestamp: string;
+    robot_id: string;
+    connected: boolean;
+    mode: string;
+    status: string;  // 对应前端的 state
+    charge: number;  // 对应前端的 battery_level
+    speed: number;   // 对应前端的 track_speed
+    fault: string;
+    fault_level: string;
+    task_id: string;
+    station: string;
+    map_name: string;
+    x: number;
+    y: number;
+    z: number;
+    a: number;  // orientation angle
+    boom: number;  // lift servo angle
+    bucket: number;  // dump servo angle
+    last_update?: string;
 }
 
 /** 移动请求 */
