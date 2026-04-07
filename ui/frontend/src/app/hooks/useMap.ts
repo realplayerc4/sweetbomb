@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+import { API_BASE } from '../config';
 
 export interface MapInfo {
   name: string;
@@ -31,7 +30,7 @@ export function useMapList(options: UseMapOptions = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/map/`);
+      const response = await fetch(`${API_BASE}/map/`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -89,7 +88,7 @@ export function useMapImage(mapName: string | null) {
       if (options.dpi !== undefined) params.append('dpi', options.dpi.toString());
 
       const queryString = params.toString() ? `?${params.toString()}` : '';
-      const url = `${API_BASE}/api/map/${mapName}.png${queryString}`;
+      const url = `${API_BASE}/map/${mapName}.png${queryString}`;
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -138,7 +137,7 @@ export function useMapInfo(mapName: string | null) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/map/${mapName}/info`);
+      const response = await fetch(`${API_BASE}/map/${mapName}/info`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

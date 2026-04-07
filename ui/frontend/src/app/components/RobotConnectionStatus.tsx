@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { API_BASE } from '../config';
 
 interface RobotConnectionStatusProps {
   className?: string;
@@ -13,11 +14,9 @@ export function RobotConnectionStatus({ className }: RobotConnectionStatusProps)
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
     const fetchConnectionStatus = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/robot/connection`);
+        const response = await fetch(`${API_BASE}/robot/connection`);
         if (response.ok) {
           const data: ConnectionStatus = await response.json();
           setConnected(data.connected);

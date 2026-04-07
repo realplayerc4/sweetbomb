@@ -28,6 +28,10 @@
   - 客户端连接后未注册到服务端字典，导致心跳查询无法发送
   - 根因：`robot_id` 为 `None`，未被加入 `self.clients`
 
+- **修复前端远程访问 API 请求失败**
+  - `RobotConnectionStatus.tsx` 和 `useMap.ts` 硬编码 `localhost:8000`
+  - 局域网远程访问时请求无法到达后端，统一改用 `config.ts` 的 `API_BASE`
+
 ### [Refactor]
 
 - **简化 TCP 服务器为单客户端模式**
@@ -37,6 +41,14 @@
   - `/api/robot/status` 返回单个对象（不再返回列表）
   - 删除 `/api/robot/status/{robot_id}` 端点
   - 前端 `RobotStatus` 类型移除 `robot_id` 字段
+
+- **移除 metadata 中模拟系统数据**
+  - 删除 `battery`、`temperature`、`signal` 写死的模拟值
+  - 保留 `cpu_load`（真实 psutil 读取）和 `hostname`
+
+### [Changed]
+
+- Vite 添加 `/api` 代理到后端，避免跨域问题
 
 ### Planned
 

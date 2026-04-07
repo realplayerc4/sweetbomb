@@ -119,9 +119,6 @@ class MetadataSocketServer:
 
             system_stats = {
                 "cpu_load": last_cpu_load,
-                "battery": 85.0, # Simulated
-                "temperature": 38.5, # Simulated
-                "signal": 92.0, # Simulated
                 "hostname": socket.gethostname(),
             }
 
