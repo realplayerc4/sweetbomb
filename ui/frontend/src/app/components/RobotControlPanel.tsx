@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { Pickaxe, RotateCw, AlertOctagon, RotateCcw, Cpu, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Slider } from './ui/slider';
 import { useRobotController } from '../hooks/useRobotController';
 import { MoveDirection } from '../services/robotApi';
 import { cn } from '../lib/utils';
-import { RobotConnectionStatus } from './RobotConnectionStatus';
 
 interface RobotControlPanelProps {
     className?: string;
@@ -17,14 +15,12 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         move,
         stop,
         reset,
-        setServo,
         scoop,
         dump,
         dock,
     } = useRobotController();
 
-    const [isRemote, setIsRemote] = useState(true);
-    const [servoAngles, setServoAngles] = useState({ lift: 0, dump: 0 });
+    const [isRemote] = useState(true);
     const [moveSpeed] = useState(0.5); // Fixed display value
 
     const handleDirectionClick = async (direction: MoveDirection) => {
@@ -32,15 +28,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
             await move(direction, moveSpeed, 0.5); // Default duration 0.5s
         } catch (e) {
             console.error('Direction move failed:', e);
-        }
-    };
-
-    const handleServoChange = async (servoId: string, angle: number) => {
-        setServoAngles(prev => ({ ...prev, [servoId]: angle }));
-        try {
-            await setServo(servoId, angle);
-        } catch (e) {
-            console.error('Servo control failed:', e);
         }
     };
 
@@ -62,13 +49,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
             "relative flex flex-col h-full bg-[#1c1c1e] border-[#FD802E]/20 shadow-[0_0_25px_rgba(253,128,46,0.1)] rounded-[10px] overflow-hidden",
             className
         )}>
-            {/* 右侧连接状态与开关 - 定位与上箭头平齐 */}
-            <div className="absolute right-[50px] top-[calc(50%-75px)] -translate-y-1/2 z-[200] flex flex-col items-end gap-3">
-                <RobotConnectionStatus />
-
-                {/* REMOTE 拨档开关 (左右带图标) */}
-            </div>
-
             {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
             {/* 1. Left: Set Speed */}
             <div className="absolute top-[16px] left-[32px] z-[100] flex flex-col items-start">
@@ -82,105 +62,75 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     status?.status === 'idle' ? 'bg-green-500' : 'bg-[#FD802E]')} />
                 <Cpu className="w-4 h-4 text-[#FD802E]" />
                 <span className="text-[10px] text-[#FD802E] font-black tracking-[0.2em] uppercase font-mono whitespace-nowrap">
-                    机器人控制 | {getStateLabel(status?.status || 'idle')}
+                    机器人状态 | {getStateLabel(status?.status || 'idle')}
                 </span>
             </div>
 
-            {/* 3. Right: Telemetry & Mode */}
+            {/* 3. Right: Energy */}
             <div className="absolute top-[12px] right-[32px] z-[100] flex items-center gap-4">
-                {/* Mode 开关 */}
-                <div className="flex flex-col items-end gap-1">
-                    <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">Mode</span>
-                    <div className="flex items-center gap-2 bg-[#1c1c1e] p-1 rounded-sm border border-[#FD802E]/40 shadow-[0_0_10px_rgba(253,128,46,0.1)]">
-                        <div
-                            className={cn("text-[9px] font-bold uppercase tracking-wider px-2 cursor-pointer transition-colors duration-200",
-                                !isRemote ? "text-[#FD802E] drop-shadow-[0_0_8px_rgba(253,128,46,0.8)]" : "text-muted-foreground hover:text-white")}
-                            onClick={() => setIsRemote(false)}
-                        >
-                            Local
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={isRemote}
-                                onChange={(e) => setIsRemote(e.target.checked)}
-                            />
-                            <div className="w-8 h-4 bg-[#2a2a2e] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gradient-to-b after:from-[#ffa060] after:to-[#FD802E] after:rounded-full after:h-3 after:w-3 after:transition-all shadow-inner"></div>
-                        </label>
-                        <div
-                            className={cn("text-[9px] font-black uppercase tracking-wider px-2 cursor-pointer transition-colors duration-200",
-                                isRemote ? "text-[#FD802E] drop-shadow-[0_0_8px_rgba(253,128,46,0.8)]" : "text-muted-foreground hover:text-white")}
-                            onClick={() => setIsRemote(true)}
-                        >
-                            Remote
-                        </div>
-                    </div>
-                </div>
-
                 {status?.charge !== undefined && (
-                    <div className="flex flex-col items-end opacity-40">
-                        <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">Energy</span>
-                        <span className="text-[12px] font-black text-[#FD802E] leading-none">{status.charge.toFixed(0)}%</span>
+                    <div className="flex flex-col items-end">
+                        <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/60 uppercase">Energy</span>
+                        <span className="text-[16px] font-black text-[#FD802E] leading-none">{status.charge.toFixed(0)}%</span>
                     </div>
                 )}
             </div>
 
-            {/* Main Interactive Layer - Absolute Positioning for Precision */}
+            {/* Main Interactive Layer */}
             <div className="flex-1 relative mt-[60px] mb-[100px]">
 
                 {/* Left Controls: Vertical Bucket Bars (50px from left, 20px gap) */}
                 <div className="absolute left-[50px] top-1/2 -translate-y-1/2 flex gap-[20px] items-center">
-                    {/* Lift Bar */}
-                    <div className="flex flex-col items-center gap-3">
+                    {/* BOOM Bar - Display Only */}
+                    <div className="flex flex-col items-center gap-2">
                         <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">举升</span>
-                        <div className="relative h-[220px] w-7 bg-[#FD802E]/5 rounded-xl flex flex-col items-center py-3 border border-[#FD802E]/10 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]">
-                            <ChevronUp className="w-4 h-4 text-[#FD802E] mb-2 opacity-40" />
-                            <div className="flex-1 w-2 bg-[#FD802E]/10 rounded-full relative overflow-hidden">
+                        <div className="relative h-[200px] w-[25px] bg-[#2a2a2e] rounded border border-[#FD802E]/30">
+                            {/* 填充层 */}
+                            {status && typeof status.boom === 'number' && (
                                 <div
-                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#FD802E] to-[#ffa060] transition-all duration-300 shadow-[0_0_20px_rgba(253,128,46,0.6)]"
-                                    style={{ height: `${(servoAngles.lift / 180) * 100}%` }}
+                                    className="absolute bottom-0 left-0 right-0 rounded-b transition-all duration-300"
+                                    style={{
+                                        height: `${Math.max(5, Math.min(100, ((status.boom - 10) / 280) * 100))}%`,
+                                        backgroundColor: '#FD802E',
+                                    }}
                                 />
-                                <Slider
-                                    orientation="vertical"
-                                    value={[servoAngles.lift]}
-                                    onValueChange={([v]: [number]) => handleServoChange('lift', v)}
-                                    min={0}
-                                    max={180}
-                                    step={1}
-                                    className="absolute inset-0 z-10 opacity-0 cursor-ns-resize disabled:cursor-not-allowed"
-                                    disabled={!isRemote || status?.status === 'emergency_stop'}
-                                />
+                            )}
+                            {/* 百分比文字 */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className="text-[10px] font-bold text-white/70">
+                                    {status && typeof status.boom === 'number' ? ((status.boom - 10) / 280 * 100).toFixed(0) : '--'}%
+                                </span>
                             </div>
-                            <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
                         </div>
-                        <span className="text-[11px] font-black text-[#FD802E] tabular-nums">{servoAngles.lift}°</span>
+                        <span className="text-[12px] font-black text-[#FD802E] tabular-nums">
+                            {status && typeof status.boom === 'number' ? status.boom.toFixed(1) + ' mm' : '-- mm'}
+                        </span>
                     </div>
 
-                    {/* Dump Bar */}
-                    <div className="flex flex-col items-center gap-3">
+                    {/* BUCKET Bar - Display Only */}
+                    <div className="flex flex-col items-center gap-2">
                         <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">旋转</span>
-                        <div className="relative h-[220px] w-7 bg-[#FD802E]/5 rounded-xl flex flex-col items-center py-3 border border-[#FD802E]/10 shadow-[inset_0_0_20px_rgba(0,0,0,0.3)]">
-                            <ChevronUp className="w-4 h-4 text-[#FD802E] mb-2 opacity-40" />
-                            <div className="flex-1 w-2 bg-[#FD802E]/10 rounded-full relative overflow-hidden">
+                        <div className="relative h-[200px] w-[25px] bg-[#2a2a2e] rounded border border-[#FD802E]/30">
+                            {/* 填充层 */}
+                            {status && typeof status.bucket === 'number' && (
                                 <div
-                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#FD802E] to-[#ffa060] transition-all duration-300 shadow-[0_0_20px_rgba(253,128,46,0.6)]"
-                                    style={{ height: `${(servoAngles.dump / 180) * 100}%` }}
+                                    className="absolute bottom-0 left-0 right-0 rounded-b transition-all duration-300"
+                                    style={{
+                                        height: `${Math.max(5, Math.min(100, ((status.bucket + 50) / 130) * 100))}%`,
+                                        backgroundColor: '#FD802E',
+                                    }}
                                 />
-                                <Slider
-                                    orientation="vertical"
-                                    value={[servoAngles.dump]}
-                                    onValueChange={([v]: [number]) => handleServoChange('dump', v)}
-                                    min={0}
-                                    max={180}
-                                    step={1}
-                                    className="absolute inset-0 z-10 opacity-0 cursor-ns-resize disabled:cursor-not-allowed"
-                                    disabled={!isRemote || status?.status === 'emergency_stop'}
-                                />
+                            )}
+                            {/* 百分比文字 */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className="text-[10px] font-bold text-white/70">
+                                    {status && typeof status.bucket === 'number' ? ((status.bucket + 50) / 130 * 100).toFixed(0) : '--'}%
+                                </span>
                             </div>
-                            <ChevronDown className="w-4 h-4 text-[#FD802E] mt-2 opacity-40" />
                         </div>
-                        <span className="text-[11px] font-black text-[#FD802E] tabular-nums">{servoAngles.dump}°</span>
+                        <span className="text-[12px] font-black text-[#FD802E] tabular-nums">
+                            {status && typeof status.bucket === 'number' ? status.bucket.toFixed(1) + ' mm' : '-- mm'}
+                        </span>
                     </div>
                 </div>
 

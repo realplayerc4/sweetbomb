@@ -6,6 +6,7 @@
 
 import os
 import hashlib
+import math
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Any
 import io
@@ -20,6 +21,16 @@ COLORS = {
     "grid": "#4b5563",
     "text": "#f3f4f6",
 }
+
+
+def coordinate_rotate(x: float, y: float, theta: float) -> Tuple[float, float]:
+    """
+    坐标旋转函数
+    逆时针 theta > 0, 顺时针 theta < 0
+    """
+    cos_th = math.cos(theta)
+    sin_th = math.sin(theta)
+    return (x * cos_th - y * sin_th, y * cos_th + x * sin_th)
 
 
 class MapData:
@@ -135,8 +146,19 @@ class MapConverter:
         dpi: int = 150,
         width: Optional[int] = None,
         height: Optional[int] = None,
+        theta: float = 0.0,
     ) -> str:
-        """将地图数据转换为 PNG 图片"""
+        """将地图数据转换为 PNG 图片
+
+        参数:
+            map_data: 地图数据对象
+            output_path: 输出文件路径 (可选)
+            point_size: 点的大小倍数
+            dpi: PNG 分辨率
+            width: 输出宽度 (可选)
+            height: 输出高度 (可选)
+            theta: 旋转角度（弧度），逆时针 > 0，顺时针 < 0
+        """
         try:
             import matplotlib
             matplotlib.use("Agg")
@@ -147,9 +169,13 @@ class MapConverter:
         if not map_data.points:
             raise ValueError("地图中没有点数据")
 
-        # 计算边界
-        bounds = map_data.bounds
-        min_x, min_y, max_x, max_y = bounds
+        # 应用旋转到所有点
+        rotated_points = [coordinate_rotate(x, y, theta) for x, y in map_data.points]
+
+        # 计算旋转后的边界
+        xs = [p[0] for p in rotated_points]
+        ys = [p[1] for p in rotated_points]
+        min_x, min_y, max_x, max_y = min(xs), min(ys), max(xs), max(ys)
         data_width = max_x - min_x
         data_height = max_y - min_y
 
@@ -168,11 +194,7 @@ class MapConverter:
         # 创建图形
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
-        # 提取坐标
-        xs = [p[0] for p in map_data.points]
-        ys = [p[1] for p in map_data.points]
-
-        # 绘制点 - 使用石墨橙色
+        # 绘制点 - 使用石墨橙色（使用旋转后的坐标）
         ax.plot(
             xs, ys,
             'o',
@@ -347,6 +369,7 @@ def convert_map(
     format: str = "png",
     point_size: float = 1.0,
     dpi: int = 150,
+    theta: float = 0.0,
 ) -> str:
     """
     便捷函数：转换地图文件
@@ -357,6 +380,7 @@ def convert_map(
         format: 输出格式 (png 或 svg)
         point_size: 点的大小倍数
         dpi: PNG 分辨率
+        theta: 旋转角度（弧度），逆时针 > 0，顺时针 < 0
 
     返回:
         输出文件路径
@@ -369,7 +393,7 @@ def convert_map(
         output_path = str(input_path_obj.with_suffix(f'.{format}'))
 
     if format.lower() == "png":
-        return converter.to_png(map_data, output_path, point_size, dpi)
+        return converter.to_png(map_data, output_path, point_size, dpi, theta=theta)
     elif format.lower() == "svg":
         return converter.to_svg(map_data, output_path, point_size)
     else:

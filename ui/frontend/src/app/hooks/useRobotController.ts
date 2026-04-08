@@ -42,7 +42,7 @@ interface UseRobotControllerReturn {
 }
 
 export function useRobotController(options: UseRobotControllerOptions = {}): UseRobotControllerReturn {
-    const { autoConnect = true, pollInterval = 1000 } = options;
+    const { autoConnect = true, pollInterval = 500 } = options;
 
     // State
     const [status, setStatus] = useState<RobotStatus | null>(null);
@@ -136,13 +136,10 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         }
     }, []);
 
-    // Polling fallback
+    // Polling for robot status (always active)
     useEffect(() => {
-        if (isConnected) return; // Don't poll if socket is connected
-
         pollIntervalRef.current = setInterval(() => {
             refreshStatus().catch(() => {});
-            refreshHarvestStatus().catch(() => {});
         }, pollInterval);
 
         return () => {
@@ -150,7 +147,18 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
                 clearInterval(pollIntervalRef.current);
             }
         };
-    }, [isConnected, pollInterval, refreshStatus, refreshHarvestStatus]);
+    }, [pollInterval, refreshStatus]);
+
+    // Harvest status polling (separate interval)
+    useEffect(() => {
+        const harvestInterval = setInterval(() => {
+            refreshHarvestStatus().catch(() => {});
+        }, 2000);
+
+        return () => {
+            clearInterval(harvestInterval);
+        };
+    }, [refreshHarvestStatus]);
 
     // Initial fetch - wrapped in try-catch to prevent app crash
     useEffect(() => {

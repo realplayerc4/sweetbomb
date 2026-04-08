@@ -2,18 +2,33 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE } from '../config';
 
 export interface MapInfo {
+  filename: string;
   name: string;
-  resolution: number;
-  origin_x: number;
-  origin_y: number;
-  grid_width: number;
-  grid_height: number;
-  total_points: number;
+  size_bytes: number;
+  modified_time: number;
+  has_cached_png: boolean;
+  png_url: string | null;
 }
 
 export interface MapListResponse {
+  total: number;
   maps: MapInfo[];
-  cache_dir: string;
+  cache_dir?: string;
+}
+
+// 地图详细信息（包含旋转后的边界）
+export interface MapDetailInfo {
+  filename: string;
+  name: string;
+  resolution: number;
+  origin: { x: number; y: number };
+  grid_size: { width: number; height: number };
+  bounds: { min_x: number; min_y: number; max_x: number; max_y: number };
+  rotated_bounds: { min_x: number; min_y: number; max_x: number; max_y: number };
+  img_width_px: number;
+  img_height_px: number;
+  point_count: number;
+  png_url: string;
 }
 
 interface UseMapOptions {
@@ -57,7 +72,7 @@ export function useMapList(options: UseMapOptions = {}) {
   };
 }
 
-export function useMapImage(mapName: string | null) {
+export function useMapImage(mapName: string | null, thetaDeg: number = 0) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +101,7 @@ export function useMapImage(mapName: string | null) {
       if (options.refresh) params.append('refresh', 'true');
       if (options.pointSize !== undefined) params.append('point_size', options.pointSize.toString());
       if (options.dpi !== undefined) params.append('dpi', options.dpi.toString());
+      if (thetaDeg !== 0) params.append('theta', thetaDeg.toString()); // 传递角度值
 
       const queryString = params.toString() ? `?${params.toString()}` : '';
       const url = `${API_BASE}/map/${mapName}.png${queryString}`;
@@ -104,7 +120,7 @@ export function useMapImage(mapName: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [mapName]);
+  }, [mapName, thetaDeg]);
 
   useEffect(() => {
     if (mapName) {
@@ -116,7 +132,7 @@ export function useMapImage(mapName: string | null) {
         objectUrlRef.current = null;
       }
     };
-  }, [mapName, loadImage]);
+  }, [mapName, thetaDeg, loadImage]);
 
   return {
     imageUrl,
@@ -126,8 +142,8 @@ export function useMapImage(mapName: string | null) {
   };
 }
 
-export function useMapInfo(mapName: string | null) {
-  const [info, setInfo] = useState<MapInfo | null>(null);
+export function useMapInfo(mapName: string | null, thetaDeg: number = 0) {
+  const [info, setInfo] = useState<MapDetailInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +153,10 @@ export function useMapInfo(mapName: string | null) {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/map/${mapName}/info`);
+      const params = new URLSearchParams();
+      if (thetaDeg !== 0) params.append('theta', thetaDeg.toString());
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const response = await fetch(`${API_BASE}/map/${mapName}/info${queryString}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -148,13 +167,13 @@ export function useMapInfo(mapName: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [mapName]);
+  }, [mapName, thetaDeg]);
 
   useEffect(() => {
     if (mapName) {
       fetchInfo();
     }
-  }, [mapName, fetchInfo]);
+  }, [mapName, thetaDeg, fetchInfo]);
 
   return {
     info,

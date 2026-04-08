@@ -12,7 +12,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse, StreamingResponse
 
-from app.services.map_converter import MapConverter, convert_map
+from app.services.map_converter import MapConverter, convert_map, coordinate_rotate, coordinate_rotate
 
 router = APIRouter()
 
@@ -29,9 +29,10 @@ def get_map_files() -> List[Path]:
     return sorted(MAP_DIR.glob("*.txt"))
 
 
-def get_cached_png(txt_path: Path) -> Optional[Path]:
+def get_cached_png(txt_path: Path, theta: float = 0.0) -> Optional[Path]:
     """获取缓存的 PNG 文件路径，如果不存在则返回 None"""
-    cache_path = CACHE_DIR / f"{txt_path.stem}.png"
+    suffix = "" if theta == 0.0 else f"_theta{theta:.4f}"
+    cache_path = CACHE_DIR / f"{txt_path.stem}{suffix}.png"
     if cache_path.exists():
         # 检查 txt 文件是否比缓存新
         if txt_path.stat().st_mtime <= cache_path.stat().st_mtime:
@@ -39,9 +40,10 @@ def get_cached_png(txt_path: Path) -> Optional[Path]:
     return None
 
 
-def generate_png(txt_path: Path, point_size: float = 1.0, dpi: int = 150) -> Path:
+def generate_png(txt_path: Path, point_size: float = 1.0, dpi: int = 150, theta: float = 0.0) -> Path:
     """生成 PNG 图片并缓存"""
-    cache_path = CACHE_DIR / f"{txt_path.stem}.png"
+    suffix = "" if theta == 0.0 else f"_theta{theta:.4f}"
+    cache_path = CACHE_DIR / f"{txt_path.stem}{suffix}.png"
 
     # 使用 map_converter 服务生成 PNG
     convert_map(
@@ -50,6 +52,7 @@ def generate_png(txt_path: Path, point_size: float = 1.0, dpi: int = 150) -> Pat
         format="png",
         point_size=point_size,
         dpi=dpi,
+        theta=theta,
     )
 
     return cache_path
@@ -92,12 +95,18 @@ async def get_map_png(
     refresh: bool = Query(False, description="强制重新生成缓存"),
     point_size: float = Query(1.0, description="点大小倍数", ge=0.1, le=5.0),
     dpi: int = Query(150, description="图片分辨率", ge=72, le=300),
+    theta: float = Query(0.0, description="旋转角度（度）"),
 ):
     """
     获取地图 PNG 图片
 
     自动将 txt 地图转换为 PNG 图片格式。支持缓存机制，避免重复转换。
+
+    参数:
+        theta: 旋转角度（度），逆时针 > 0，顺时针 < 0
     """
+    # 将角度转换为弧度
+    theta_rad = theta * 3.141592653589793 / 180.0
     # 查找 txt 文件
     txt_path = MAP_DIR / f"{map_name}.txt"
     if not txt_path.exists():
@@ -114,9 +123,9 @@ async def get_map_png(
             detail=f"地图文件不存在: {map_name}"
         )
 
-    # 检查缓存
+    # 检查缓存（使用弧度值）
     if not refresh:
-        cached = get_cached_png(txt_path)
+        cached = get_cached_png(txt_path, theta_rad)
         if cached:
             return FileResponse(
                 cached,
@@ -127,9 +136,9 @@ async def get_map_png(
                 }
             )
 
-    # 生成新的 PNG
+    # 生成新的 PNG（传递弧度值）
     try:
-        png_path = generate_png(txt_path, point_size, dpi)
+        png_path = generate_png(txt_path, point_size, dpi, theta_rad)
         return FileResponse(
             png_path,
             media_type="image/png",
@@ -146,11 +155,15 @@ async def get_map_png(
 
 
 @router.get("/{map_name}/info")
-async def get_map_info(map_name: str):
+async def get_map_info(
+    map_name: str,
+    theta: float = Query(0.0, description="旋转角度（度）"),
+):
     """
     获取地图详细信息
 
-    返回地图的元数据，包括分辨率、边界框、点数等
+    返回地图的元数据，包括分辨率、边界框、点数等。
+    当提供theta参数时，返回旋转后的边界信息。
     """
     # 查找 txt 文件
     txt_path = MAP_DIR / f"{map_name}.txt"
@@ -170,8 +183,26 @@ async def get_map_info(map_name: str):
 
     # 解析地图
     try:
+        import math
         converter = MapConverter()
         map_data = converter.parse_grid_map(str(txt_path))
+
+        theta_rad = theta * math.pi / 180.0
+
+        # 计算旋转后的边界
+        corners = [
+            (map_data.bounds[0], map_data.bounds[1]),  # min_x, min_y
+            (map_data.bounds[2], map_data.bounds[1]),  # max_x, min_y
+            (map_data.bounds[2], map_data.bounds[3]),  # max_x, max_y
+            (map_data.bounds[0], map_data.bounds[3]),  # min_x, max_y
+        ]
+        rotated_corners = [coordinate_rotate(x, y, theta_rad) for x, y in corners]
+        rx = [p[0] for p in rotated_corners]
+        ry = [p[1] for p in rotated_corners]
+
+        # 计算旋转后地图在图片中的像素尺寸（用于前端定位）
+        img_width_px = (max(rx) - min(rx)) / map_data.resolution
+        img_height_px = (max(ry) - min(ry)) / map_data.resolution
 
         return {
             "filename": txt_path.name,
@@ -191,6 +222,14 @@ async def get_map_info(map_name: str):
                 "max_x": map_data.bounds[2],
                 "max_y": map_data.bounds[3],
             },
+            "rotated_bounds": {
+                "min_x": min(rx),
+                "min_y": min(ry),
+                "max_x": max(rx),
+                "max_y": max(ry),
+            },
+            "img_width_px": round(img_width_px, 1),
+            "img_height_px": round(img_height_px, 1),
             "point_count": len(map_data.points),
             "png_url": f"/api/map/{map_name}.png",
         }
