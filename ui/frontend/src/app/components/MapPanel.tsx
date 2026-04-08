@@ -48,14 +48,16 @@ export function MapPanel() {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  // 图片加载状态 - 用于触发重渲染
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   // 机器人状态（用于显示和地图指示器）
   // 机器人坐标已经是转换后的坐标系，单位mm
   const robotStatus = status?.connected ? status : null;
 
   // 计算车辆在图片上的像素位置和尺寸
-  // 坐标单位mm -> 地图单位m
   const vehicleData = useMemo(() => {
-    if (!robotStatus || !mapInfo || !imageRef.current) return null;
+    if (!robotStatus || !mapInfo || !imageLoaded || !imageRef.current) return null;
 
     const img = imageRef.current;
     const rb = mapInfo.rotated_bounds;
@@ -65,16 +67,40 @@ export function MapPanel() {
     const xM = robotStatus.x / 1000;
     const yM = robotStatus.y / 1000;
 
-    // 车辆中心像素位置（相对于PNG图片）
-    const px = ((xM - rb.min_x) / res) * (img.naturalWidth / mapInfo.img_width_px);
-    const py = ((rb.max_y - yM) / res) * (img.naturalHeight / mapInfo.img_height_px);
+    // PNG实际像素尺寸
+    const imgW = img.naturalWidth;
+    const imgH = img.naturalHeight;
+
+    // 数据像素尺寸
+    const dataW = mapInfo.img_width_px;
+    const dataH = mapInfo.img_height_px;
+
+    // 缩放比例
+    const scaleRatioX = imgW / dataW;
+    const scaleRatioY = imgH / dataH;
+
+    // 车辆中心像素位置
+    const px = ((xM - rb.min_x) / res) * scaleRatioX;
+    const py = ((rb.max_y - yM) / res) * scaleRatioY;
 
     // 车辆像素尺寸
-    const vehicleWidthPx = (VEHICLE_WIDTH_M / res) * (img.naturalWidth / mapInfo.img_width_px);
-    const vehicleLengthPx = (VEHICLE_LENGTH_M / res) * (img.naturalHeight / mapInfo.img_height_px);
+    const vehicleWidthPx = (VEHICLE_WIDTH_M / res) * scaleRatioX;
+    const vehicleLengthPx = (VEHICLE_LENGTH_M / res) * scaleRatioY;
 
-    return { px, py, vehicleWidthPx, vehicleLengthPx };
-  }, [robotStatus, mapInfo]);
+    console.log('[MapPanel] Vehicle position:', { px, py, vehicleWidthPx, vehicleLengthPx, imgW, imgH });
+
+    return { px, py, vehicleWidthPx, vehicleLengthPx, imgW, imgH };
+  }, [robotStatus, mapInfo, imageLoaded]);
+
+  // 图片加载完成回调
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+  }, []);
+
+  // 重置图片加载状态
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [imageUrl]);
 
   // 计算合适的初始缩放，使图片适应容器
   const fitToContainer = useCallback(() => {
@@ -97,14 +123,13 @@ export function MapPanel() {
 
   // 图片加载完成后自动适应容器
   useEffect(() => {
-    if (imageUrl && !isLoading) {
-      // 等待图片实际加载完成
+    if (imageUrl && !isLoading && imageLoaded) {
       const timer = setTimeout(() => {
         fitToContainer();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [imageUrl, isLoading, fitToContainer]);
+  }, [imageUrl, isLoading, imageLoaded, fitToContainer]);
 
   // 处理theta输入变化
   const handleThetaChange = useCallback((value: string) => {
@@ -203,10 +228,10 @@ export function MapPanel() {
         <BarChart3 className="w-3.5 h-3.5 text-[#FD802E]" />
         <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono">{currentMap.toUpperCase()}</span>
         <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 font-mono font-bold">
-          X {robotStatus ? robotStatus.x.toFixed(3) : '--'}
+          X {robotStatus ? robotStatus.x.toFixed(0) : '--'}
         </span>
         <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 font-mono font-bold">
-          Y {robotStatus ? robotStatus.y.toFixed(3) : '--'}
+          Y {robotStatus ? robotStatus.y.toFixed(0) : '--'}
         </span>
         <span className="text-[10px] text-[#FD802E]/80 border-l border-[#FD802E]/30 pl-2 font-mono font-bold">
           A {robotStatus ? robotStatus.a.toFixed(1) : '--'}°
@@ -308,6 +333,7 @@ export function MapPanel() {
               alt="Grid Map"
               className="select-none pointer-events-none"
               draggable={false}
+              onLoad={handleImageLoad}
               style={{
                 maxWidth: 'none',
                 maxHeight: 'none',
@@ -315,17 +341,18 @@ export function MapPanel() {
             />
 
             {/* Vehicle Position Indicator */}
-            {vehicleData && robotStatus && imageRef.current && (
+            {vehicleData && robotStatus && (
               <svg
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  width: imageRef.current.naturalWidth,
-                  height: imageRef.current.naturalHeight,
+                  width: vehicleData.imgW,
+                  height: vehicleData.imgH,
                   pointerEvents: 'none',
                   overflow: 'visible',
                 }}
+                viewBox={`0 0 ${vehicleData.imgW} ${vehicleData.imgH}`}
               >
                 <g
                   transform={`translate(${vehicleData.px}, ${vehicleData.py}) rotate(${-robotStatus.a})`}
