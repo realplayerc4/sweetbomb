@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pickaxe, RotateCw, AlertOctagon, RotateCcw, Cpu, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { Pickaxe, RotateCw, AlertOctagon, Cpu, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useRobotController } from '../hooks/useRobotController';
@@ -14,7 +14,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         status,
         move,
         stop,
-        reset,
         scoop,
         dump,
         dock,
@@ -86,15 +85,17 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                         <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">举升</span>
                         <div className="relative h-[200px] w-[25px] bg-[#2a2a2e] rounded border border-[#FD802E]/30">
                             {/* 填充层 */}
-                            {status && typeof status.boom === 'number' && (
-                                <div
-                                    className="absolute bottom-0 left-0 right-0 rounded-b transition-all duration-300"
-                                    style={{
-                                        height: `${Math.max(5, Math.min(100, ((status.boom - 10) / 280) * 100))}%`,
-                                        backgroundColor: '#FD802E',
-                                    }}
-                                />
-                            )}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: `${status && typeof status.boom === 'number' ? Math.max(5, Math.min(100, ((status.boom - 10) / 280) * 100)) : 5}%`,
+                                    backgroundColor: '#FD802E',
+                                    borderRadius: '0 0 4px 4px',
+                                }}
+                            />
                             {/* 百分比文字 */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[10px] font-bold text-white/70">
@@ -112,15 +113,17 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                         <span className="text-[10px] font-black text-[#FD802E] uppercase tracking-widest bg-[#FD802E]/10 px-2 py-0.5 rounded-sm">旋转</span>
                         <div className="relative h-[200px] w-[25px] bg-[#2a2a2e] rounded border border-[#FD802E]/30">
                             {/* 填充层 */}
-                            {status && typeof status.bucket === 'number' && (
-                                <div
-                                    className="absolute bottom-0 left-0 right-0 rounded-b transition-all duration-300"
-                                    style={{
-                                        height: `${Math.max(5, Math.min(100, ((status.bucket + 50) / 130) * 100))}%`,
-                                        backgroundColor: '#FD802E',
-                                    }}
-                                />
-                            )}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: `${status && typeof status.bucket === 'number' ? Math.max(5, Math.min(100, ((status.bucket + 50) / 130) * 100)) : 5}%`,
+                                    backgroundColor: '#FD802E',
+                                    borderRadius: '0 0 4px 4px',
+                                }}
+                            />
                             {/* 百分比文字 */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[10px] font-bold text-white/70">
@@ -214,14 +217,14 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     <span className="text-[10px] tracking-[0.2em]">倾倒</span>
                 </Button>
 
-                {/* 3. Center: EMERGENCY STOP (Anchors the group) */}
+                {/* 3. Stop */}
                 <Button
                     onClick={stop}
                     disabled={!isRemote || status?.status === 'emergency_stop'}
-                    className="w-[160px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/20 text-[#FD802E] border border-[#FD802E]/40 rounded-2xl hover:bg-red-500 hover:text-white transition-all font-black shadow-2xl shadow-[#FD802E]/20 ring-1 ring-[#FD802E]/20 disabled:opacity-30 disabled:grayscale"
+                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-red-500 hover:text-white transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
-                    <AlertOctagon className="w-6 h-6" />
-                    <span className="text-[14px] tracking-[0.3em]">停止</span>
+                    <AlertOctagon className="w-5 h-5" />
+                    <span className="text-[10px] tracking-[0.2em]">停止</span>
                 </Button>
 
                 {/* 4. Dock */}
@@ -232,16 +235,6 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 >
                     <LogOut className="w-5 h-5 -rotate-90" />
                     <span className="text-[10px] tracking-[0.2em]">回桩</span>
-                </Button>
-
-                {/* 5. Reset */}
-                <Button
-                    onClick={reset}
-                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E] text-black border border-[#FD802E] rounded-2xl hover:bg-[#FD802E]/90 hover:-translate-y-1 transition-all font-black shadow-[0_0_20px_rgba(253,128,46,0.4)] disabled:opacity-30 disabled:grayscale"
-                    disabled={!isRemote}
-                >
-                    <RotateCcw className="w-5 h-5" />
-                    <span className="text-[10px] tracking-[0.2em]">重置</span>
                 </Button>
             </div>
         </Card>
