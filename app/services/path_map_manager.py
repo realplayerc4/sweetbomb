@@ -140,22 +140,47 @@ class PathMapManager:
         return self._cached_data
 
     def _resolve_coordinates(self, data: PathMapData) -> None:
-        """解析后计算站点的实际 xy 坐标（通过 connectNode 查找 Node 坐标）"""
+        """解析后计算站点的实际 xy 坐标"""
         # 构建 node_id -> (x, y) 查找表
         node_map = {n.id: (n.x, n.y) for n in data.nodes}
 
-        # 取货站：通过 connectNode 查找坐标，同时保留弧线参数 ox/oy/R
-        # 站点位置 = connectNode 对应的 Node 坐标
+        # 取货站：按圆形分布算法生成所有站位坐标
         for ps in data.pick_stations:
-            coords = node_map.get(ps.connect_node)
-            if coords:
-                # 站点主坐标来自 connectNode
-                ps.positions = [PickStationPosition(
-                    station_id=ps.start_id,  # 使用 startId 作为站号
-                    x=coords[0],
-                    y=coords[1],
-                )]
-            # ox, oy, R 描述圆形取货区域的形状，不是站点位置
+            if ps.r > 0 and ps.station_num > 0:
+                connect_coords = node_map.get(ps.connect_node)
+                if connect_coords:
+                    cx, cy = connect_coords
+                    dx = cx - ps.ox
+                    dy = cy - ps.oy
+                    dist = math.sqrt(dx * dx + dy * dy)
+                    if dist > 0:
+                        temp = ps.r / dist
+                        # 直线与圆的两个交点
+                        A1x = ps.ox + dx * temp
+                        A1y = ps.oy + dy * temp
+                        A2x = ps.ox - dx * temp
+                        A2y = ps.oy - dy * temp
+                        d1 = math.sqrt((A1x - cx) ** 2 + (A1y - cy) ** 2)
+                        d2 = math.sqrt((A2x - cx) ** 2 + (A2y - cy) ** 2)
+                        # 选择离 connectNode 更近的交点作为 startNode
+                        sx, sy = (A1x, A1y) if d1 < d2 else (A2x, A2y)
+
+                        # 以圆心为原点，计算 startNode 的相对坐标
+                        start_ox = sx - ps.ox
+                        start_oy = sy - ps.oy
+                        delta_th = 2 * math.pi / ps.station_num
+
+                        positions = []
+                        for i in range(ps.station_num):
+                            angle = delta_th * i  # 逆时针旋转
+                            nx = start_ox * math.cos(angle) - start_oy * math.sin(angle)
+                            ny = start_ox * math.sin(angle) + start_oy * math.cos(angle)
+                            positions.append(PickStationPosition(
+                                station_id=ps.start_id + i,
+                                x=nx + ps.ox,
+                                y=ny + ps.oy,
+                            ))
+                        ps.positions = positions
 
         # 放货站：通过 connectNode 查找坐标
         for ds in data.drop_stations:

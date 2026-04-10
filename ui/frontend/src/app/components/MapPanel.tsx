@@ -34,7 +34,7 @@ export function MapPanel() {
   const { imageUrl, isLoading, error, loadImage } = useMapImage(currentMap, currentThetaDeg);
   const { info: mapInfo } = useMapInfo(currentMap, currentThetaDeg);
   const { status } = useRobotController();
-  const { pickStations, dropStations } = usePathMap();
+  const { pickStations, dropStations, chargeStations, nodes, loadPathMap } = usePathMap();
 
   // 变换状态
   const [transform, setTransform] = useState<Transform>({
@@ -113,8 +113,8 @@ export function MapPanel() {
 
   // 计算站点标记的像素位置（使用后端预计算的坐标）
   const stationMarkers = useMemo(() => {
-    if (!mapInfo || !imageLoaded || !imageRef.current) return [];
-    if (pickStations.length === 0 && dropStations.length === 0) return [];
+    if (!mapInfo || !imageLoaded || !imageRef.current) return { markers: [], sugarPile: null };
+    if (pickStations.length === 0 && dropStations.length === 0 && chargeStations.length === 0) return { markers: [], sugarPile: null };
 
     const offset = mapInfo.offset;
     const dataArea = mapInfo.data_area_px;
@@ -131,13 +131,24 @@ export function MapPanel() {
       return { px, py };
     };
 
-    const markers: Array<{ px: number; py: number; label: string; type: 'pick' | 'drop' }> = [];
+    // 像素/米比例（用于半径圆）
+    const pixelPerMeter = dataArea.width / (ar.max_x - ar.min_x);
 
-    // 取货站：使用后端预计算的 positions 坐标
+    const markers: Array<{ px: number; py: number; label: string; type: 'pick' | 'drop' | 'charge' }> = [];
+
+    // 取货站：使用后端预计算的 positions 坐标 + connectNode
     pickStations.forEach((ps) => {
+      // connectNode 连接点
+      const connectNode = nodes.find(n => n.id === ps.connect_node);
+      if (connectNode) {
+        const { px, py } = mmToPx(connectNode.x, connectNode.y);
+        const label = `${ps.connect_node}`;
+        markers.push({ px, py, label, type: 'pick' });
+      }
+      // 各站位坐标
       ps.positions.forEach((pos) => {
         const { px, py } = mmToPx(pos.x, pos.y);
-        const label = `PS${pos.station_id}`;
+        const label = `${pos.station_id}`;
         markers.push({ px, py, label, type: 'pick' });
       });
     });
@@ -146,20 +157,44 @@ export function MapPanel() {
     dropStations.forEach((ds) => {
       if (ds.x !== null && ds.y !== null) {
         const { px, py } = mmToPx(ds.x, ds.y);
-        const label = `DS${ds.id}`;
+        const label = `${ds.connect_node}`;
         markers.push({ px, py, label, type: 'drop' });
       }
     });
 
+    // 充电站：通过 node ID 在 nodes 中查找坐标
+    chargeStations.forEach((cs) => {
+      const node = nodes.find(n => n.id === cs.node);
+      if (node) {
+        const { px, py } = mmToPx(node.x, node.y);
+        const label = `${cs.node}`;
+        markers.push({ px, py, label, type: 'charge' });
+      }
+    });
+
+    // 糖堆中心点 + R 半径圆
+    let sugarPile: { cx: number; cy: number; radiusPx: number } | null = null;
+    if (pickStations.length > 0) {
+      const ps = pickStations[0];
+      const { px, py } = mmToPx(ps.ox, ps.oy);
+      const radiusPx = (ps.R / 1000) * pixelPerMeter;
+      sugarPile = { cx: px, cy: py, radiusPx };
+    }
+
     console.log('[MapPanel] Station markers:', markers.length, markers.slice(0, 3));
 
-    return markers;
-  }, [mapInfo, imageLoaded, pickStations, dropStations, pixelOffsetX, pixelOffsetY]);
+    return { markers, sugarPile };
+  }, [mapInfo, imageLoaded, pickStations, dropStations, chargeStations, nodes, pixelOffsetX, pixelOffsetY]);
 
   // 图片加载完成回调
   const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
   }, []);
+
+  // 自动加载 pathMap 站点数据
+  useEffect(() => {
+    loadPathMap();
+  }, [loadPathMap]);
 
   // 重置图片加载状态
   useEffect(() => {
@@ -479,7 +514,7 @@ export function MapPanel() {
             )}
 
             {/* Station Markers */}
-            {stationMarkers.length > 0 && vehicleData && (
+            {stationMarkers.markers.length > 0 && vehicleData && (
               <svg
                 style={{
                   position: 'absolute',
@@ -492,8 +527,28 @@ export function MapPanel() {
                 }}
                 viewBox={`0 0 ${vehicleData.imgW} ${vehicleData.imgH}`}
               >
-                {stationMarkers.map((marker) => (
-                  <g key={marker.label}>
+                {/* 糖堆中心点 + R 半径圆 */}
+                {stationMarkers.sugarPile && (
+                  <g>
+                    <circle
+                      cx={stationMarkers.sugarPile.cx}
+                      cy={stationMarkers.sugarPile.cy}
+                      r={stationMarkers.sugarPile.radiusPx}
+                      fill="rgba(255, 215, 0, 0.1)"
+                      stroke="#FFD700"
+                      strokeWidth={1.5}
+                      strokeDasharray="6 3"
+                    />
+                    <circle
+                      cx={stationMarkers.sugarPile.cx}
+                      cy={stationMarkers.sugarPile.cy}
+                      r={4}
+                      fill="#FFD700"
+                    />
+                  </g>
+                )}
+                {stationMarkers.markers.map((marker, idx) => (
+                  <g key={`${marker.label}-${idx}`}>
                     {/* 紫色圆点 */}
                     <circle
                       cx={marker.px}
@@ -507,13 +562,13 @@ export function MapPanel() {
                     <rect
                       x={marker.px + 4}
                       y={marker.py + 2}
-                      width={36}
+                      width={20}
                       height={12}
                       rx={2}
                       fill="rgba(0,0,0,0.7)"
                     />
                     <text
-                      x={marker.px + 22}
+                      x={marker.px + 14}
                       y={marker.py + 11}
                       fill="white"
                       fontSize="8"

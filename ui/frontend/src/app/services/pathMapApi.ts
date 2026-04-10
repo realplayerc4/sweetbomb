@@ -35,7 +35,7 @@ export interface PickStation {
   start_id: number;
   ox: number;
   oy: number;
-  r: number;
+  R: number;  // 半径 (mm) - API 返回大写 R
   station_num: number;
   max_speed: number;
   // 预计算的所有取货位坐标
@@ -54,11 +54,20 @@ export interface DropStation {
   y: number | null;
 }
 
+export interface ChargeStation {
+  id: number;
+  node: number;  // 充电节点 ID，需要通过 nodes 查找坐标
+  vehicle_th: number;  // 车体角度
+  ip: string;  // 充电桩 IP
+  port: number;  // 充电桩端口
+}
+
 export interface PathMapData {
   nodes: PathNode[];
   segments: Segment[];
   pick_stations: PickStation[];
   drop_stations: DropStation[];
+  charge_stations: ChargeStation[];
 }
 
 // ---- API 函数 ----

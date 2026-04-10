@@ -8,12 +8,14 @@ import {
   type PathNode,
   type PickStation,
   type DropStation,
+  type ChargeStation,
 } from '../services/pathMapApi';
 
 export function usePathMap() {
   const [nodes, setNodes] = useState<PathNode[]>([]);
   const [pickStations, setPickStations] = useState<PickStation[]>([]);
   const [dropStations, setDropStations] = useState<DropStation[]>([]);
+  const [chargeStations, setChargeStations] = useState<ChargeStation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,6 +28,7 @@ export function usePathMap() {
       setNodes(data.nodes);
       setPickStations(data.pick_stations);
       setDropStations(data.drop_stations);
+      setChargeStations(data.charge_stations || []);
       return data;
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载 pathMap 失败';
@@ -56,6 +59,7 @@ export function usePathMap() {
     nodes,
     pickStations,
     dropStations,
+    chargeStations,
     isLoading,
     error,
     loadPathMap,
