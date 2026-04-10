@@ -255,3 +255,79 @@ async def stop_robot():
         )
     else:
         raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/pause", response_model=StopResponse)
+async def pause_robot():
+    """发送暂停任务命令 (pauseTask)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    result = await server.pause_task()
+
+    if result:
+        return StopResponse(
+            success=True,
+            message="暂停命令已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/resume", response_model=StopResponse)
+async def resume_robot():
+    """发送取消暂停命令 (pauseCancel)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    result = await server.pause_cancel()
+
+    if result:
+        return StopResponse(
+            success=True,
+            message="取消暂停命令已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/nav-pick", response_model=SimpleTaskResponse)
+async def nav_to_pick():
+    """导航到取货点 (Type=allPick)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    task_id = generate_task_id()
+    result = await server.send_simple_task(task_id, "allPick")
+
+    if result:
+        return SimpleTaskResponse(
+            success=True,
+            task_id=task_id,
+            message="导航到取货点任务已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/nav-drop", response_model=SimpleTaskResponse)
+async def nav_to_drop():
+    """导航到卸货点 (Type=allDrop)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    task_id = generate_task_id()
+    result = await server.send_simple_task(task_id, "allDrop")
+
+    if result:
+        return SimpleTaskResponse(
+            success=True,
+            task_id=task_id,
+            message="导航到卸货点任务已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")

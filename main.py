@@ -64,6 +64,13 @@ async def startup_event():
     # 启动机器人 TCP Server
     robot_tcp_server = RobotTCPServer(host="0.0.0.0", port=9090)
     set_robot_server(robot_tcp_server)
+
+    # 注册任务完成回调 - 通过 Socket.IO 广播给前端
+    async def on_robot_task_complete(task_id: str):
+        await sio.emit('robot_task_finish', {'task_id': task_id})
+
+    robot_tcp_server.on_task_complete = on_robot_task_complete
+
     await robot_tcp_server.start()
 
 

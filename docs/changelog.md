@@ -33,31 +33,49 @@
   - 前端 MapPanel 右上角添加 theta 输入框，可手动修改角度
 
 - **地图车辆位置指示器**
-  - 在地图上叠加显示带箭头的橙色方块，表示车辆实时位置和朝向
+  - 在地图上叠加显示带箭头的银色方块，表示车辆实时位置和朝向
   - 方块尺寸与真实车体比例一致：宽 800mm，长 1400mm
   - 根据地图分辨率自动计算像素尺寸，跟随地图缩放
   - XYZA 数值表示车辆正中心，角度 A 为车头与X轴夹角
   - 通过 `imageLoaded` 状态 + `onLoad` 回调确保图片加载后才计算位置
 
-- **任务下发 API 端点**
-  - 新增 `POST /api/robot/task` 端点，支持向后端发送任务到下位机
-  - 请求体：`{"pick_station": "123", "drop_station": "789"}`
-  - 自动生成时间戳格式 TaskId（如 `20260409184535006`）
-  - 下位机返回 `Result=1` 表示任务已接收
-
 - **机器人控制按钮新协议**
-  - 新增 `POST /api/robot/scoop` 端点，发送铲取任务（Type=pick）
-  - 新增 `POST /api/robot/dump` 端点，发送倾倒任务（Type=drop）
-  - 新增 `POST /api/robot/dock` 端点，发送回桩任务（Type=charge）
-  - 新增 `POST /api/robot/stop` 端点，发送取消任务命令（cancelTask）
+  - `POST /api/robot/scoop` → 发送铲取任务（Type=pick）
+  - `POST /api/robot/dump` → 发送倾倒任务（Type=drop）
+  - `POST /api/robot/dock` → 发送回桩任务（Type=charge）
+  - `POST /api/robot/stop` → 发送取消任务命令（cancelTask）
+  - `POST /api/robot/pause` → 发送暂停任务命令（pauseTask）
+  - `POST /api/robot/resume` → 发送取消暂停命令（pauseCancel）
+  - `POST /api/robot/nav-pick` → 导航到取货点（Type=allPick）
+  - `POST /api/robot/nav-drop` → 导航到卸货点（Type=allDrop）
   - 新协议格式: `{MessageType=task\nTaskId=xxx\nType=xxxx\n}`
   - TaskId 生成器（线程安全）: `YYYYMMDDHHMMSS` + 3位序号
+
+- **按钮互锁与任务状态跟踪**
+  - 铲取/倾倒/回桩按钮互锁：按下任意一个时，另外两个锁定
+  - 收到下位机 `{MessageType=taskFinish TaskId=xxx}` 后解除锁定
+  - 后端通过 Socket.IO 广播 `robot_task_finish` 事件
+  - 暂停/停止按钮不受互锁影响，可用于取消任务
+
+- **任务系统导航按钮**
+  - BehaviorTreeViz 中「导航到取糖点」胶囊按钮可点击，发送 allPick
+  - BehaviorTreeViz 中「导航到卸载点」胶囊按钮可点击，发送 allDrop
+  - 任务运行时两个导航按钮自动禁用
 
 ### [Changed]
 
 - **机器人控制面板底部按钮**
-  - 增加暂停按钮，共五个按钮：铲取、倾倒、暂停、停止、回桩
-  - 五个按钮大小统一（`w-[110px]`），暂停黄色hover，停止红色hover
+  - 五个按钮：铲取、倾倒、暂停、停止、回桩
+  - 铲取/倾倒/回桩在任务执行中互锁禁用
+  - 暂停按钮调用 pauseTask 协议，仅在任务运行时可点击
+  - 举升进度条范围更新为 60°~124°
+
+- **TCP 通讯回复规则**
+  - 只有收到 taskFinish 时回复下位机，其他报文不再回复
+
+- **机器人状态卡片速度显示**
+  - "设定速度"改为"车辆速度"
+  - 使用 status.speed 实时更新数值，替代原来的固定值 0.5 m/s
 
 - **地图坐标显示**
   - X/Y 显示原始机器人数据（mm），不应用 theta 旋转转换
@@ -68,6 +86,10 @@
 - **修复 matplotlib 导入失败导致地图PNG转换失败**
   - 根因：venv 中 matplotlib 3.5.1（系统包）与 NumPy 2.2.6 版本不兼容
   - 解决：在 venv 中安装新版 matplotlib 3.10.8
+
+- **修复前端 auto_cycle 轮询 404 错误**
+  - 前端每 2 秒轮询 `/api/robot/auto_cycle/status`，后端无此端点
+  - 移除该轮询，消除大量 404 控制台错误
 
 - **修复前端 MapInfo 数据结构与后端 API 不匹配**
   - 后端 `/api/map/` 返回 `filename, size_bytes, modified_time` 等字段

@@ -62,6 +62,8 @@ class MessageType(Enum):
     CANCEL_TASK = "cancelTask"  # 取消任务
     COMMAND = "command"         # 命令
     REMOTE_CONTROL = "remoteControl"  # 远程控制
+    PAUSE_TASK = "pauseTask"    # 暂停任务
+    PAUSE_CANCEL = "pauseCancel"  # 取消暂停
 
 
 @dataclass
@@ -80,7 +82,7 @@ class RobotState:
     y: float = 0.0                      # Y坐标 mm
     z: float = 0.0                      # Z坐标 mm
     a: float = 0.0                      # 车体角度 °
-    boom: float = 0.0                   # 臂位置 mm
+    boom: float = 0.0                   # 臂角度 °
     bucket: float = 0.0                  # 铲斗角度 °
     last_update: datetime = field(default_factory=datetime.now)
 
@@ -172,6 +174,8 @@ class RobotTCPServer:
             MessageType.CANCEL_TASK: self._handle_cancel_task,
             MessageType.COMMAND: self._handle_command,
             MessageType.REMOTE_CONTROL: self._handle_remote_control,
+            MessageType.PAUSE_TASK: self._handle_pause_task,
+            MessageType.PAUSE_CANCEL: self._handle_pause_cancel,
         }
 
         # 回调函数
@@ -367,17 +371,14 @@ class RobotTCPServer:
         drop_station = data.get('DropStationId', '')
 
         logger.info(f"收到任务: {task_id}, 取货: {pick_station}, 放货: {drop_station}")
-
-        # 发送确认回复
-        response = f"{{\nMessageType=task\nTaskId={task_id}\nResult=1\n}}"
-        await client.send_message(response)
+        # 不需要回复下位机
 
     async def _handle_task_finish(self, client: RobotTCPClient, data: Dict):
         """处理任务完成"""
         task_id = data.get('TaskId', '')
         logger.info(f"任务完成: {task_id}")
 
-        # 发送确认回复
+        # 发送确认回复（只有taskFinish需要回复）
         response = f"{{\nMessageType=taskFinish\nTaskId={task_id}\n}}"
         await client.send_message(response)
 
@@ -388,19 +389,23 @@ class RobotTCPServer:
     async def _handle_cancel_task(self, client: RobotTCPClient, data: Dict):
         """处理取消任务"""
         logger.info("取消任务")
+        # 不需要回复下位机
 
-        # 发送确认回复
-        response = "{\nMessageType=cancelTask\n}"
-        await client.send_message(response)
+    async def _handle_pause_task(self, client: RobotTCPClient, data: Dict):
+        """处理暂停任务"""
+        logger.info("暂停任务")
+        # 不需要回复下位机
+
+    async def _handle_pause_cancel(self, client: RobotTCPClient, data: Dict):
+        """处理取消暂停"""
+        logger.info("取消暂停")
+        # 不需要回复下位机
 
     async def _handle_command(self, client: RobotTCPClient, data: Dict):
         """处理命令"""
         operate = data.get('Operate', '')
         logger.info(f"收到命令: {operate}")
-
-        # 发送确认回复
-        response = f"{{\nMessageType=command\nOperate={operate}\n}}"
-        await client.send_message(response)
+        # 不需要回复下位机
 
     async def _handle_remote_control(self, client: RobotTCPClient, data: Dict):
         """处理远程控制"""
@@ -529,6 +534,26 @@ class RobotTCPServer:
             return False
 
         message = "{\nMessageType=cancelTask\n}"
+        await self.client.send_message(message)
+        return True
+
+    async def pause_task(self) -> bool:
+        """发送暂停任务命令"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
+            return False
+
+        message = "{MessageType=pauseTask}"
+        await self.client.send_message(message)
+        return True
+
+    async def pause_cancel(self) -> bool:
+        """发送取消暂停命令"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
+            return False
+
+        message = "{MessageType=pauseCancel}"
         await self.client.send_message(message)
         return True
 

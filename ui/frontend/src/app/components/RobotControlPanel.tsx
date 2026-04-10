@@ -14,9 +14,11 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
         status,
         move,
         stop,
+        pause,
         scoop,
         dump,
         dock,
+        isTaskRunning,
     } = useRobotController();
 
     const [isRemote] = useState(true);
@@ -94,7 +96,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                                     bottom: 0,
                                     left: 0,
                                     right: 0,
-                                    height: `${status && typeof status.boom === 'number' ? Math.max(5, Math.min(100, ((status.boom - 10) / 280) * 100)) : 5}%`,
+                                    height: `${status && typeof status.boom === 'number' ? Math.max(5, Math.min(100, ((status.boom - 60) / 64) * 100)) : 5}%`,
                                     backgroundColor: '#FD802E',
                                     borderRadius: '0 0 4px 4px',
                                 }}
@@ -102,12 +104,12 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                             {/* 百分比文字 */}
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <span className="text-[10px] font-bold text-white/70">
-                                    {status && typeof status.boom === 'number' ? ((status.boom - 10) / 280 * 100).toFixed(0) : '--'}%
+                                    {status && typeof status.boom === 'number' ? ((status.boom - 60) / 64 * 100).toFixed(0) : '--'}%
                                 </span>
                             </div>
                         </div>
                         <span className="text-[12px] font-black text-[#FD802E] tabular-nums">
-                            {status && typeof status.boom === 'number' ? status.boom.toFixed(1) + ' mm' : '-- mm'}
+                            {status && typeof status.boom === 'number' ? status.boom.toFixed(1) + '°' : '--°'}
                         </span>
                     </div>
 
@@ -135,7 +137,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                             </div>
                         </div>
                         <span className="text-[12px] font-black text-[#FD802E] tabular-nums">
-                            {status && typeof status.bucket === 'number' ? status.bucket.toFixed(1) + ' mm' : '-- mm'}
+                            {status && typeof status.bucket === 'number' ? status.bucket.toFixed(1) + '°' : '--°'}
                         </span>
                     </div>
                 </div>
@@ -203,7 +205,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 1. Scoop */}
                 <Button
                     onClick={scoop}
-                    disabled={!isRemote || status?.status === 'emergency_stop'}
+                    disabled={!isRemote || status?.status === 'emergency_stop' || isTaskRunning}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <Pickaxe className="w-5 h-5" />
@@ -213,7 +215,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 2. Dump */}
                 <Button
                     onClick={dump}
-                    disabled={!isRemote || status?.status === 'emergency_stop'}
+                    disabled={!isRemote || status?.status === 'emergency_stop' || isTaskRunning}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <RotateCw className="w-5 h-5" />
@@ -222,8 +224,8 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
 
                 {/* 3. Pause */}
                 <Button
-                    onClick={stop}
-                    disabled={!isRemote || status?.status === 'emergency_stop'}
+                    onClick={pause}
+                    disabled={!isRemote || status?.status === 'emergency_stop' || !isTaskRunning}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-yellow-500 hover:text-black transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <Pause className="w-5 h-5" />
@@ -243,7 +245,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 {/* 5. Dock */}
                 <Button
                     onClick={dock}
-                    disabled={!isRemote || status?.status === 'emergency_stop'}
+                    disabled={!isRemote || status?.status === 'emergency_stop' || isTaskRunning}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
                     <LogOut className="w-5 h-5 -rotate-90" />

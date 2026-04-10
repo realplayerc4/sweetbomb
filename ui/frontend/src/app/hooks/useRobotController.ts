@@ -18,9 +18,17 @@ interface UseRobotControllerReturn {
     isLoading: boolean;
     isConnected: boolean;
 
+    // Task state tracking
+    pendingTaskId: string | null;  // 当前正在执行的任务ID
+    isTaskRunning: boolean;        // 是否有任务正在执行
+
     // Actions
     move: (direction: string, speed?: number, duration?: number) => Promise<void>;
     stop: () => Promise<void>;
+    pause: () => Promise<void>;
+    resume: () => Promise<void>;
+    navToPick: () => Promise<void>;
+    navToDrop: () => Promise<void>;
     reset: () => Promise<void>;
     setServo: (servoId: string, angle: number) => Promise<void>;
     scoop: () => Promise<void>;
@@ -52,6 +60,10 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
 
     const [harvestStatus, setHarvestStatus] = useState<any>(null);
     const [isHarvestRunning, setIsHarvestRunning] = useState(false);
+
+    // 任务状态跟踪
+    const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
+    const [isTaskRunning, setIsTaskRunning] = useState(false);
 
     // Refs
     const socketRef = useRef<Socket | null>(null);
@@ -87,7 +99,18 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
 
         socket.on('bt_node_status', (data: any) => {
             console.log('[RobotController] BT node status:', data);
-            // Could update UI with current executing node
+        });
+
+        // 监听机器人任务完成事件
+        socket.on('robot_task_finish', (event: { task_id: string }) => {
+            console.log('[RobotController] Robot task finished:', event);
+            setPendingTaskId((prev) => {
+                if (prev === event.task_id) {
+                    setIsTaskRunning(false);
+                    return null;
+                }
+                return prev;
+            });
         });
 
         return () => {
@@ -149,22 +172,10 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         };
     }, [pollInterval, refreshStatus]);
 
-    // Harvest status polling (separate interval)
-    useEffect(() => {
-        const harvestInterval = setInterval(() => {
-            refreshHarvestStatus().catch(() => {});
-        }, 2000);
-
-        return () => {
-            clearInterval(harvestInterval);
-        };
-    }, [refreshHarvestStatus]);
-
     // Initial fetch - wrapped in try-catch to prevent app crash
     useEffect(() => {
         refreshStatus().catch(() => {});
-        refreshHarvestStatus().catch(() => {});
-    }, [refreshStatus, refreshHarvestStatus]);
+    }, [refreshStatus]);
 
     // --- Actions ---
 
@@ -183,6 +194,56 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         setError(null);
         try {
             await robotApi.stop();
+            setPendingTaskId(null);
+            setIsTaskRunning(false);
+            await refreshStatus();
+        } catch (e: any) {
+            setError(e.message);
+            throw e;
+        }
+    }, [refreshStatus]);
+
+    const pause = useCallback(async () => {
+        setError(null);
+        try {
+            await robotApi.pause();
+            await refreshStatus();
+        } catch (e: any) {
+            setError(e.message);
+            throw e;
+        }
+    }, [refreshStatus]);
+
+    const resume = useCallback(async () => {
+        setError(null);
+        try {
+            await robotApi.resume();
+            await refreshStatus();
+        } catch (e: any) {
+            setError(e.message);
+            throw e;
+        }
+    }, [refreshStatus]);
+
+    const navToPick = useCallback(async () => {
+        setError(null);
+        try {
+            const result = await robotApi.navToPick();
+            setPendingTaskId(result.task_id);
+            setIsTaskRunning(true);
+            await refreshStatus();
+        } catch (e: any) {
+            setError(e.message);
+            throw e;
+        }
+    }, [refreshStatus]);
+
+    const navToDrop = useCallback(async () => {
+        setError(null);
+        try {
+            const result = await robotApi.navToDrop();
+            setPendingTaskId(result.task_id);
+            setIsTaskRunning(true);
             await refreshStatus();
         } catch (e: any) {
             setError(e.message);
@@ -215,7 +276,9 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
     const scoop = useCallback(async () => {
         setError(null);
         try {
-            await robotApi.scoop();
+            const result = await robotApi.scoop();
+            setPendingTaskId(result.task_id);
+            setIsTaskRunning(true);
             await refreshStatus();
         } catch (e: any) {
             setError(e.message);
@@ -226,17 +289,22 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
     const dump = useCallback(async () => {
         setError(null);
         try {
-            await robotApi.dump();
+            const result = await robotApi.dump();
+            setPendingTaskId(result.task_id);
+            setIsTaskRunning(true);
             await refreshStatus();
         } catch (e: any) {
             setError(e.message);
             throw e;
         }
     }, [refreshStatus]);
+
     const dock = useCallback(async () => {
         setError(null);
         try {
-            await robotApi.dock();
+            const result = await robotApi.dock();
+            setPendingTaskId(result.task_id);
+            setIsTaskRunning(true);
             await refreshStatus();
         } catch (e: any) {
             setError(e.message);
@@ -277,8 +345,14 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         status,
         isLoading,
         isConnected,
+        pendingTaskId,
+        isTaskRunning,
         move,
         stop,
+        pause,
+        resume,
+        navToPick,
+        navToDrop,
         reset,
         setServo,
         scoop,

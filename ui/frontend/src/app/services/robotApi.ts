@@ -56,8 +56,8 @@ export interface RobotStatus {
     y: number;
     z: number;
     a: number;  // orientation angle
-    boom: number;  // lift servo angle
-    bucket: number;  // dump servo angle
+    boom: number;  // lift angle (°)
+    bucket: number;  // bucket angle (°)
     last_update?: string;
 }
 
@@ -138,6 +138,42 @@ export const robotApi = {
             method: 'POST',
         });
         if (!res.ok) throw new Error('Failed to stop robot');
+        return res.json();
+    },
+
+    /** 暂停任务 (pauseTask) */
+    async pause(): Promise<{ success: boolean; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/pause`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to pause robot');
+        return res.json();
+    },
+
+    /** 取消暂停 (pauseCancel) */
+    async resume(): Promise<{ success: boolean; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/resume`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to resume robot');
+        return res.json();
+    },
+
+    /** 导航到取货点 (allPick) */
+    async navToPick(): Promise<{ success: boolean; task_id: string; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/nav-pick`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to navigate to pick point');
+        return res.json();
+    },
+
+    /** 导航到卸货点 (allDrop) */
+    async navToDrop(): Promise<{ success: boolean; task_id: string; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/nav-drop`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to navigate to drop point');
         return res.json();
     },
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -126,12 +126,14 @@ function TreeNode({ node, currentNode, depth = 0 }: { node: BTNodeConfig; curren
 function CircularHarvestFlow({
     nodes,
     currentNode,
-    onStartCycle,
+    onNavToPick,
+    onNavToDrop,
     isHarvestRunning
 }: {
     nodes: BTNodeConfig[],
     currentNode: string,
-    onStartCycle?: () => void,
+    onNavToPick?: () => void,
+    onNavToDrop?: () => void,
     isHarvestRunning?: boolean
 }) {
     return (
@@ -143,7 +145,15 @@ function CircularHarvestFlow({
                 const isLast = i === nodes.length - 1;
 
                 const isNavNode = node.name === 'NavigateToSugarPoint' || node.name === 'NavigateToDumpPoint';
-                const isInteractive = node.name === 'NavigateToSugarPoint' && !isHarvestRunning;
+                const isNavPick = node.name === 'NavigateToSugarPoint';
+                const isNavDrop = node.name === 'NavigateToDumpPoint';
+                const isInteractive = isNavNode && !isHarvestRunning;
+
+                const handleClick = () => {
+                    if (!isInteractive) return;
+                    if (isNavPick && onNavToPick) onNavToPick();
+                    else if (isNavDrop && onNavToDrop) onNavToDrop();
+                };
 
                 return (
                     <div key={node.name} className="flex items-center gap-2">
@@ -159,7 +169,7 @@ function CircularHarvestFlow({
                                             ? 'bg-[#FD802E]/20 text-[#FD802E] border-2 border-[#FD802E] shadow-[0_0_15px_rgba(253,128,46,0.2)] hover:bg-[#FD802E] hover:text-white hover:scale-105 scale-105'
                                             : 'bg-[#1c1c1e]/60 border border-transparent text-slate-400 hover:text-slate-200'
                             )}
-                            onClick={isInteractive ? onStartCycle : undefined}
+                            onClick={handleClick}
                         >
                             <span className="text-[14px] drop-shadow-sm">{STEP_ICONS[node.name] || '⚡'}</span>
                             <span className={cn(
@@ -206,8 +216,8 @@ export function BehaviorTreeViz({
 }: BehaviorTreeVizProps) {
     void _sugarHeight;
     void _heightThreshold;
-    const { startSugarHarvest, isHarvestRunning, status: robotStatus } = useRobotController();
-    const { loadPathMap, updatePickStation, pickStations, isLoading: pathMapLoading } = usePathMap();
+    const { startSugarHarvest, isHarvestRunning, pause, resume, navToPick, navToDrop, status: robotStatus } = useRobotController();
+    const { loadPathMap, updatePickStation, pickStations, dropStations, chargeStations, nodes, isLoading: pathMapLoading } = usePathMap();
 
     // 糖堆位置：从 localStorage 恢复上次值
     const [sugarX, setSugarX] = useState(() => localStorage.getItem('sugarX') || '');
@@ -220,6 +230,29 @@ export function BehaviorTreeViz({
     useEffect(() => { localStorage.setItem('sugarY', sugarY); }, [sugarY]);
     useEffect(() => { localStorage.setItem('sugarR', sugarR); }, [sugarR]);
     useEffect(() => { localStorage.setItem('sugarS', sugarS); }, [sugarS]);
+
+    // 计算充电位置坐标（通过 node ID 在 nodes 中查找）
+    const chargePosition = useMemo(() => {
+        if (chargeStations.length === 0) return null;
+        const charge = chargeStations[0];
+        const node = nodes.find(n => n.id === charge.node);
+        return node ? { x: node.x, y: node.y, n: charge.node } : { x: null, y: null, n: charge.node };
+    }, [chargeStations, nodes]);
+
+    // 卸载位置（x/y 来自 connect_node，n 显示 connect_node ID）
+    const dropPosition = useMemo(() => {
+        if (dropStations.length === 0) return null;
+        const drop = dropStations[0];
+        return { x: drop.x, y: drop.y, n: drop.connect_node };
+    }, [dropStations]);
+
+    // 铲取位置（连接节点坐标，n 为 connect_node）
+    const pickPosition = useMemo(() => {
+        if (pickStations.length === 0) return null;
+        const pick = pickStations[0];
+        const node = nodes.find(n => n.id === pick.connect_node);
+        return node ? { x: node.x, y: node.y, n: pick.connect_node } : { x: null, y: null, n: pick.connect_node };
+    }, [pickStations, nodes]);
 
     const currentTree = SUGAR_HARVEST_TREE;
 
@@ -240,33 +273,47 @@ export function BehaviorTreeViz({
 
             {/* Position Area - Below Capsule, Left Aligned */}
             <div className="absolute top-[55px] left-[20px] flex flex-col items-start gap-1.5 z-[100]">
-                {/* Charge Position */}
+                {/* Pick Position */}
                 <div className="flex items-center">
-                    <span className="text-[12px] font-black text-slate-400 uppercase tracking-wider w-[70px] text-right pr-2">充电位置</span>
-                    <span className="text-[12px] font-bold text-slate-400">X:</span>
-                    <span className="text-[12px] text-slate-300 font-bold w-[60px] text-center tabular-nums">--</span>
-                    <span className="text-[12px] text-slate-500 w-[20px]">mm</span>
-                    <span className="text-[12px] text-slate-600 mx-1">|</span>
-                    <span className="text-[12px] font-bold text-slate-400">Y:</span>
-                    <span className="text-[12px] text-slate-300 font-bold w-[60px] text-center tabular-nums">--</span>
-                    <span className="text-[12px] text-slate-500 w-[20px]">mm</span>
-                    <span className="text-[12px] text-slate-600 mx-1">|</span>
-                    <span className="text-[12px] font-bold text-slate-400">n:</span>
-                    <span className="text-[12px] text-slate-300 font-bold w-[40px] text-center tabular-nums">--</span>
+                    <span className="text-[12px] font-black text-[#FD802E] uppercase tracking-wider w-[70px] text-right pr-2">铲取入口</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">X:</span>
+                    <span className="text-[12px] text-white font-bold w-[60px] text-center tabular-nums">{pickPosition && pickPosition.x != null ? pickPosition.x.toFixed(0) : '--'}</span>
+                    <span className="text-[12px] text-[#FD802E]/50 w-[20px]">mm</span>
+                    <span className="text-[12px] text-[#FD802E]/30 mx-1">|</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">Y:</span>
+                    <span className="text-[12px] text-white font-bold w-[60px] text-center tabular-nums">{pickPosition && pickPosition.y != null ? pickPosition.y.toFixed(0) : '--'}</span>
+                    <span className="text-[12px] text-[#FD802E]/50 w-[20px]">mm</span>
+                    <span className="text-[12px] text-[#FD802E]/30 mx-1">|</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">n:</span>
+                    <span className="text-[12px] text-white font-bold w-[40px] text-center tabular-nums">{pickPosition ? pickPosition.n : '--'}</span>
                 </div>
                 {/* Dump Position */}
                 <div className="flex items-center">
-                    <span className="text-[12px] font-black text-slate-400 uppercase tracking-wider w-[70px] text-right pr-2">卸载位置</span>
-                    <span className="text-[12px] font-bold text-slate-400">X:</span>
-                    <span className="text-[12px] text-slate-300 font-bold w-[60px] text-center tabular-nums">--</span>
-                    <span className="text-[12px] text-slate-500 w-[20px]">mm</span>
-                    <span className="text-[12px] text-slate-600 mx-1">|</span>
-                    <span className="text-[12px] font-bold text-slate-400">Y:</span>
-                    <span className="text-[12px] text-slate-300 font-bold w-[60px] text-center tabular-nums">--</span>
-                    <span className="text-[12px] text-slate-500 w-[20px]">mm</span>
-                    <span className="text-[12px] text-slate-600 mx-1">|</span>
-                    <span className="text-[12px] font-bold text-slate-400">n:</span>
-                    <span className="text-[12px] text-slate-300 font-bold w-[40px] text-center tabular-nums">--</span>
+                    <span className="text-[12px] font-black text-[#FD802E] uppercase tracking-wider w-[70px] text-right pr-2">卸载位置</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">X:</span>
+                    <span className="text-[12px] text-white font-bold w-[60px] text-center tabular-nums">{dropPosition && dropPosition.x != null ? dropPosition.x.toFixed(0) : '--'}</span>
+                    <span className="text-[12px] text-[#FD802E]/50 w-[20px]">mm</span>
+                    <span className="text-[12px] text-[#FD802E]/30 mx-1">|</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">Y:</span>
+                    <span className="text-[12px] text-white font-bold w-[60px] text-center tabular-nums">{dropPosition && dropPosition.y != null ? dropPosition.y.toFixed(0) : '--'}</span>
+                    <span className="text-[12px] text-[#FD802E]/50 w-[20px]">mm</span>
+                    <span className="text-[12px] text-[#FD802E]/30 mx-1">|</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">n:</span>
+                    <span className="text-[12px] text-white font-bold w-[40px] text-center tabular-nums">{dropPosition ? dropPosition.n : '--'}</span>
+                </div>
+                {/* Charge Position */}
+                <div className="flex items-center">
+                    <span className="text-[12px] font-black text-[#FD802E] uppercase tracking-wider w-[70px] text-right pr-2">充电位置</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">X:</span>
+                    <span className="text-[12px] text-white font-bold w-[60px] text-center tabular-nums">{chargePosition && chargePosition.x != null ? chargePosition.x.toFixed(0) : '--'}</span>
+                    <span className="text-[12px] text-[#FD802E]/50 w-[20px]">mm</span>
+                    <span className="text-[12px] text-[#FD802E]/30 mx-1">|</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">Y:</span>
+                    <span className="text-[12px] text-white font-bold w-[60px] text-center tabular-nums">{chargePosition && chargePosition.y != null ? chargePosition.y.toFixed(0) : '--'}</span>
+                    <span className="text-[12px] text-[#FD802E]/50 w-[20px]">mm</span>
+                    <span className="text-[12px] text-[#FD802E]/30 mx-1">|</span>
+                    <span className="text-[12px] font-bold text-[#FD802E]">n:</span>
+                    <span className="text-[12px] text-white font-bold w-[40px] text-center tabular-nums">{chargePosition ? chargePosition.n : '--'}</span>
                 </div>
                 {/* Vehicle Position (display only) */}
                 <div className="flex items-center">
@@ -326,24 +373,8 @@ export function BehaviorTreeViz({
                                 nodes={currentTree.children}
                                 currentNode={currentNode}
                                 isHarvestRunning={isHarvestRunning}
-                                onStartCycle={async () => {
-                                    if (!isHarvestRunning) {
-                                        const defaultConfig: SugarHarvestConfig = {
-                                            navigation_point: [1.0, 0.0],
-                                            dump_point: [0.0, 1.0],
-                                            bucket_width_m: 0.6,
-                                            scoop_position: 90.0,
-                                            dump_position: 135.0,
-                                            max_cycles: 10,
-                                            height_threshold_m: 0.20,
-                                        };
-                                        try {
-                                            await startSugarHarvest(defaultConfig);
-                                        } catch (e) {
-                                            console.error("Failed to start harvest from BT interaction", e);
-                                        }
-                                    }
-                                }}
+                                onNavToPick={navToPick}
+                                onNavToDrop={navToDrop}
                             />
                         ) : (
                             <TreeNode node={currentTree} currentNode={currentNode} />
@@ -376,6 +407,7 @@ export function BehaviorTreeViz({
                 </Button>
 
                 <Button
+                    onClick={pause}
                     disabled={!isHarvestRunning}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-[#FD802E]/20 hover:-translate-y-1 transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
                 >
@@ -384,6 +416,7 @@ export function BehaviorTreeViz({
                 </Button>
 
                 <Button
+                    onClick={resume}
                     disabled={isHarvestRunning}
                     className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E] text-black border border-[#FD802E] rounded-2xl hover:bg-[#FD802E]/90 hover:-translate-y-1 transition-all font-black shadow-[0_0_20px_rgba(253,128,46,0.4)] disabled:opacity-30 disabled:grayscale"
                 >
@@ -398,7 +431,7 @@ export function BehaviorTreeViz({
                             const ps = data.pick_stations[0];
                             setSugarX(String(ps.ox));
                             setSugarY(String(ps.oy));
-                            setSugarR(String(ps.r));
+                            setSugarR(String(ps.R));
                             setSugarS(String(ps.station_num));
                         }
                     }}
@@ -416,7 +449,7 @@ export function BehaviorTreeViz({
                             const ok = await updatePickStation(ps.id, {
                                 ox: parseFloat(sugarX) || ps.ox,
                                 oy: parseFloat(sugarY) || ps.oy,
-                                r: parseFloat(sugarR) || ps.r,
+                                r: parseFloat(sugarR) || ps.R,
                                 station_num: parseInt(sugarS) || ps.station_num,
                             });
                             if (ok) {
