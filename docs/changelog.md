@@ -57,10 +57,40 @@
   - 后端通过 Socket.IO 广播 `robot_task_finish` 事件
   - 暂停/停止按钮不受互锁影响，可用于取消任务
 
+- **相机距离定时发送**
+  - 后端每 250ms 读取 `move_distance`（相机检测推荐前进值）
+  - 通过 TCP 发送 `{MessageType=cameraCheckDistance=xxxx}`（单位mm）到下位机
+  - 无反馈报文
+
+- **前端计算移至后端**
+  - 前进距离（铲齿→物料、建议前进）改为后端计算，前端仅显示
+  - 点云卡片"铲齿深度"标签改为"相机高度"
+
 - **任务系统导航按钮**
   - BehaviorTreeViz 中「导航到取糖点」胶囊按钮可点击，发送 allPick
   - BehaviorTreeViz 中「导航到卸载点」胶囊按钮可点击，发送 allDrop
   - 任务运行时两个导航按钮自动禁用
+
+- **任务系统位置显示**
+  - 新增位置显示区域：铲取入口、卸载位置、充电位置、车辆位置、糖堆位置
+  - 所有位置文字统一使用石墨橙色（#FD802E）
+  - 铲取入口：X/Y 为 connect_node 节点坐标，n 为节点号
+  - 卸载位置：X/Y 为 dropStation 坐标，n 为 connect_node
+  - 充电位置：X/Y 通过 chargeStation.node 在 nodes 中查找，n 为节点号
+  - 糖堆位置：X/Y/R/S 可编辑输入框，localStorage 持久化
+
+- **地图站点标记叠加显示**
+  - 取货站：紫色小点显示 connectNode（1003）和 8 个站位（101-108）
+  - 放货站：紫色小点显示卸载位置坐标
+  - 充电站：紫色小点显示充电位置坐标
+  - 糖堆区域：金黄色圆点（中心）+ 虚线圆（R半径）
+  - 所有标记使用与车辆相同的坐标偏移方法
+
+- **取货站圆形分布算法**
+  - 后端 `_resolve_coordinates()` 按 C++ 原版算法生成圆形分布站位
+  - 根据 ox/oy（圆心）、R（半径）、stationNum（数量）、connectNode 计算
+  - 逆时针方向生成 stationNum 个站位坐标
+  - 自动选择离 connectNode 最近的圆交点作为起点
 
 ### [Changed]
 
@@ -100,6 +130,18 @@
   - 根因：`useMemo` 依赖 `imageRef.current`，但 ref 在渲染时为 null 且 ref 变化不触发重渲染
   - 解决：添加 `imageLoaded` 状态 + `onLoad` 回调，确保图片加载完成后才计算位置
 
+- **修复 PickStation R/r 字段名大小写不匹配**
+  - 后端 Pydantic 模型字段名 `r`，alias `R`，FastAPI 序列化输出大写 `R`
+  - 前端 TypeScript 接口统一使用 `R` 与 API 响应匹配
+
+- **修复 useRobotController 重复声明和返回值缺失**
+  - 删除 `pendingTaskId`/`isTaskRunning` 重复的 useState 声明
+  - 在 return 中补充返回 `pendingTaskId` 和 `isTaskRunning`，修复 TypeScript 类型错误
+
+- **修复地图站点标记不显示**
+  - 根因：`usePathMap` 每个组件创建独立实例，MapPanel 未调用 `loadPathMap()`
+  - 解决：MapPanel 组件加载时自动调用 `loadPathMap()` 获取站点数据
+
 ### [Refactor]
 
 - **地图 API 后端重构**
@@ -113,6 +155,16 @@
   - `useMapImage` hook 支持 thetaDeg 参数传递给后端
   - `useMapInfo` hook 支持 thetaDeg 参数获取旋转后边界
   - 移除未使用的 `coordinateRotate` 前端函数（后端统一处理）
+
+- **后端 path_map_manager 重构**
+  - `_resolve_coordinates()` 重写取货站圆形分布算法
+  - 新增 `ChargeStation` 前端接口定义
+  - `usePathMap` hook 返回 `chargeStations` 和 `nodes`
+
+- **前端 BehaviorTreeViz 重构**
+  - 位置显示区域从 slate 色改为石墨橙色统一风格
+  - 新增 `pickPosition`、`dropPosition`、`chargePosition` 的 useMemo 计算
+  - 位置顺序调整：铲取入口 → 卸载位置 → 充电位置 → 车辆位置 → 糖堆位置
 
 ---
 

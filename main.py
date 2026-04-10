@@ -73,6 +73,9 @@ async def startup_event():
 
     await robot_tcp_server.start()
 
+    # 启动相机距离定时发送循环（每250ms发送一次到下位机）
+    asyncio.create_task(camera_distance_sender_loop())
+
 
 async def health_check_loop():
     """定时对所有活跃流进行健康检查（每10分钟）"""
@@ -84,7 +87,28 @@ async def health_check_loop():
             print("[System] Running scheduled 10-min health check...")
             rs_manager.check_all_streams_health()
         except Exception as e:
-            print(f"[System] Error in health check loop: {str(e)}")
+            print(f"[System] Error in health check: {str(e)}")
+
+
+async def camera_distance_sender_loop():
+    """每250ms向后端发送相机检测距离（cameraCheckDistance）"""
+    print("[System] Camera distance sender loop started (Interval: 250ms)")
+    while True:
+        await asyncio.sleep(0.25)
+        try:
+            server = robot_tcp_server
+            if not server or not server.is_connected():
+                continue
+
+            rs_manager = get_realsense_manager()
+            for device_id in rs_manager._discovery.devices:
+                move_distance = rs_manager.get_move_distance(device_id)
+                if move_distance is not None and move_distance > 0:
+                    distance_mm = int(move_distance * 1000)
+                    await server.send_camera_distance(distance_mm)
+                break
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

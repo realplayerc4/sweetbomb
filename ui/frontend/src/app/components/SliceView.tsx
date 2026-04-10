@@ -172,9 +172,6 @@ export function SliceView({
         const maxY = VIEW_MAX_Y;
 
         let filteredCount = 0;
-        let nearestX = Infinity;
-        let nearestY = 0;
-        const BUCKET_HALF_WIDTH = 0.3;
 
         for (let i = 0; i < activeData.length; i += 3) {
             const x = activeData[i];
@@ -182,17 +179,17 @@ export function SliceView({
             const z = activeData[i + 2];
             if (x >= fixedMinX && x <= fixedMaxX && y >= minY && y <= maxY && z >= minHeight && z <= maxHeight) {
                 filteredCount++;
-                if (y >= -BUCKET_HALF_WIDTH && y <= BUCKET_HALF_WIDTH) {
-                    if (x < nearestX) { nearestX = x; nearestY = y; }
-                }
             }
         }
 
         setPointCount(filteredCount);
 
-        if (nearestX !== Infinity) {
-            const materialDistance = nearestX - settings.cameraToTeeth;
+        // 使用后端分析结果，前端不再计算
+        if (pointCloudAnalysis?.distances?.nearest_material !== undefined && pointCloudAnalysis.distances.nearest_material !== null) {
+            const materialDistance = pointCloudAnalysis.distances.nearest_material;
             const advanceDistance = materialDistance + settings.bucketDepth;
+            const nearestX = pointCloudAnalysis.distances.nearest_x ?? (materialDistance + settings.cameraToTeeth);
+            const nearestY = pointCloudAnalysis.distances.nearest_y ?? 0;
             setAdvanceInfo({ nearestX, nearestY, materialDistance, advanceDistance });
         } else {
             setAdvanceInfo(null);
@@ -391,7 +388,7 @@ export function SliceView({
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] text-[#FD802E] font-mono w-14">铲齿深度</span>
+                    <span className="text-[10px] text-[#FD802E] font-mono w-14">相机高度</span>
                     <input
                         type="number"
                         step="0.001"
