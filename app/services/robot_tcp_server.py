@@ -224,7 +224,7 @@ class RobotTCPServer:
 
         协议格式: {MessageType=cameraCheck\nDistance=xxxx\n}
         """
-        message = f"{{MessageType=cameraCheck\nDistance={distance_mm}\n}}"
+        message = f"{{\nMessageType=cameraCheck\nDistance={distance_mm}\n}}"
 
         if not self.client or not self.client.connected:
             logger.warning("机器人未连接，无法发送相机距离")

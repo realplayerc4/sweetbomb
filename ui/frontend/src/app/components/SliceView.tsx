@@ -31,6 +31,8 @@ interface SliceViewProps {
     } | null;
 }
 
+import { API_BASE } from '../config';
+
 interface SliceSettings {
     teethHeight: number;   // Z1: 铲齿放平时的高度 (米)
     cameraToTeeth: number;  // 相机到铲齿前沿距离 (米)
@@ -141,6 +143,25 @@ export function SliceView({
 
     useEffect(() => {
         const timer = setTimeout(() => saveSettings(settings), 500);
+        return () => clearTimeout(timer);
+    }, [settings]);
+
+    // 同步设置到后端
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_BASE}/devices/038122250462/pointcloud/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings),
+                });
+                if (res.ok) {
+                    console.log('[SliceView] Settings synced to backend');
+                }
+            } catch (e) {
+                console.warn('[SliceView] Failed to sync settings:', e);
+            }
+        }, 600);
         return () => clearTimeout(timer);
     }, [settings]);
 

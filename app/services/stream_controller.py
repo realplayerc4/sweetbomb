@@ -63,6 +63,13 @@ class StreamController:
         self.last_frame_time: Dict[str, float] = {}  # device_id -> timestamp
         self._stream_configs_cache: Dict[str, dict] = {}  # device_id -> {configs, align_to}
 
+        # 点云分析参数（per device，由 rs_manager 同步更新）
+        self._analysis_params: Dict[str, dict] = {}
+
+    def update_analysis_params(self, device_id: str, params: dict):
+        """更新指定设备的点云分析参数。"""
+        self._analysis_params[device_id] = params
+
     def start_stream(
         self,
         device_id: str,
@@ -508,20 +515,24 @@ class StreamController:
 
                             # 执行点云分析（体积、距离计算等）
                             try:
-                                # 从设备信息或默认值获取参数
-                                # 注意：这些参数应该从配置中读取，这里使用合理默认值
-                                teeth_height = getattr(self, 'slice_z1', -0.1)
-                                bucket_volume = getattr(self, 'target_volume', 30.0)  # 默认30L
-                                bucket_depth = getattr(self, 'bucket_depth', 0.3)
-                                camera_to_teeth = getattr(self, 'camera_to_teeth', 0.8)  # 默认0.8m
+                                # 从设备参数配置获取（优先使用前端传入的值）
+                                params = self._analysis_params.get(device_id, {})
+                                teeth_height = params.get('teeth_height', -0.1)
+                                bucket_volume = params.get('bucket_volume', 30.0)
+                                bucket_depth = params.get('bucket_depth', 0.3)
+                                camera_to_teeth = params.get('camera_to_teeth', 0.8)
 
                                 analysis_result = self.point_cloud_analyzer.analyze(
                                     point_cloud=verts,
                                     target_volume=bucket_volume,
                                     camera_to_teeth=camera_to_teeth,
                                     z1=teeth_height,
-                                    z2=teeth_height + 0.3,  # 铲斗高度0.3m
+                                    z2=teeth_height + bucket_depth,  # 铲斗高度
                                 )
+
+                                # 调用回调函数，将结果传递给 rs_manager
+                                if self._analysis_result_callback:
+                                    self._analysis_result_callback(device_id, analysis_result)
 
                                 # 将分析结果转换为可序列化的字典
                                 self.latest_analysis_result = {

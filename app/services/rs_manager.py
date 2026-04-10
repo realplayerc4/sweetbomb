@@ -104,6 +104,9 @@ class RealSenseManager:
         self._latest_move_distances: Dict[str, float] = {}
         self._analysis_timestamps: Dict[str, datetime] = {}
 
+        # 点云分析参数设置（per device）
+        self._pointcloud_settings: Dict[str, dict] = {}
+
         # 启动自动流管理后台线程
         self._auto_stream_enabled = True
         self._auto_stream_thread = threading.Thread(target=self._auto_stream_manager, daemon=True)
@@ -164,11 +167,20 @@ class RealSenseManager:
     def _on_analysis_result(self, device_id: str, result: PointCloudAnalysisResult) -> None:
         """回调函数：保存点云分析结果。"""
         approach_offset = 0.05
+
+        # 将 numpy 类型转换为 Python 原生类型，避免 JSON 序列化失败
+        for attr in ('actual_volume', 'target_volume', 'target_depth_x',
+                     'nearest_x', 'nearest_y', 'material_distance',
+                     'pile_height', 'pile_max_z', 'camera_height'):
+            val = getattr(result, attr, None)
+            if val is not None:
+                setattr(result, attr, float(val))
+
         self._latest_analysis_results[device_id] = result
         self._analysis_timestamps[device_id] = datetime.now()
 
         if result.material_distance is not None:
-            move_distance = result.material_distance - approach_offset
+            move_distance = float(result.material_distance) - approach_offset
             if move_distance <= 0:
                 move_distance = 0.1
             self._latest_move_distances[device_id] = move_distance
@@ -183,6 +195,29 @@ class RealSenseManager:
 
     def get_analysis_timestamp(self, device_id: str) -> Optional[datetime]:
         return self._analysis_timestamps.get(device_id)
+
+    # ========== 点云参数设置 ==========
+
+    def get_pointcloud_settings(self, device_id: str) -> dict:
+        """获取设备的点云分析参数，返回默认值如果未设置。"""
+        default = {
+            "teeth_height": -0.1,
+            "camera_to_teeth": 0.8,
+            "bucket_depth": 0.3,
+            "bucket_volume": 30.0,
+        }
+        return self._pointcloud_settings.get(device_id, default)
+
+    def update_pointcloud_settings(self, device_id: str, settings: dict) -> dict:
+        """更新设备的点云分析参数。"""
+        # 获取当前设置
+        current = self.get_pointcloud_settings(device_id)
+        # 合并新设置
+        updated = {**current, **settings}
+        self._pointcloud_settings[device_id] = updated
+        # 同步更新 stream_controller 的参数
+        self._stream.update_analysis_params(device_id, updated)
+        return updated
 
     # ========== 设备管理 API ==========
 

@@ -11,6 +11,21 @@ router = APIRouter()
 
 
 # Pydantic models for API responses
+class PointCloudSettings(BaseModel):
+    """点云分析参数设置。"""
+    teethHeight: float      # Z1: 铲齿放平时的高度 (米)
+    cameraToTeeth: float    # 相机到铲齿前沿距离 (米)
+    bucketDepth: float      # 铲斗深度 (米)
+    bucketVolume: float     # 铲斗目标体积 (升)
+
+
+class PointCloudSettingsResponse(BaseModel):
+    """点云设置响应。"""
+    device_id: str
+    settings: PointCloudSettings
+    message: str = "Settings updated successfully"
+
+
 class PointCloudAnalysisResponse(BaseModel):
     """点云分析结果响应模型。"""
     device_id: str
@@ -142,5 +157,35 @@ async def get_move_distance(
         )
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{device_id}/settings", response_model=PointCloudSettingsResponse)
+async def update_pointcloud_settings(
+    device_id: str,
+    settings: PointCloudSettings,
+    rs_manager: RealSenseManager = Depends(get_realsense_manager),
+):
+    """更新点云分析参数。
+
+    前端修改相机高度、铲齿高度等参数时调用，后端实时生效。
+    """
+    try:
+        updated = rs_manager.update_pointcloud_settings(device_id, {
+            "teeth_height": settings.teethHeight,
+            "camera_to_teeth": settings.cameraToTeeth,
+            "bucket_depth": settings.bucketDepth,
+            "bucket_volume": settings.bucketVolume,
+        })
+        return PointCloudSettingsResponse(
+            device_id=device_id,
+            settings=PointCloudSettings(
+                teethHeight=updated["teeth_height"],
+                cameraToTeeth=updated["camera_to_teeth"],
+                bucketDepth=updated["bucket_depth"],
+                bucketVolume=updated["bucket_volume"],
+            ),
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
