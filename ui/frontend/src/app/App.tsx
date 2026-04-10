@@ -136,11 +136,8 @@ export default function App() {
           <BehaviorTreeViz
             currentNode=""
             status="idle"
-            cycleCount={0}
-            maxCycles={10}
             sugarHeight={0.3}
             heightThreshold={0.20}
-            stepHistory={[]}
           />
         </div>
 

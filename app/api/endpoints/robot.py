@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-from app.services.robot_tcp_server import RobotTCPServer
+from app.services.robot_tcp_server import RobotTCPServer, generate_task_id
 
 router = APIRouter()
 
@@ -123,3 +123,135 @@ async def get_connection_status():
         connected=client.connected,
         missed_heartbeats=client.missed_heartbeats
     )
+
+
+class TaskRequest(BaseModel):
+    """任务请求"""
+    pick_station: str
+    drop_station: str
+
+
+class TaskResponse(BaseModel):
+    """任务响应"""
+    success: bool
+    task_id: str
+    message: str
+
+
+@router.post("/task", response_model=TaskResponse)
+async def send_task(request: TaskRequest):
+    """发送任务到机器人"""
+    import datetime
+
+    server = get_robot_server()
+    if not server:
+        raise HTTPException(status_code=503, detail="机器人服务未启动")
+
+    if not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    # 生成任务ID（时间戳格式）
+    task_id = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')[:17]
+
+    # 发送任务
+    result = await server.send_task(task_id, request.pick_station, request.drop_station)
+
+    if result:
+        return TaskResponse(
+            success=True,
+            task_id=task_id,
+            message="任务已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送任务失败")
+
+
+class SimpleTaskResponse(BaseModel):
+    """简单任务响应"""
+    success: bool
+    task_id: str
+    message: str
+
+
+class StopResponse(BaseModel):
+    """停止响应"""
+    success: bool
+    message: str
+
+
+@router.post("/scoop", response_model=SimpleTaskResponse)
+async def send_scoop():
+    """发送铲取任务 (Type=pick)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    task_id = generate_task_id()
+    result = await server.send_simple_task(task_id, "pick")
+
+    if result:
+        return SimpleTaskResponse(
+            success=True,
+            task_id=task_id,
+            message="铲取任务已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/dump", response_model=SimpleTaskResponse)
+async def send_dump():
+    """发送倾倒任务 (Type=drop)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    task_id = generate_task_id()
+    result = await server.send_simple_task(task_id, "drop")
+
+    if result:
+        return SimpleTaskResponse(
+            success=True,
+            task_id=task_id,
+            message="倾倒任务已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/dock", response_model=SimpleTaskResponse)
+async def send_dock():
+    """发送回桩任务 (Type=charge)"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    task_id = generate_task_id()
+    result = await server.send_simple_task(task_id, "charge")
+
+    if result:
+        return SimpleTaskResponse(
+            success=True,
+            task_id=task_id,
+            message="回桩任务已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")
+
+
+@router.post("/stop", response_model=StopResponse)
+async def stop_robot():
+    """发送停止命令"""
+    server = get_robot_server()
+    if not server or not server.is_connected():
+        raise HTTPException(status_code=503, detail="机器人未连接")
+
+    result = await server.cancel_task()
+
+    if result:
+        return StopResponse(
+            success=True,
+            message="停止命令已发送"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="发送失败")

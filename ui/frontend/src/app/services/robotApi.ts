@@ -133,7 +133,7 @@ export const robotApi = {
     },
 
     /** 紧急停止机器人 */
-    async stop(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async stop(): Promise<{ success: boolean; message: string }> {
         const res = await fetch(`${API_BASE}/robot/stop`, {
             method: 'POST',
         });
@@ -168,7 +168,7 @@ export const robotApi = {
     },
 
     /** 执行铲取动作 */
-    async scoop(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async scoop(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/scoop`, {
             method: 'POST',
         });
@@ -177,7 +177,7 @@ export const robotApi = {
     },
 
     /** 执行倾倒动作 */
-    async dump(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async dump(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/dump`, {
             method: 'POST',
         });
@@ -185,7 +185,7 @@ export const robotApi = {
         return res.json();
     },
     /** 执行回桩动作 */
-    async dock(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async dock(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/dock`, {
             method: 'POST',
         });

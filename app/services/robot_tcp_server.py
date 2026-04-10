@@ -14,12 +14,31 @@
 import asyncio
 import json
 import logging
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Callable, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+# TaskId生成器（线程安全）
+_task_id_lock = threading.Lock()
+_task_id_counter = 0
+_task_id_last_timestamp = ""
+
+
+def generate_task_id() -> str:
+    """生成任务ID: YYYYMMDDHHMMSS + 3位序号（同一秒内序号递增）"""
+    global _task_id_counter, _task_id_last_timestamp
+    with _task_id_lock:
+        ts = datetime.now().strftime('%Y%m%d%H%M%S')
+        if ts == _task_id_last_timestamp:
+            _task_id_counter += 1
+        else:
+            _task_id_counter = 1
+            _task_id_last_timestamp = ts
+        return f"{ts}{_task_id_counter:03d}"
 
 
 class RobotMode(Enum):
@@ -485,6 +504,21 @@ class RobotTCPServer:
             return False
 
         message = f"{{\nMessageType=task\nTaskId={task_id}\nPickStationId={pick_station}\nDropStationId={drop_station}\n}}"
+        await self.client.send_message(message)
+        return True
+
+    async def send_simple_task(self, task_id: str, task_type: str) -> bool:
+        """发送简单任务（新协议格式）"""
+        valid_types = {"pick", "drop", "charge", "allPick", "allDrop"}
+        if task_type not in valid_types:
+            logger.error(f"无效的任务类型: {task_type}")
+            return False
+
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
+            return False
+
+        message = f"{{\nMessageType=task\nTaskId={task_id}\nType={task_type}\n}}"
         await self.client.send_message(message)
         return True
 

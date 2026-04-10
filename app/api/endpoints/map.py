@@ -40,22 +40,20 @@ def get_cached_png(txt_path: Path, theta: float = 0.0) -> Optional[Path]:
     return None
 
 
-def generate_png(txt_path: Path, point_size: float = 1.0, dpi: int = 150, theta: float = 0.0) -> Path:
-    """生成 PNG 图片并缓存"""
+def generate_png(txt_path: Path, point_size: float = 1.0, dpi: int = 150, theta: float = 0.0) -> tuple:
+    """生成 PNG 图片并缓存，返回路径和偏移量信息"""
     suffix = "" if theta == 0.0 else f"_theta{theta:.4f}"
     cache_path = CACHE_DIR / f"{txt_path.stem}{suffix}.png"
 
     # 使用 map_converter 服务生成 PNG
-    convert_map(
-        input_path=str(txt_path),
-        output_path=str(cache_path),
-        format="png",
-        point_size=point_size,
-        dpi=dpi,
-        theta=theta,
-    )
+    converter = MapConverter()
+    map_data = converter.parse_grid_map(str(txt_path))
+    result = converter.to_png(map_data, str(cache_path), point_size, dpi, theta=theta)
 
-    return cache_path
+    # result 是 (path, offset_info) 的元组
+    if isinstance(result, tuple):
+        return result[0], result[1]
+    return cache_path, {}
 
 
 @router.get("/")
@@ -136,15 +134,20 @@ async def get_map_png(
                 }
             )
 
-    # 生成新的 PNG（传递弧度值）
+    # 生成新的 PNG（传递弧度值），同时获取偏移量信息
     try:
-        png_path = generate_png(txt_path, point_size, dpi, theta_rad)
+        png_path, offset_info = generate_png(txt_path, point_size, dpi, theta_rad)
         return FileResponse(
             png_path,
             media_type="image/png",
             headers={
                 "Cache-Control": "public, max-age=86400",
                 "X-Cache": "MISS",
+                "X-Offset-Left": str(offset_info.get('offset_x_left', 0)),
+                "X-Offset-Top": str(offset_info.get('offset_y_top', 0)),
+                "X-Offset-Bottom": str(offset_info.get('offset_y_bottom', 0)),
+                "X-Data-Width": str(offset_info.get('data_width_px', 0)),
+                "X-Data-Height": str(offset_info.get('data_height_px', 0)),
             }
         )
     except Exception as e:
@@ -189,6 +192,9 @@ async def get_map_info(
 
         theta_rad = theta * math.pi / 180.0
 
+        # 生成PNG获取偏移量信息
+        png_path, offset_info = generate_png(txt_path, 1.0, 150, theta_rad)
+
         # 计算旋转后的边界
         corners = [
             (map_data.bounds[0], map_data.bounds[1]),  # min_x, min_y
@@ -200,9 +206,31 @@ async def get_map_info(
         rx = [p[0] for p in rotated_corners]
         ry = [p[1] for p in rotated_corners]
 
-        # 计算旋转后地图在图片中的像素尺寸（用于前端定位）
-        img_width_px = (max(rx) - min(rx)) / map_data.resolution
-        img_height_px = (max(ry) - min(ry)) / map_data.resolution
+        # 旋转后的数据范围（包含margin）
+        data_width = max(rx) - min(rx)
+        data_height = max(ry) - min(ry)
+        margin = max(data_width, data_height) * 0.05
+        png_bounds = {
+            "min_x": min(rx) - margin,
+            "min_y": min(ry) - margin,
+            "max_x": max(rx) + margin,
+            "max_y": max(ry) + margin,
+        }
+
+        # 从offset_info获取实际PNG的偏移量和尺寸
+        offset_x_left = offset_info.get('offset_x_left', 0)
+        offset_y_top = offset_info.get('offset_y_top', 0)
+        offset_y_bottom = offset_info.get('offset_y_bottom', 0)
+        data_width_px = offset_info.get('data_width_px', 0)
+        data_height_px = offset_info.get('data_height_px', 0)
+        actual_width_px = offset_info.get('actual_width_px', 0)
+        actual_height_px = offset_info.get('actual_height_px', 0)
+
+        # axes实际显示的数据范围（精确匹配PNG中的显示区域）
+        axes_min_x = offset_info.get('axes_min_x', png_bounds['min_x'])
+        axes_max_x = offset_info.get('axes_max_x', png_bounds['max_x'])
+        axes_min_y = offset_info.get('axes_min_y', png_bounds['min_y'])
+        axes_max_y = offset_info.get('axes_max_y', png_bounds['max_y'])
 
         return {
             "filename": txt_path.name,
@@ -228,10 +256,28 @@ async def get_map_info(
                 "max_x": max(rx),
                 "max_y": max(ry),
             },
-            "img_width_px": round(img_width_px, 1),
-            "img_height_px": round(img_height_px, 1),
+            "png_bounds": png_bounds,
+            "img_width_px": round(actual_width_px, 1),
+            "img_height_px": round(actual_height_px, 1),
             "point_count": len(map_data.points),
             "png_url": f"/api/map/{map_name}.png",
+            # 像素偏移量（用于前端车辆定位）
+            "offset": {
+                "x_left": round(offset_x_left, 1),
+                "y_top": round(offset_y_top, 1),
+                "y_bottom": round(offset_y_bottom, 1),
+            },
+            "data_area_px": {
+                "width": round(data_width_px, 1),
+                "height": round(data_height_px, 1),
+            },
+            # axes实际显示的数据范围（精确匹配PNG显示区域）
+            "axes_range": {
+                "min_x": round(axes_min_x, 6),
+                "max_x": round(axes_max_x, 6),
+                "min_y": round(axes_min_y, 6),
+                "max_y": round(axes_max_y, 6),
+            },
         }
 
     except Exception as e:

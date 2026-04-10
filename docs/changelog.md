@@ -24,63 +24,73 @@
 
 ### [Added]
 
-- **机器人控制面板实时数据柱状图**
-  - 新增举升 (boom) 和旋转 (bucket) 实时数值柱状条显示
-  - 举升范围: 10-290mm，旋转范围: -50-80mm
-  - 柱状条按百分比填充，石墨橙色 (#FD802E)
-  - 底部显示数值带单位 (如 "36.7 mm")
+- **地图栅格旋转功能**
+  - 新增全局 theta 旋转参数，支持手动输入角度值（默认 -178.0472°，顺时针旋转）
+  - 后端 `map_converter` 服务新增 `coordinate_rotate` 函数，对所有栅格点应用旋转
+  - 后端 `/api/map/{name}.png` 支持 `theta` 参数（度），自动转换弧度后生成旋转PNG
+  - 后端 `/api/map/{name}/info` 支持 `theta` 参数，返回旋转后边界 `rotated_bounds` 和图片像素尺寸 `img_width_px/img_height_px`
+  - 缓存机制支持不同 theta 值的独立缓存（文件名带 `_theta{x.xxxx}` 后缀）
+  - 前端 MapPanel 右上角添加 theta 输入框，可手动修改角度
 
-- **地图面板坐标信息显示**
-  - 在胶囊状态栏显示 X, Y, A 实时坐标
-  - 格式: `GRIDMAP | X 354 | Y 20 | A 3.3°`
+- **地图车辆位置指示器**
+  - 在地图上叠加显示带箭头的橙色方块，表示车辆实时位置和朝向
+  - 方块尺寸与真实车体比例一致：宽 800mm，长 1400mm
+  - 根据地图分辨率自动计算像素尺寸，跟随地图缩放
+  - XYZA 数值表示车辆正中心，角度 A 为车头与X轴夹角
+  - 通过 `imageLoaded` 状态 + `onLoad` 回调确保图片加载后才计算位置
+
+- **任务下发 API 端点**
+  - 新增 `POST /api/robot/task` 端点，支持向后端发送任务到下位机
+  - 请求体：`{"pick_station": "123", "drop_station": "789"}`
+  - 自动生成时间戳格式 TaskId（如 `20260409184535006`）
+  - 下位机返回 `Result=1` 表示任务已接收
+
+- **机器人控制按钮新协议**
+  - 新增 `POST /api/robot/scoop` 端点，发送铲取任务（Type=pick）
+  - 新增 `POST /api/robot/dump` 端点，发送倾倒任务（Type=drop）
+  - 新增 `POST /api/robot/dock` 端点，发送回桩任务（Type=charge）
+  - 新增 `POST /api/robot/stop` 端点，发送取消任务命令（cancelTask）
+  - 新协议格式: `{MessageType=task\nTaskId=xxx\nType=xxxx\n}`
+  - TaskId 生成器（线程安全）: `YYYYMMDDHHMMSS` + 3位序号
 
 ### [Changed]
 
-- **界面简化优化**
-  - 移除 Mode Local/Remote 显示，当前只有单一状态
-  - 电量百分比字体加大 (12px → 16px)
+- **机器人控制面板底部按钮**
+  - 增加暂停按钮，共五个按钮：铲取、倾倒、暂停、停止、回桩
+  - 五个按钮大小统一（`w-[110px]`），暂停黄色hover，停止红色hover
 
-- **实时数据更新频率**
-  - 机器人状态轮询间隔从 1000ms 改为 500ms
+- **地图坐标显示**
+  - X/Y 显示原始机器人数据（mm），不应用 theta 旋转转换
+  - X/Y 单位为整数（mm），A 单位为度（1位小数）
 
 ### [Fixed]
 
-- **修复机器人 TCP 通信心跳检测失败问题**
-  - 客户端连接后未注册到服务端字典，导致心跳查询无法发送
-  - 根因：`robot_id` 为 `None`，未被加入 `self.clients`
+- **修复 matplotlib 导入失败导致地图PNG转换失败**
+  - 根因：venv 中 matplotlib 3.5.1（系统包）与 NumPy 2.2.6 版本不兼容
+  - 解决：在 venv 中安装新版 matplotlib 3.10.8
 
-- **修复前端远程访问 API 请求失败**
-  - `RobotConnectionStatus.tsx` 和 `useMap.ts` 硬编码 `localhost:8000`
-  - 局域网远程访问时请求无法到达后端，统一改用 `config.ts` 的 `API_BASE`
+- **修复前端 MapInfo 数据结构与后端 API 不匹配**
+  - 后端 `/api/map/` 返回 `filename, size_bytes, modified_time` 等字段
+  - 前端 `MapInfo` 接口期望 `resolution, origin_x, grid_width` 等字段
+  - 统一接口定义，新增 `MapDetailInfo` 接口包含旋转后边界信息
+
+- **修复车辆指示器不显示问题**
+  - 根因：`useMemo` 依赖 `imageRef.current`，但 ref 在渲染时为 null 且 ref 变化不触发重渲染
+  - 解决：添加 `imageLoaded` 状态 + `onLoad` 回调，确保图片加载完成后才计算位置
 
 ### [Refactor]
 
-- **简化 TCP 服务器为单客户端模式**
-  - 移除 `robot_id` 多机器人支持，本项目只有一台机器人
-  - `self.clients: Dict[str, Client]` → `self.client: Optional[Client]`
-  - 连接建立立即注册，心跳检测直接对 `self.client` 发送
-  - `/api/robot/status` 返回单个对象（不再返回列表）
-  - 删除 `/api/robot/status/{robot_id}` 端点
-  - 前端 `RobotStatus` 类型移除 `robot_id` 字段
+- **地图 API 后端重构**
+  - `map_converter.py` 新增 `coordinate_rotate` 旋转函数
+  - `to_png` 方法支持 theta 参数，对所有栅格点应用旋转后生成 PNG
+  - `convert_map` 便捷函数透传 theta 参数
+  - `map.py` API 缓存 key 包含 theta 值，支持不同角度独立缓存
 
-- **移除 metadata 中模拟系统数据**
-  - 删除 `battery`、`temperature`、`signal` 写死的模拟值
-  - 保留 `cpu_load`（真实 psutil 读取）和 `hostname`
-
-- **地图 API 改进**
-  - 新增地图缓存机制 (`data/map/cache/`)
-  - 支持远程地图下载和本地缓存
-  - 地图转换服务优化
-
-### [Changed]
-
-- Vite 添加 `/api` 代理到后端，避免跨域问题
-
-### Planned
-
-- [ ] 远程节点管理功能上线
-- [ ] 多语言支持 (i18n)
-- [ ] 数据导出功能 (CSV/JSON)
+- **前端 MapPanel 重构**
+  - 分离 `robotStatus`（原始坐标显示）和 `vehicleData`（地图指示器定位）
+  - `useMapImage` hook 支持 thetaDeg 参数传递给后端
+  - `useMapInfo` hook 支持 thetaDeg 参数获取旋转后边界
+  - 移除未使用的 `coordinateRotate` 前端函数（后端统一处理）
 
 ---
 

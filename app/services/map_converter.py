@@ -191,7 +191,7 @@ class MapConverter:
             else:
                 figsize = (base_size * aspect_ratio, base_size)
 
-        # 创建图形
+        # 创建图形（无装饰，仅地图数据）
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
 
         # 绘制点 - 使用石墨橙色（使用旋转后的坐标）
@@ -204,9 +204,9 @@ class MapConverter:
             markeredgewidth=0
         )
 
-        # 设置背景色
-        ax.set_facecolor(COLORS["background"])
-        fig.patch.set_facecolor(COLORS["background"])
+        # 设置背景色（透明）
+        ax.set_facecolor('none')
+        fig.patch.set_facecolor('none')
 
         # 设置标题和标签颜色
         ax.set_title("Grid Map", color=COLORS["text"], fontsize=14, fontweight='bold')
@@ -224,30 +224,89 @@ class MapConverter:
 
         # 设置坐标轴范围（添加一些边距）
         margin = max(data_width, data_height) * 0.05
-        ax.set_xlim(min_x - margin, max_x + margin)
-        ax.set_ylim(min_y - margin, max_y + margin)
+        actual_min_x = min_x - margin
+        actual_max_x = max_x + margin
+        actual_min_y = min_y - margin
+        actual_max_y = max_y + margin
+        ax.set_xlim(actual_min_x, actual_max_x)
+        ax.set_ylim(actual_min_y, actual_max_y)
 
-        # 保存图片
+        # 计算数据范围的像素尺寸（理论值）
+        data_width_px = (actual_max_x - actual_min_x) / map_data.resolution * (dpi / 150)
+        data_height_px = (actual_max_y - actual_min_y) / map_data.resolution * (dpi / 150)
+
+        # 保存图片（使用tight裁剪，包含装饰元素）
         if output_path:
             plt.tight_layout()
+            # 先渲染获取axes在figure中的像素位置
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            ax_bbox = ax.get_window_extent(renderer)
+            fig_bbox = fig.get_window_extent(renderer)
+
+            # axes左下角在figure中的偏移量
+            offset_x_left = ax_bbox.x0 - fig_bbox.x0    # Y轴标签+刻度占用
+            offset_y_bottom = ax_bbox.y0 - fig_bbox.y0   # X轴标签+刻度占用
+            offset_x_right = fig_bbox.x1 - ax_bbox.x1    # 右侧空白
+            offset_y_top = fig_bbox.y1 - ax_bbox.y1       # 标题占用
+
+            # 实际图片像素尺寸
+            actual_width_px = int(fig_bbox.width)
+            actual_height_px = int(fig_bbox.height)
+
+            # axes实际显示的数据范围
+            axes_xlim = ax.get_xlim()
+            axes_ylim = ax.get_ylim()
+
             plt.savefig(
                 output_path,
                 dpi=dpi,
                 bbox_inches='tight',
-                facecolor=COLORS["background"],
+                pad_inches=0.1,
+                transparent=True,
+                facecolor='none',
                 edgecolor='none'
             )
             plt.close()
-            return output_path
+
+            return output_path, {
+                'offset_x_left': offset_x_left,
+                'offset_x_right': offset_x_right,
+                'offset_y_top': offset_y_top,
+                'offset_y_bottom': offset_y_bottom,
+                'data_width_px': ax_bbox.width,
+                'data_height_px': ax_bbox.height,
+                'actual_width_px': actual_width_px,
+                'actual_height_px': actual_height_px,
+                # axes实际显示的数据范围（用于前端车辆定位）
+                'axes_min_x': axes_xlim[0],
+                'axes_max_x': axes_xlim[1],
+                'axes_min_y': axes_ylim[0],
+                'axes_max_y': axes_ylim[1],
+            }
         else:
             # 返回 base64 编码的图片数据
             buf = io.BytesIO()
+            plt.tight_layout()
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            ax_bbox = ax.get_window_extent(renderer)
+            fig_bbox = fig.get_window_extent(renderer)
+            offset_x_left = ax_bbox.x0 - fig_bbox.x0
+            offset_y_bottom = ax_bbox.y0 - fig_bbox.y0
+            offset_x_right = fig_bbox.x1 - ax_bbox.x1
+            offset_y_top = fig_bbox.y1 - ax_bbox.y1
+            actual_width_px = int(fig_bbox.width)
+            actual_height_px = int(fig_bbox.height)
+
             plt.savefig(
                 buf,
                 format='png',
                 dpi=dpi,
                 bbox_inches='tight',
-                facecolor=COLORS["background"],
+                pad_inches=0.1,
+                transparent=True,
+                facecolor='none',
                 edgecolor='none'
             )
             plt.close()

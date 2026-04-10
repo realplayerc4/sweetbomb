@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pickaxe, RotateCw, AlertOctagon, Cpu, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { Pickaxe, RotateCw, AlertOctagon, Cpu, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, LogOut, Pause } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { useRobotController } from '../hooks/useRobotController';
@@ -20,7 +20,10 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
     } = useRobotController();
 
     const [isRemote] = useState(true);
-    const [moveSpeed] = useState(0.5); // Fixed display value
+    const [moveSpeed] = useState(0.5); // Default move speed for controls
+
+    // Get current vehicle speed from status
+    const currentSpeed = status?.speed ?? 0;
 
     const handleDirectionClick = async (direction: MoveDirection) => {
         try {
@@ -52,7 +55,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
             {/* 1. Left: Set Speed */}
             <div className="absolute top-[16px] left-[32px] z-[100] flex flex-col items-start">
                 <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">System Ready // Speed</span>
-                <span className="text-[12px] font-black text-[#FD802E] tracking-tighter">设定速度: {moveSpeed.toFixed(1)} m/s</span>
+                <span className="text-[12px] font-black text-[#FD802E] tracking-tighter">车辆速度: {currentSpeed.toFixed(1)} m/s</span>
             </div>
 
             {/* 2. Center: Status Capsule - PHYSICALLY CENTERED */}
@@ -195,8 +198,8 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 </div>
             </div>
 
-            {/* Bottom Action Footer - Symmetrical v7 Layout */}
-            <div className="absolute bottom-[20px] left-0 right-0 flex justify-center items-center gap-[5px] z-[120]">
+            {/* Bottom Action Buttons */}
+            <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 flex justify-center items-center gap-[5px] z-[120]">
                 {/* 1. Scoop */}
                 <Button
                     onClick={scoop}
@@ -217,7 +220,17 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     <span className="text-[10px] tracking-[0.2em]">倾倒</span>
                 </Button>
 
-                {/* 3. Stop */}
+                {/* 3. Pause */}
+                <Button
+                    onClick={stop}
+                    disabled={!isRemote || status?.status === 'emergency_stop'}
+                    className="w-[110px] flex flex-col items-center justify-center gap-1.5 py-8 bg-[#FD802E]/10 text-[#FD802E] border border-[#FD802E]/20 rounded-2xl hover:bg-yellow-500 hover:text-black transition-all font-black shadow-lg disabled:opacity-30 disabled:grayscale"
+                >
+                    <Pause className="w-5 h-5" />
+                    <span className="text-[10px] tracking-[0.2em]">暂停</span>
+                </Button>
+
+                {/* 4. Stop */}
                 <Button
                     onClick={stop}
                     disabled={!isRemote || status?.status === 'emergency_stop'}
@@ -227,7 +240,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     <span className="text-[10px] tracking-[0.2em]">停止</span>
                 </Button>
 
-                {/* 4. Dock */}
+                {/* 5. Dock */}
                 <Button
                     onClick={dock}
                     disabled={!isRemote || status?.status === 'emergency_stop'}

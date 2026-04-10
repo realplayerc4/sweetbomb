@@ -3,6 +3,7 @@ import { BarChart3, ZoomIn, ZoomOut, RotateCcw, Maximize, Loader2 } from 'lucide
 import { Card } from './ui/card';
 import { useMapImage, useMapList, useMapInfo } from '../hooks/useMap';
 import { useRobotController } from '../hooks/useRobotController';
+import { usePathMap } from '../hooks/usePathMap';
 
 interface Transform {
   scale: number;
@@ -33,6 +34,7 @@ export function MapPanel() {
   const { imageUrl, isLoading, error, loadImage } = useMapImage(currentMap, currentThetaDeg);
   const { info: mapInfo } = useMapInfo(currentMap, currentThetaDeg);
   const { status } = useRobotController();
+  const { pickStations, dropStations } = usePathMap();
 
   // 变换状态
   const [transform, setTransform] = useState<Transform>({
@@ -55,42 +57,104 @@ export function MapPanel() {
   // 机器人坐标已经是转换后的坐标系，单位mm
   const robotStatus = status?.connected ? status : null;
 
+  // 像素偏移量（手动校准车辆投影位置，保存到localStorage）
+  const [pixelOffsetX, setPixelOffsetX] = useState(() => {
+    const saved = localStorage.getItem('mapOffsetX');
+    return saved ? parseInt(saved) : 0;
+  });
+  const [pixelOffsetY, setPixelOffsetY] = useState(() => {
+    const saved = localStorage.getItem('mapOffsetY');
+    return saved ? parseInt(saved) : 0;
+  });
+
+  // 保存偏移量到localStorage
+  useEffect(() => {
+    localStorage.setItem('mapOffsetX', String(pixelOffsetX));
+  }, [pixelOffsetX]);
+
+  useEffect(() => {
+    localStorage.setItem('mapOffsetY', String(pixelOffsetY));
+  }, [pixelOffsetY]);
+
   // 计算车辆在图片上的像素位置和尺寸
   const vehicleData = useMemo(() => {
     if (!robotStatus || !mapInfo || !imageLoaded || !imageRef.current) return null;
 
     const img = imageRef.current;
-    const rb = mapInfo.rotated_bounds;
-    const res = mapInfo.resolution;
+    const offset = mapInfo.offset;
+    const dataArea = mapInfo.data_area_px;
+    const ar = mapInfo.axes_range || mapInfo.png_bounds;
 
-    // 机器人坐标 mm -> m
+    // 机器人坐标 mm -> m（直接使用原始坐标，不做theta旋转）
     const xM = robotStatus.x / 1000;
     const yM = robotStatus.y / 1000;
 
-    // PNG实际像素尺寸
-    const imgW = img.naturalWidth;
-    const imgH = img.naturalHeight;
+    // 归一化位置（基于axes实际显示范围）
+    const normX = (xM - ar.min_x) / (ar.max_x - ar.min_x);
+    const normY = (ar.max_y - yM) / (ar.max_y - ar.min_y);
 
-    // 数据像素尺寸
-    const dataW = mapInfo.img_width_px;
-    const dataH = mapInfo.img_height_px;
-
-    // 缩放比例
-    const scaleRatioX = imgW / dataW;
-    const scaleRatioY = imgH / dataH;
-
-    // 车辆中心像素位置
-    const px = ((xM - rb.min_x) / res) * scaleRatioX;
-    const py = ((rb.max_y - yM) / res) * scaleRatioY;
+    // PNG像素位置（加上手动偏移量）
+    const px = offset.x_left + normX * dataArea.width + pixelOffsetX;
+    const py = offset.y_top + normY * dataArea.height + pixelOffsetY;
 
     // 车辆像素尺寸
-    const vehicleWidthPx = (VEHICLE_WIDTH_M / res) * scaleRatioX;
-    const vehicleLengthPx = (VEHICLE_LENGTH_M / res) * scaleRatioY;
+    const pixelPerMeterX = dataArea.width / (ar.max_x - ar.min_x);
+    const pixelPerMeterY = dataArea.height / (ar.max_y - ar.min_y);
+    const vehicleWidthPx = VEHICLE_WIDTH_M * pixelPerMeterX;
+    const vehicleLengthPx = VEHICLE_LENGTH_M * pixelPerMeterY;
 
-    console.log('[MapPanel] Vehicle position:', { px, py, vehicleWidthPx, vehicleLengthPx, imgW, imgH });
+    // 车辆朝向角度
+    const rotatedAngle = 90 - robotStatus.a;
 
-    return { px, py, vehicleWidthPx, vehicleLengthPx, imgW, imgH };
-  }, [robotStatus, mapInfo, imageLoaded]);
+    console.log('[MapPanel] Vehicle position:', { px, py, normX, normY, xM, yM, rotatedAngle, vehicleWidthPx, vehicleLengthPx, dataArea, offset, ar });
+
+    return { px, py, vehicleWidthPx, vehicleLengthPx, imgW: img.naturalWidth, imgH: img.naturalHeight, rotatedAngle };
+  }, [robotStatus, mapInfo, imageLoaded, pixelOffsetX, pixelOffsetY]);
+
+  // 计算站点标记的像素位置（使用后端预计算的坐标）
+  const stationMarkers = useMemo(() => {
+    if (!mapInfo || !imageLoaded || !imageRef.current) return [];
+    if (pickStations.length === 0 && dropStations.length === 0) return [];
+
+    const offset = mapInfo.offset;
+    const dataArea = mapInfo.data_area_px;
+    const ar = mapInfo.axes_range || mapInfo.png_bounds;
+
+    // 坐标转换函数：mm -> 像素
+    const mmToPx = (xMm: number, yMm: number) => {
+      const xM = xMm / 1000;
+      const yM = yMm / 1000;
+      const normX = (xM - ar.min_x) / (ar.max_x - ar.min_x);
+      const normY = (ar.max_y - yM) / (ar.max_y - ar.min_y);
+      const px = offset.x_left + normX * dataArea.width + pixelOffsetX;
+      const py = offset.y_top + normY * dataArea.height + pixelOffsetY;
+      return { px, py };
+    };
+
+    const markers: Array<{ px: number; py: number; label: string; type: 'pick' | 'drop' }> = [];
+
+    // 取货站：使用后端预计算的 positions 坐标
+    pickStations.forEach((ps) => {
+      ps.positions.forEach((pos) => {
+        const { px, py } = mmToPx(pos.x, pos.y);
+        const label = `PS${pos.station_id}`;
+        markers.push({ px, py, label, type: 'pick' });
+      });
+    });
+
+    // 放货站：使用后端预计算的 x, y 坐标
+    dropStations.forEach((ds) => {
+      if (ds.x !== null && ds.y !== null) {
+        const { px, py } = mmToPx(ds.x, ds.y);
+        const label = `DS${ds.id}`;
+        markers.push({ px, py, label, type: 'drop' });
+      }
+    });
+
+    console.log('[MapPanel] Station markers:', markers.length, markers.slice(0, 3));
+
+    return markers;
+  }, [mapInfo, imageLoaded, pickStations, dropStations, pixelOffsetX, pixelOffsetY]);
 
   // 图片加载完成回调
   const handleImageLoad = useCallback(() => {
@@ -223,7 +287,7 @@ export function MapPanel() {
 
   return (
     <Card className="relative overflow-hidden h-full p-0 bg-[#1c1c1e] border-[#FD802E]/20 rounded-[10px] shadow-[0_0_25px_rgba(253,128,46,0.1)] group">
-      {/* Top Status Capsule */}
+      {/* Status Capsule - 居中 */}
       <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-4 py-2 rounded-full border border-[#FD802E]/60 shadow-[0_0_10px_rgba(253,128,46,0.2)]">
         <BarChart3 className="w-3.5 h-3.5 text-[#FD802E]" />
         <span className="text-[10px] text-[#FD802E] font-bold tracking-widest uppercase font-mono">{currentMap.toUpperCase()}</span>
@@ -238,8 +302,20 @@ export function MapPanel() {
         </span>
       </div>
 
+      {/* Legend 图例 - 右上角 */}
+      <div className="absolute top-[14px] right-3 z-10 flex items-center gap-3 bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#FD802E]/40">
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-3 border-2 border-[#C0C0C0] bg-[#C0C0C0]/30 rounded-sm" />
+          <span className="text-[10px] text-slate-300 font-mono">机器人</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-purple-500" />
+          <span className="text-[10px] text-slate-300 font-mono">站点</span>
+        </div>
+      </div>
+
       {/* Theta Input */}
-      <div className="absolute top-[10px] right-3 z-10 flex items-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-2 rounded-lg border border-[#FD802E]/40">
+      <div className="absolute top-[55px] right-3 z-10 flex items-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-2 rounded-lg border border-[#FD802E]/40">
         <span className="text-[10px] text-[#FD802E]/80 font-mono">θ</span>
         <input
           type="number"
@@ -252,8 +328,8 @@ export function MapPanel() {
         <span className="text-[10px] text-[#FD802E]/80 font-mono">°</span>
       </div>
 
-      {/* Toolbar */}
-      <div className="absolute top-[60px] left-3 z-10 flex flex-col gap-2">
+      {/* Toolbar - 右侧居中 */}
+      <div className="absolute top-1/2 right-3 -translate-y-1/2 z-10 flex flex-col gap-2">
         <button
           onClick={handleZoomIn}
           className="w-8 h-8 flex items-center justify-center bg-[#1c1c1e]/90 backdrop-blur-md rounded-lg border border-[#FD802E]/40 text-[#FD802E] hover:bg-[#FD802E]/20 transition-all"
@@ -284,11 +360,36 @@ export function MapPanel() {
         </button>
       </div>
 
-      {/* Zoom Level Indicator */}
-      <div className="absolute bottom-3 left-3 z-10 bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#FD802E]/40">
-        <span className="text-[10px] text-[#FD802E] font-mono">
-          {(transform.scale * 100).toFixed(0)}%
-        </span>
+      {/* Zoom Level Indicator + Pixel Offset Controls */}
+      <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-2">
+        <div className="bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#FD802E]/40">
+          <span className="text-[10px] text-[#FD802E] font-mono">
+            {(transform.scale * 100).toFixed(0)}%
+          </span>
+        </div>
+        <div className="flex items-center gap-2 bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-2 rounded-lg border border-[#FD802E]/40">
+          <span className="text-[10px] text-slate-400 font-mono">偏移</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-[#FD802E]/80 font-mono">X</span>
+            <input
+              type="number"
+              value={pixelOffsetX}
+              onChange={(e) => setPixelOffsetX(parseInt(e.target.value) || 0)}
+              className="w-[50px] h-[20px] bg-[#1c1c1e] text-[#FD802E] text-[10px] font-mono text-center rounded border border-[#FD802E]/30 focus:border-[#FD802E] focus:outline-none"
+              step="1"
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-[#FD802E]/80 font-mono">Y</span>
+            <input
+              type="number"
+              value={pixelOffsetY}
+              onChange={(e) => setPixelOffsetY(parseInt(e.target.value) || 0)}
+              className="w-[50px] h-[20px] bg-[#1c1c1e] text-[#FD802E] text-[10px] font-mono text-center rounded border border-[#FD802E]/30 focus:border-[#FD802E] focus:outline-none"
+              step="1"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Map Container */}
@@ -355,7 +456,7 @@ export function MapPanel() {
                 viewBox={`0 0 ${vehicleData.imgW} ${vehicleData.imgH}`}
               >
                 <g
-                  transform={`translate(${vehicleData.px}, ${vehicleData.py}) rotate(${-robotStatus.a})`}
+                  transform={`translate(${vehicleData.px}, ${vehicleData.py}) rotate(${vehicleData.rotatedAngle})`}
                 >
                   {/* Vehicle body - 根据实际车体尺寸 */}
                   <rect
@@ -363,17 +464,67 @@ export function MapPanel() {
                     y={-vehicleData.vehicleLengthPx / 2}
                     width={vehicleData.vehicleWidthPx}
                     height={vehicleData.vehicleLengthPx}
-                    fill="rgba(253, 128, 46, 0.9)"
-                    stroke="#FD802E"
+                    fill="rgba(192, 192, 192, 0.9)"
+                    stroke="#C0C0C0"
                     strokeWidth={2}
                     rx={3}
                   />
                   {/* Arrow pointing forward (车头方向) */}
                   <polygon
                     points={`0,${-vehicleData.vehicleLengthPx / 2 - 10} ${-6},${-vehicleData.vehicleLengthPx / 2 + 2} ${6},${-vehicleData.vehicleLengthPx / 2 + 2}`}
-                    fill="#FD802E"
+                    fill="#C0C0C0"
                   />
                 </g>
+              </svg>
+            )}
+
+            {/* Station Markers */}
+            {stationMarkers.length > 0 && vehicleData && (
+              <svg
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: vehicleData.imgW,
+                  height: vehicleData.imgH,
+                  pointerEvents: 'none',
+                  overflow: 'visible',
+                }}
+                viewBox={`0 0 ${vehicleData.imgW} ${vehicleData.imgH}`}
+              >
+                {stationMarkers.map((marker) => (
+                  <g key={marker.label}>
+                    {/* 紫色圆点 */}
+                    <circle
+                      cx={marker.px}
+                      cy={marker.py}
+                      r={5}
+                      fill="#9333EA"
+                      stroke="#c084fc"
+                      strokeWidth={1}
+                    />
+                    {/* 右下角标签 */}
+                    <rect
+                      x={marker.px + 4}
+                      y={marker.py + 2}
+                      width={36}
+                      height={12}
+                      rx={2}
+                      fill="rgba(0,0,0,0.7)"
+                    />
+                    <text
+                      x={marker.px + 22}
+                      y={marker.py + 11}
+                      fill="white"
+                      fontSize="8"
+                      fontFamily="monospace"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      {marker.label}
+                    </text>
+                  </g>
+                ))}
               </svg>
             )}
           </div>

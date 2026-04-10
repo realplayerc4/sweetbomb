@@ -25,10 +25,17 @@ export interface MapDetailInfo {
   grid_size: { width: number; height: number };
   bounds: { min_x: number; min_y: number; max_x: number; max_y: number };
   rotated_bounds: { min_x: number; min_y: number; max_x: number; max_y: number };
+  png_bounds: { min_x: number; min_y: number; max_x: number; max_y: number };
   img_width_px: number;
   img_height_px: number;
   point_count: number;
   png_url: string;
+  // 像素偏移量（装饰元素占用的空间）
+  offset: { x_left: number; y_top: number; y_bottom: number };
+  // 数据区域像素尺寸
+  data_area_px: { width: number; height: number };
+  // axes实际显示的数据范围
+  axes_range: { min_x: number; max_x: number; min_y: number; max_y: number };
 }
 
 interface UseMapOptions {
