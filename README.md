@@ -64,13 +64,22 @@ cd ../..
 ```
 
 #### 5. 启动服务
+
 ```bash
-# 使用启动脚本
+# 方式一：使用启动脚本（开发调试）
 ./start-simple.sh
 
-# 或手动启动
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+# 方式二：安装开机自启动（生产环境）
+sudo ./install-service.sh
+```
+
+**常用服务命令：**
+```bash
+systemctl start sweetbomb-backend sweetbomb-frontend   # 启动
+systemctl stop sweetbomb-backend sweetbomb-frontend    # 停止
+systemctl restart sweetbomb-backend sweetbomb-frontend # 重启
+systemctl status sweetbomb-backend sweetbomb-frontend  # 状态
+journalctl -u sweetbomb-backend -u sweetbomb-frontend -f  # 日志
 ```
 
 ### 常见问题
@@ -200,11 +209,8 @@ source venv/bin/activate
 # 安装依赖
 pip install -r requirements.txt
 
-# 方式一：直接启动
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# 方式二：使用 PM2 (推荐)
-pm2 start ecosystem.config.cjs
+# 启动服务
+uvicorn main:combined_app --host 0.0.0.0 --port 8000
 ```
 后端服务将运行在 `http://localhost:8000`。
 API 文档: `http://localhost:8000/docs`
@@ -221,24 +227,20 @@ npm run dev
 ```
 前端页面将运行在 `http://localhost:5173`。
 
-### 4. PM2 进程管理 (PM2 Process Management)
-项目已集成 PM2 配置，可使用 Claude 命令便捷控制：
+### 4. 生产环境部署 (Production Deployment)
 
+安装 systemd 服务实现开机自启动：
 ```bash
-# 启动所有服务
-/pm2-all
+sudo ./install-service.sh
+```
 
-# 停止所有服务
-/pm2-all-stop
-
-# 重启所有服务
-/pm2-all-restart
-
-# 查看状态
-/pm2-status
-
-# 查看日志
-/pm2-logs
+**服务管理命令：**
+```bash
+systemctl start sweetbomb-backend sweetbomb-frontend   # 启动
+systemctl stop sweetbomb-backend sweetbomb-frontend    # 停止
+systemctl restart sweetbomb-backend sweetbomb-frontend # 重启
+systemctl status sweetbomb-backend sweetbomb-frontend  # 状态
+journalctl -u sweetbomb-backend -u sweetbomb-frontend -f  # 日志
 ```
 
 ---
@@ -335,19 +337,5 @@ sweetbomb/
 
 ---
 
-## 🤖 PM2 命令参考 (PM2 Commands)
-
-| Claude 命令 | 功能 |
-|------------|------|
-| `/pm2-all` | 启动所有服务并打开监控 |
-| `/pm2-all-stop` | 停止所有服务 |
-| `/pm2-all-restart` | 重启所有服务 |
-| `/pm2-8000` | 仅启动后端服务 |
-| `/pm2-5173` | 仅启动前端服务 |
-| `/pm2-status` | 查看服务状态 |
-| `/pm2-logs` | 查看所有日志 |
-
----
-
-**版本**: 1.2.0
-**最后更新**: 2026-03-03
+**版本**: 1.3.0
+**最后更新**: 2026-04-14

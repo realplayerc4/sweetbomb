@@ -24,6 +24,54 @@
 
 ### [Added]
 
+- **systemd 服务配置**
+  - `sweetbomb-backend.service` - 后端 FastAPI 服务
+  - `sweetbomb-frontend.service` - 前端 Vite 服务
+  - `install-service.sh` - 自动安装脚本，配置开机自启动
+  - 服务特性：`Restart=always`（崩溃自动重启）、`RestartSec=3`（3秒重启间隔）
+
+- **点云参数同步 API**
+  - `POST /api/devices/{device_id}/point_cloud/settings` - 同步前端参数到后端
+  - 支持 teethHeight、cameraToTeeth、bucketDepth、bucketVolume、lr 参数
+  - 后端 rs_manager 存储参数并传递给 stream_controller
+  - 前端 SliceView 增加 lr 输入框（取料半径，防止超挖）
+  - 当 `material_distance > lr` 时 `move_distance = 0`（禁止前进）
+
+- **点云分析回调修复**
+  - stream_controller 调用 `_analysis_result_callback` 将结果传递给 rs_manager
+  - API `/move_distance` 和 `/analysis` 现可返回有效数据
+  - cameraCheck 距离发送（250ms 间隔）可获取真实 move_distance
+
+### [Changed]
+
+- **TCP 通讯协议完善**
+  - 仅 taskFinish 消息回复下位机，其他消息不回复
+  - 举升角度范围修正为 60-124 度（前端显示）
+  - "铲齿深度"标签改为"相机高度"
+
+- **部署方式变更**
+  - 移除 PM2 配置，改用 systemd 服务
+  - 适合嵌入式 Linux（Jetson）稳定运行
+  - 更新 CLAUDE.md、README.md 文档
+
+### [Fixed]
+
+- **numpy 序列化错误**
+  - `PointCloudAnalysisResponse` 中 `nearest_point` 转换为 Python float
+  - `material_distance` 为 None 时不再触发格式化错误
+
+- **点云分析 Volume 显示 0.00L**
+  - 分析参数（teeth_height、camera_to_teeth）未从前端同步导致 ROI 计算错误
+  - 需通过 settings API 同步前端参数
+
+### [Removed]
+
+- PM2 相关配置和命令文件（ecosystem.config.cjs、pm2-* 命令）
+
+---
+
+### [Added] (Previous)
+
 - **地图栅格旋转功能**
   - 新增全局 theta 旋转参数，支持手动输入角度值（默认 -178.0472°，顺时针旋转）
   - 后端 `map_converter` 服务新增 `coordinate_rotate` 函数，对所有栅格点应用旋转

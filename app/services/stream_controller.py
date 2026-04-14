@@ -555,8 +555,10 @@ class StreamController:
                                     "timestamp": time.time(),
                                 }
 
+                                nearest_mat = self.latest_analysis_result['distances']['nearest_material']
+                                nearest_str = f"{nearest_mat:.3f}m" if nearest_mat is not None else "None"
                                 print(f"[PointCloudAnalysis] Volume: {self.latest_analysis_result['volume']['current']:.2f}L, "
-                                      f"Nearest: {self.latest_analysis_result['distances']['nearest_material']:.3f}m")
+                                      f"Nearest: {nearest_str}")
 
                             except Exception as e:
                                 print(f"[PointCloudAnalysis] Error during analysis: {e}")

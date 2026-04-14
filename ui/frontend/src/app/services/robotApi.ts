@@ -118,6 +118,14 @@ export interface SugarHarvestStatus {
 
 // ==================== API ====================
 
+// 点云分析参数
+export interface PointCloudSettings {
+    teethHeight: number;    // Z1: 铲齿高度 (m)
+    cameraToTeeth: number;  // 相机到铲齿距离 (m)
+    bucketDepth: number;    // 铲斗深度 (m)
+    bucketVolume: number;   // 目标体积 (L)
+}
+
 export const robotApi = {
     // --- 运动控制 ---
 

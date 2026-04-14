@@ -17,6 +17,7 @@ class PointCloudSettings(BaseModel):
     cameraToTeeth: float    # 相机到铲齿前沿距离 (米)
     bucketDepth: float      # 铲斗深度 (米)
     bucketVolume: float     # 铲斗目标体积 (升)
+    lr: float               # 取料半径 (米) - 防止超挖
 
 
 class PointCloudSettingsResponse(BaseModel):
@@ -109,12 +110,12 @@ async def get_point_cloud_analysis(
 
         return PointCloudAnalysisResponse(
             device_id=device_id,
-            volume=result.actual_volume,
-            target_volume=result.target_volume,
+            volume=float(result.actual_volume),
+            target_volume=float(result.target_volume),
             volume_reached=result.volume_reached,
-            pile_height=result.pile_height,
-            material_distance=result.material_distance,
-            nearest_point=(result.nearest_x, result.nearest_y, result.pile_max_z)
+            pile_height=float(result.pile_height) if result.pile_height is not None else None,
+            material_distance=float(result.material_distance) if result.material_distance is not None else None,
+            nearest_point=(float(result.nearest_x), float(result.nearest_y), float(result.pile_max_z))
             if result.nearest_x is not None and result.nearest_y is not None
             else None,
             has_material=result.has_material,
@@ -161,7 +162,7 @@ async def get_move_distance(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{device_id}/settings", response_model=PointCloudSettingsResponse)
+@router.post("/settings", response_model=PointCloudSettingsResponse)
 async def update_pointcloud_settings(
     device_id: str,
     settings: PointCloudSettings,
@@ -177,6 +178,7 @@ async def update_pointcloud_settings(
             "camera_to_teeth": settings.cameraToTeeth,
             "bucket_depth": settings.bucketDepth,
             "bucket_volume": settings.bucketVolume,
+            "lr": settings.lr,
         })
         return PointCloudSettingsResponse(
             device_id=device_id,
@@ -185,6 +187,7 @@ async def update_pointcloud_settings(
                 cameraToTeeth=updated["camera_to_teeth"],
                 bucketDepth=updated["bucket_depth"],
                 bucketVolume=updated["bucket_volume"],
+                lr=updated["lr"],
             ),
         )
     except Exception as e:

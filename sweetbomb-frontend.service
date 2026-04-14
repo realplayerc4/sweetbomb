@@ -1,0 +1,15 @@
+[Unit]
+Description=Sweetbomb Frontend (Vite)
+After=network.target
+
+[Service]
+Type=simple
+User=jetson
+WorkingDirectory=/home/jetson/sweetbomb/ui/frontend
+ExecStart=/usr/bin/npm run dev
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=development
+
+[Install]
+WantedBy=multi-user.target

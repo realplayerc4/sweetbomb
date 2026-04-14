@@ -166,7 +166,6 @@ class RealSenseManager:
 
     def _on_analysis_result(self, device_id: str, result: PointCloudAnalysisResult) -> None:
         """回调函数：保存点云分析结果。"""
-        approach_offset = 0.05
 
         # 将 numpy 类型转换为 Python 原生类型，避免 JSON 序列化失败
         for attr in ('actual_volume', 'target_volume', 'target_depth_x',
@@ -180,9 +179,16 @@ class RealSenseManager:
         self._analysis_timestamps[device_id] = datetime.now()
 
         if result.material_distance is not None:
-            move_distance = float(result.material_distance) - approach_offset
-            if move_distance <= 0:
-                move_distance = 0.1
+            settings = self.get_pointcloud_settings(device_id)
+            bucket_depth = settings.get("bucket_depth", 0.3)
+            lr = settings.get("lr", 3.0)
+
+            # 超挖风险检测
+            if result.material_distance > lr:
+                move_distance = 0.0  # 存在超挖风险，禁止前进
+            else:
+                move_distance = float(result.material_distance) + bucket_depth
+
             self._latest_move_distances[device_id] = move_distance
         else:
             self._latest_move_distances[device_id] = 0.0
@@ -201,10 +207,11 @@ class RealSenseManager:
     def get_pointcloud_settings(self, device_id: str) -> dict:
         """获取设备的点云分析参数，返回默认值如果未设置。"""
         default = {
-            "teeth_height": -0.1,
-            "camera_to_teeth": 0.8,
+            "teeth_height": -0.85,
+            "camera_to_teeth": 1000,
             "bucket_depth": 0.3,
             "bucket_volume": 30.0,
+            "lr": 3.0,
         }
         return self._pointcloud_settings.get(device_id, default)
 

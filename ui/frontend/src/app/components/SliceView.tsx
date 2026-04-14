@@ -38,6 +38,7 @@ interface SliceSettings {
     cameraToTeeth: number;  // 相机到铲齿前沿距离 (米)
     bucketDepth: number;    // 铲斗深度 (米)
     bucketVolume: number;   // 铲斗目标体积 (升)
+    lr: number;             // 取料半径 (米) - 防止超挖
 }
 
 
@@ -57,10 +58,11 @@ const BUCKET_HEIGHT = 0.3;
 const FOCUS_HALF_WIDTH = 0.3;
 
 const DEFAULT_SETTINGS: SliceSettings = {
-    teethHeight: -0.1,
-    cameraToTeeth: 0.8,
+    teethHeight: -0.85,
+    cameraToTeeth: 1000,
     bucketDepth: 0.3,
     bucketVolume: 30,
+    lr: 3.0,
 };
 
 const STORAGE_KEY = 'slice-view-settings-v3';
@@ -150,13 +152,13 @@ export function SliceView({
     useEffect(() => {
         const timer = setTimeout(async () => {
             try {
-                const res = await fetch(`${API_BASE}/devices/038122250462/pointcloud/settings`, {
+                const res = await fetch(`${API_BASE}/devices/038122250462/point_cloud/settings`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings),
                 });
                 if (res.ok) {
-                    console.log('[SliceView] Settings synced to backend');
+                    console.log('[SliceView] Settings synced to backend:', settings);
                 }
             } catch (e) {
                 console.warn('[SliceView] Failed to sync settings:', e);
