@@ -190,6 +190,10 @@
   - 根因：`usePathMap` 每个组件创建独立实例，MapPanel 未调用 `loadPathMap()`
   - 解决：MapPanel 组件加载时自动调用 `loadPathMap()` 获取站点数据
 
+- **修复 BEV SLICE 无点云时不显示网格**
+  - 根因：`filteredCount === 0` 时直接 return，跳过网格绘制逻辑
+  - 解决：删除该 early return，让视图框架（网格、坐标轴、焦点区域）始终显示
+
 ### [Refactor]
 
 - **地图 API 后端重构**
