@@ -521,13 +521,15 @@ class StreamController:
                                 bucket_volume = params.get('bucket_volume', 30.0)
                                 bucket_depth = params.get('bucket_depth', 0.3)
                                 camera_to_teeth = params.get('camera_to_teeth', 0.8)
+                                lr = params.get('lr', 3.0)
 
                                 analysis_result = self.point_cloud_analyzer.analyze(
                                     point_cloud=verts,
                                     target_volume=bucket_volume,
                                     camera_to_teeth=camera_to_teeth,
                                     z1=teeth_height,
-                                    z2=teeth_height + bucket_depth,  # 铲斗高度
+                                    z2=teeth_height + bucket_depth,
+                                    lr=lr,
                                 )
 
                                 # 调用回调函数，将结果传递给 rs_manager

@@ -56,6 +56,7 @@ class PointCloudAnalyzer:
         camera_to_teeth: float,
         z1: float,
         z2: float,
+        lr: float = 3.0,
     ) -> PointCloudAnalysisResult:
         """
         分析点云数据
@@ -66,6 +67,7 @@ class PointCloudAnalyzer:
             camera_to_teeth: 相机到铲齿距离 (m)
             z1: 铲齿高度 (m)
             z2: 铲齿+斗高 (m)
+            lr: 取料半径 (m) - 用于堆体高度计算范围
 
         Returns:
             PointCloudAnalysisResult: 分析结果
@@ -118,13 +120,12 @@ class PointCloudAnalyzer:
         base_area = self.working_range_x * self.bucket_width
         actual_volume = max(0.0, avg_height * base_area)
 
-        # 计算堆体高度（在X≤3m, Y∈[-0.3,0.3]范围内找最高点）
+        # 计算堆体高度（在X≤lr范围内找最高点）
         # 相机高度0.6m（从地面起算）
         camera_height = 0.6
-        pile_search_range_x = 3.0  # X≤3m
 
-        # 在valid_points中进一步筛选X≤3m的点
-        pile_mask = valid_points[:, 0] <= pile_search_range_x
+        # 在valid_points中进一步筛选X≤lr的点
+        pile_mask = valid_points[:, 0] <= lr
         pile_points = valid_points[pile_mask]
 
         if len(pile_points) > 0:
@@ -191,6 +192,7 @@ def analyze_point_cloud(
     camera_to_teeth: float,
     z1: float,
     z2: float,
+    lr: float = 3.0,
 ) -> PointCloudAnalysisResult:
     """
     便捷的独立函数接口
@@ -201,9 +203,10 @@ def analyze_point_cloud(
         camera_to_teeth: 相机到铲齿距离 (m)
         z1: 铲齿高度 (m)
         z2: 铲齿+斗高 (m)
+        lr: 取料半径 (m)
 
     Returns:
         PointCloudAnalysisResult: 分析结果
     """
     analyzer = PointCloudAnalyzer()
-    return analyzer.analyze(point_cloud, target_volume, camera_to_teeth, z1, z2)
+    return analyzer.analyze(point_cloud, target_volume, camera_to_teeth, z1, z2, lr)

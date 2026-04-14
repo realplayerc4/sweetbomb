@@ -210,7 +210,8 @@ export function SliceView({
         // 使用后端分析结果，前端不再计算
         if (pointCloudAnalysis?.distances?.nearest_material !== undefined && pointCloudAnalysis.distances.nearest_material !== null) {
             const materialDistance = pointCloudAnalysis.distances.nearest_material;
-            const advanceDistance = materialDistance + settings.bucketDepth;
+            // 超挖风险检测：materialDistance > lr 时存在超挖风险
+            const advanceDistance = materialDistance > settings.lr ? 0 : materialDistance + settings.bucketDepth;
             const nearestX = pointCloudAnalysis.distances.nearest_x ?? (materialDistance + settings.cameraToTeeth);
             const nearestY = pointCloudAnalysis.distances.nearest_y ?? 0;
             setAdvanceInfo({ nearestX, nearestY, materialDistance, advanceDistance });
@@ -218,8 +219,7 @@ export function SliceView({
             setAdvanceInfo(null);
         }
 
-        if (filteredCount === 0) return;
-
+        // 计算视图参数（即使没有点也要显示网格框架）
         const xRange = fixedMaxX - fixedMinX;
         const yRange = VIEW_MAX_Y - VIEW_MIN_Y;
         const gridCols = Math.max(1, Math.ceil(yRange / CELL_SIZE));
@@ -423,6 +423,18 @@ export function SliceView({
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] text-[#FD802E] font-mono w-14">取料半径</span>
+                    <input
+                        type="number"
+                        step="0.001"
+                        value={settings.lr.toFixed(3)}
+                        onChange={(e) => setSettings(prev => ({ ...prev, lr: parseFloat(e.target.value) || 3 }))}
+                        className="w-[48px] h-4 bg-transparent border border-[#FD802E]/20 rounded text-[10px] text-[#FD802E] text-center font-mono focus:outline-none focus:border-[#FD802E]"
+                    />
+                    <span className="text-[10px] text-[#FD802E] font-mono">m</span>
+                </div>
+
+                <div className="flex items-center gap-2 mb-2">
                     <span className="text-[10px] text-[#FD802E] font-mono w-14">堆体高度</span>
                     <span className="text-[10px] text-[#FD802E] font-mono w-[48px] text-right font-bold pr-1">
                         {pointCloudAnalysis?.pile_height !== undefined ? pointCloudAnalysis.pile_height.toFixed(3) : '--'}
@@ -440,8 +452,15 @@ export function SliceView({
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-[10px] text-[#FD802E] font-mono font-bold">建议前进</span>
-                            <span className="text-[10px] text-[#FD802E] font-mono font-bold">{advanceInfo.advanceDistance.toFixed(3)}m</span>
+                            <span className={`text-[10px] font-mono font-bold ${advanceInfo.advanceDistance === 0 ? 'text-red-500' : 'text-[#FD802E]'}`}>
+                                {advanceInfo.advanceDistance.toFixed(3)}m
+                            </span>
                         </div>
+                        {advanceInfo.advanceDistance === 0 && (
+                            <div className="text-[10px] text-red-500 font-mono mt-1 font-bold">
+                                ⚠ 超挖预警
+                            </div>
+                        )}
                     </div>
                 )}
 

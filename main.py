@@ -91,10 +91,10 @@ async def health_check_loop():
 
 
 async def camera_distance_sender_loop():
-    """每250ms向后端发送相机检测距离（cameraCheckDistance）"""
-    print("[System] Camera distance sender loop started (Interval: 250ms)")
+    """每100ms向后端发送相机检测距离（cameraCheckDistance）"""
+    print("[System] Camera distance sender loop started (Interval: 100ms)")
     while True:
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.1)
         try:
             server = robot_tcp_server
             if not server or not server.is_connected():
@@ -103,12 +103,19 @@ async def camera_distance_sender_loop():
             rs_manager = get_realsense_manager()
             for device_id in rs_manager._discovery.devices:
                 move_distance = rs_manager.get_move_distance(device_id)
-                if move_distance is not None and move_distance > 0:
+                # 获取原始 material_distance 用于调试
+                analysis_result = rs_manager.get_analysis_result(device_id)
+                material_distance = analysis_result.material_distance if analysis_result else None
+
+                if move_distance is not None:
                     distance_mm = int(move_distance * 1000)
-                    await server.send_camera_distance(distance_mm)
+                    mat_dist_str = f"{material_distance:.3f}m" if material_distance is not None else "None"
+                    print(f"[CameraDistance] move_distance={move_distance:.3f}m, material_distance={mat_dist_str}, sending={distance_mm}mm")
+                    if move_distance > 0:
+                        await server.send_camera_distance(distance_mm)
                 break
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[CameraDistance] Error: {e}")
 
 
 if __name__ == "__main__":
