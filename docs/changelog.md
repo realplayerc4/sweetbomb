@@ -24,6 +24,14 @@
 
 ### [Added]
 
+- **SWNFP 分支 - 双前端架构**
+  - 新增 `ui/admin-frontend/` 目录，融合 ISUI 管理后台前端
+  - `sweetbomb-admin-frontend.service` systemd 服务配置
+  - 双前端独立运行：SW 前端 (port 5173) 机器人操控，SWNFP 前端 (port 5174) 后台管理
+  - 统一后端 (port 8000) 服务两个前端
+  - ISUI 技术栈：React 18 + Ant Design 6 + Zustand + ECharts + Leaflet
+  - API 服务层后续逐步对接 SW 后端
+
 - **systemd 服务配置**
   - `sweetbomb-backend.service` - 后端 FastAPI 服务
   - `sweetbomb-frontend.service` - 前端 Vite 服务

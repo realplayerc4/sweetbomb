@@ -36,12 +36,22 @@ memory-bank/progress.md          → 项目进度
 | `models/` | 数据模型 | 是 |
 | `core/` | 核心配置 | 是 |
 
-### 前端模块 (ui/frontend/src/app/)
+### 前端模块 (ui/)
+
+#### SW 前端 (ui/frontend/src/app/) - 机器人操控
 
 | 模块 | 职责 | 允许修改 |
 |------|------|----------|
 | `components/` | React 组件 | 是 |
 | `hooks/` | 状态 Hooks | 是 |
+| `services/` | API 调用 | 是 |
+
+#### SWNFP 前端 (ui/admin-frontend/src/) - 后台管理
+
+| 模块 | 职责 | 允许修改 |
+|------|------|----------|
+| `components/` | Dashboard 组件 | 是 |
+| `stores/` | Zustand 状态管理 | 是 |
 | `services/` | API 调用 | 是 |
 
 ### 文档模块
@@ -92,10 +102,11 @@ memory-bank/progress.md          → 项目进度
 
 ## Systemd Services (开机自启动)
 
-| Port | Service | Type |
-|------|---------|------|
-| 5173 | sweetbomb-frontend | Vite (Frontend) |
-| 8000 | sweetbomb-backend | FastAPI (Backend) |
+| Port | Service | Type | 用途 |
+|------|---------|------|------|
+| 5173 | sweetbomb-frontend | Vite (Frontend) | 机器人操控 (SW) |
+| 5174 | sweetbomb-admin-frontend | Vite (Admin Frontend) | 后台管理 (SWNFP) |
+| 8000 | sweetbomb-backend | FastAPI (Backend) | 统一后端 |
 
 **安装自启动：**
 ```bash
@@ -105,11 +116,16 @@ sudo ./install-service.sh
 
 **常用命令：**
 ```bash
-systemctl start sweetbomb-backend sweetbomb-frontend   # 启动
-systemctl stop sweetbomb-backend sweetbomb-frontend    # 停止
-systemctl restart sweetbomb-backend sweetbomb-frontend # 重启
-systemctl status sweetbomb-backend sweetbomb-frontend  # 状态
-journalctl -u sweetbomb-backend -u sweetbomb-frontend -f  # 日志
+# 启动所有服务
+systemctl start sweetbomb-backend sweetbomb-frontend sweetbomb-admin-frontend
+# 停止所有服务
+systemctl stop sweetbomb-backend sweetbomb-frontend sweetbomb-admin-frontend
+# 重启所有服务
+systemctl restart sweetbomb-backend sweetbomb-frontend sweetbomb-admin-frontend
+# 查看状态
+systemctl status sweetbomb-backend sweetbomb-frontend sweetbomb-admin-frontend
+# 查看日志
+journalctl -u sweetbomb-backend -u sweetbomb-frontend -u sweetbomb-admin-frontend -f
 ```
 
 **服务特性：**
@@ -160,5 +176,5 @@ journalctl -u sweetbomb-backend -u sweetbomb-frontend -f  # 日志
 
 ---
 
-*Version: v2.0*
-*Last Updated: 2026-04-14*
+*Version: v2.1*
+*Last Updated: 2026-04-15*
