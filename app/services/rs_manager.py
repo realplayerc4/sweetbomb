@@ -178,7 +178,8 @@ class RealSenseManager:
         self._latest_analysis_results[device_id] = result
         self._analysis_timestamps[device_id] = datetime.now()
 
-        if result.material_distance is not None:
+        # 只有检测到物料时才计算 move_distance
+        if result.has_material and result.material_distance is not None:
             settings = self.get_pointcloud_settings(device_id)
             bucket_depth = settings.get("bucket_depth", 0.3)
             lr = settings.get("lr", 3.0)
@@ -191,6 +192,7 @@ class RealSenseManager:
 
             self._latest_move_distances[device_id] = move_distance
         else:
+            # 没有检测到物料，前进距离为 0
             self._latest_move_distances[device_id] = 0.0
 
     def get_analysis_result(self, device_id: str) -> Optional[PointCloudAnalysisResult]:
@@ -205,10 +207,18 @@ class RealSenseManager:
     # ========== 点云参数设置 ==========
 
     def get_pointcloud_settings(self, device_id: str) -> dict:
-        """获取设备的点云分析参数，返回默认值如果未设置。"""
+        """获取设备的点云分析参数，返回默认值如果未设置。
+
+        单位说明：
+        - teeth_height: m (铲齿高度)
+        - camera_to_teeth: mm (相机到铲齿距离，前端传入 mm，内部转换为 m)
+        - bucket_depth: m (铲斗深度)
+        - bucket_volume: L (铲斗体积)
+        - lr: m (取料半径)
+        """
         default = {
             "teeth_height": -0.85,
-            "camera_to_teeth": 1000,
+            "camera_to_teeth": 800,  # mm，前端传入 mm
             "bucket_depth": 0.3,
             "bucket_volume": 30.0,
             "lr": 3.0,

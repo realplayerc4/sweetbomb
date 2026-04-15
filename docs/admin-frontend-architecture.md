@@ -15,7 +15,6 @@
 - Zustand 5 (状态管理)
 - Socket.IO (实时通信)
 - ECharts (图表)
-- Leaflet (地图)
 - Tailwind CSS 4 (样式)
 
 ---
@@ -41,11 +40,9 @@ src/
 │   ├── layout/           # 布局组件
 │   │   ├── DashboardLayout.tsx
 │   │   ├── Header.tsx
-│   │   ├── FixedModule.tsx
-│   │   └── DraggableModule.tsx
+│   │   └── FixedModule.tsx
 │   ├── map/              # 地图可视化
-│   │   ├── MapMonitor.tsx
-│   │   └── MapOverview.tsx
+│   │   └── MapMonitor.tsx
 │   ├── modals/           # 模态对话框
 │   │   ├── DeviceDetailModal.tsx
 │   │   ├── ManualInterveneModal.tsx
@@ -57,36 +54,33 @@ src/
 │   │   └── ZoneManageModal.tsx
 │   ├── monitor/          # 监控组件
 │   │   ├── DeviceList.tsx
-│   │   ├── DeviceOverview.tsx
 │   │   ├── RobotStatusPanel.tsx
 │   │   ├── SensorMonitor.tsx
-│   │   ├── VideoStreamView.tsx  ⭐ 新增
 │   │   └── WorkingDevices.tsx
 │   ├── overview/         # 仪表盘概览组件
 │   │   ├── AlertPanel.tsx
-│   │   ├── HarvestForecast.tsx
 │   │   ├── HarvestStats.tsx
 │   │   └── StatsCards.tsx
 │   └── task/             # 任务管理
 │       ├── TaskBoard.tsx
-│       ├── TaskCreateModal.tsx
 │       ├── TaskPanel.tsx
 │       └── TaskTimeline.tsx
 ├── hooks/                # 自定义 React Hooks
-│   └── useWebRTCConnection.ts  ⭐ 新增
+│   ├── useMap.ts         # 地图数据加载
+│   └── usePathMap.ts     # 站点数据加载
 ├── lib/                  # 工具函数
 │   └── utils.ts          # cn() 类名合并工具
 ├── services/             # API 服务层
 │   ├── apiClient.ts      # Axios 实例
-│   ├── deviceApi.ts
-│   ├── robotApi.ts
-│   ├── taskApi.ts
-│   └── webrtcApi.ts      ⭐ 新增
+│   ├── mapApi.ts         # 地图 API
+│   ├── pathMapApi.ts     # 站点 API
+│   ├── robotApi.ts       # 机器人控制 API
+│   └── taskApi.ts        # 任务 API
 ├── stores/               # Zustand 状态管理
-│   ├── useRobotStore.ts
-│   ├── useSystemModeStore.ts
-│   ├── useSystemStore.ts
-│   └── useTaskStore.ts
+│   ├── useRobotStore.ts  # 机器人状态
+│   ├── useSystemModeStore.ts  # UI 模式
+│   ├── useSystemStore.ts # 系统全局状态
+│   └── useTaskStore.ts   # 任务状态
 └── types/                # TypeScript 类型定义
     └── index.ts
 ```
@@ -109,7 +103,6 @@ export const SOCKET_URL = HOST;            // Socket.IO 连接地址
 
 export const REFRESH_INTERVAL = 2000;      // 刷新间隔 (ms)
 export const HEARTBEAT_INTERVAL = 30000;   // 心跳间隔 (ms)
-export const MAX_RECONNECT_ATTEMPTS = 5;   // 最大重连次数
 ```
 
 ---
@@ -122,90 +115,72 @@ export const MAX_RECONNECT_ATTEMPTS = 5;   // 最大重连次数
 |---------|------|------|
 | `status` | RobotState | 机器人状态 (idle/moving/scooping/dumping/error) |
 | `battery` | number | 电池电量 |
-| `position` | [number, number, number] | 当前位置 |
-| `orientation` | [number, number, number] | 方向 |
-| `imu` | { roll, pitch, yaw } | IMU 数据 |
-| `leftTrackSpeed` | number | 左履带速度 |
-| `rightTrackSpeed` | number | 右履带速度 |
+| `position` | [number, number, number] | 当前位置 (x, y, z) mm |
+| `orientation` | [number, number, number] | 方向 (a, 0, 0) |
+| `leftTrackSpeed` | number | 左履带速度 (m/s) |
+| `rightTrackSpeed` | number | 右履带速度 (m/s) |
 | `isConnected` | boolean | Socket 连接状态 |
-| `isControllable` | boolean | 是否可控 |
 | `isHarvestRunning` | boolean | 铲糖循环是否运行中 |
 | `harvestCycle` | number | 当前循环次数 |
 | `harvestMaxCycles` | number | 最大循环次数 |
-| `error` | string \| null | 错误信息 |
 
 **主要 Actions:**
 - `connect()` / `disconnect()` - Socket.IO 连接管理
-- `refreshStatus()` - 刷新机器人状态
+- `refreshStatus()` - 刷新机器人状态（每秒轮询）
 - `move(direction, speed?, duration?)` - 移动控制
-- `stop()` / `reset()` - 停止/重置
-- `setServo(servoId, angle)` - 伺服控制
+- `stop()` / `pause()` / `resume()` - 停止/暂停/恢复
 - `scoop()` / `dump()` / `dock()` - 铲取/倾倒/回桩
-- `startHarvest(config)` / `stopHarvest()` - 自动铲糖循环
+- `navToPick()` / `navToDrop()` - 导航到取货点/卸货点
 
-### useTaskStore - 任务管理状态
+### useTaskStore - 任务管理状态 ⭐ 重构
 
 | 状态字段 | 类型 | 说明 |
 |---------|------|------|
-| `tasks` | TaskInfo[] | 任务列表 |
-| `isLoading` | boolean | 加载状态 |
-| `isConnected` | boolean | Socket 连接状态 |
-| `runningCount` | number | 运行中任务数 |
-| `pendingCount` | number | 待执行任务数 |
-| `completedToday` | number | 今日完成任务数 |
+| `targetKg` | number | 目标重量 (kg)，默认 900kg |
+| `perCycleKg` | number | 每次循环重量，默认 30kg |
+| `totalCycles` | number | 总循环次数 |
+| `currentCycle` | number | 当前循环次数 |
+| `phase` | TaskPhase | 当前阶段 |
+| `isRunning` | boolean | 是否正在运行 |
+| `completedKg` | number | 已完成重量 (kg) |
+| `error` | string \| null | 错误信息 |
+
+**任务阶段 (TaskPhase):**
+| 阶段 | 说明 |
+|------|------|
+| `idle` | 空闲 |
+| `nav_to_pick` | 取货中（导航+取货） |
+| `nav_to_drop` | 卸货中（导航+卸货） |
+| `paused` | 已暂停 |
+| `completed` | 任务完成 |
+| `error` | 错误 |
 
 **主要 Actions:**
-- `createTask(request)` - 创建任务
-- `startTask(taskId)` / `pauseTask(taskId)` / `resumeTask(taskId)` / `stopTask(taskId)` - 任务控制
-- `deleteTask(taskId)` - 删除任务
-- `refreshTasks()` - 刷新任务列表
+- `setTarget(kg)` - 设置目标重量，自动计算循环次数
+- `start()` - 启动任务循环
+- `pause()` - 暂停任务
+- `resume()` - 恢复任务
+- `stop()` - 停止并重置任务
 
 ### useSystemStore - 系统全局状态
 
 | 状态字段 | 类型 | 说明 |
 |---------|------|------|
 | `stats` | SystemStats | 系统统计 |
-| `devices` | DeviceInfo[] | 设备列表 |
+| `devices` | DeviceInfo[] | 设备列表 (Mock 数据) |
 | `alerts` | AlertInfo[] | 告警列表 |
 | `zones` | ZoneInfo[] | 区域信息 |
-| `maintenanceRecords` | MaintenanceRecord[] | 维护记录 |
-| `currentTime` | Date | 当前时间 |
-| `isOffline` | boolean | 离线状态 |
 
 ### useSystemModeStore - UI 模式状态
 
 | 状态字段 | 类型 | 说明 |
 |---------|------|------|
-| `monitorMode` | 'single' \| 'all' | 监控模式 (单机器人/全部) |
+| `monitorMode` | 'single' \| 'all' | 监控模式 |
 | `selectedRobot` | string | 当前选中的机器人 |
 
 ---
 
 ## API 服务层
-
-### apiClient.ts - Axios 实例
-
-```typescript
-import axios from 'axios';
-import { API_BASE } from '../config';
-
-const apiClient = axios.create({
-  baseURL: API_BASE,
-  timeout: 10000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// 错误拦截器
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const message = error.response?.data?.detail || error.message;
-    return Promise.reject(new Error(message));
-  }
-);
-
-export default apiClient;
-```
 
 ### robotApi.ts - 机器人控制 API
 
@@ -214,127 +189,94 @@ export default apiClient;
 | `getStatus()` | GET /robot/status | 获取机器人状态 |
 | `move(direction, speed, duration)` | POST /robot/move | 移动控制 |
 | `stop()` | POST /robot/stop | 停止 |
-| `reset()` | POST /robot/reset | 重置 |
-| `setServo(servoId, angle)` | POST /robot/servo | 伺服控制 |
+| `pause()` | POST /robot/pause | 暂停 |
+| `resume()` | POST /robot/resume | 恢复 |
 | `scoop()` | POST /robot/scoop | 铲取 |
 | `dump()` | POST /robot/dump | 倾倒 |
 | `dock()` | POST /robot/dock | 回桩 |
-| `startSugarHarvest(config)` | POST /robot/auto_cycle/start | 启动铲糖循环 |
-| `stopSugarHarvest()` | POST /robot/auto_cycle/stop | 停止铲糖循环 |
-| `getSugarHarvestStatus()` | GET /robot/auto_cycle/status | 获取铲糖状态 |
+| `navToPick()` | POST /robot/nav-pick | 导航到取货点 (含取货) |
+| `navToDrop()` | POST /robot/nav-drop | 导航到卸货点 (含卸货) |
 
-### taskApi.ts - 任务管理 API
-
-| 方法 | 端点 | 说明 |
-|------|------|------|
-| `getTaskTypes()` | GET /tasks/types | 获取任务类型 |
-| `listTasks(filters?)` | GET /tasks | 获取任务列表 |
-| `createTask(request)` | POST /tasks | 创建任务 |
-| `startTask(taskId)` | POST /tasks/{id}/start | 启动任务 |
-| `pauseTask(taskId)` | POST /tasks/{id}/pause | 暂停任务 |
-| `resumeTask(taskId)` | POST /tasks/{id}/resume | 恢复任务 |
-| `stopTask(taskId)` | POST /tasks/{id}/stop | 停止任务 |
-| `deleteTask(taskId)` | DELETE /tasks/{id} | 删除任务 |
-
-### deviceApi.ts - 设备管理 API
+### mapApi.ts - 地图 API
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
-| `getDevices()` | GET /devices | 获取设备列表 |
-| `getDevice(deviceId)` | GET /devices/{id} | 获取设备详情 |
+| `getMapList()` | GET /map/list | 获取地图列表 |
+| `getMapImage(name, theta)` | GET /map/{name}/image | 获取地图图片 |
+| `getMapInfo(name, theta)` | GET /map/{name}/info | 获取地图信息 |
 
-### webrtcApi.ts - WebRTC 视频流 API ⭐ 新增
+### pathMapApi.ts - 站点 API
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
-| `getDevices()` | GET /devices | 获取流设备列表 |
-| `startStream(deviceId, configs)` | POST /devices/{id}/stream/start | 启动流 |
-| `stopStream(deviceId)` | POST /devices/{id}/stream/stop | 停止流 |
-| `getWebRTCOffer(deviceId, streamTypes)` | POST /webrtc/offer | 获取 WebRTC Offer |
-| `sendAnswer(sessionId, answer)` | POST /webrtc/answer | 发送 Answer |
-| `sendIceCandidate(sessionId, candidate)` | POST /webrtc/ice-candidates | 发送 ICE Candidate |
-| `getIceCandidates(sessionId)` | GET /webrtc/sessions/{id}/ice-candidates | 获取 ICE Candidates |
-| `activatePointCloud(deviceId)` | POST /devices/{id}/point_cloud/activate | 激活点云 |
-| `deactivatePointCloud(deviceId)` | POST /devices/{id}/point_cloud/deactivate | 停用点云 |
+| `getPathMap()` | GET /path_map | 获取站点数据 |
+| `updatePickStation(id, data)` | PUT /path_map/pick_station/{id} | 更新取货站 |
 
 ---
 
-## 自定义 Hooks
+## 任务系统架构 ⭐
 
-### useWebRTCConnection.ts ⭐ 新增
+### 任务循环流程
 
-WebRTC 视频流连接 Hook，管理完整的 WebRTC 连接生命周期。
-
-**返回值:**
-```typescript
-{
-  device: DeviceInfo | null;           // 当前设备
-  isStreaming: boolean;                // 是否正在推流
-  rgbStream: MediaStream | null;       // RGB 视频流
-  depthStream: MediaStream | null;     // 深度视频流
-  streamMetrics: {
-    rgb: { width, height, fps } | null;
-    depth: { width, height, fps } | null;
-  };
-  error: string | null;                // 错误信息
-  startConnection: () => Promise<void>; // 启动连接
-  stopConnection: () => Promise<void>;  // 停止连接
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      任务循环流程                            │
+├─────────────────────────────────────────────────────────────┤
+│  目标: 900 kg  →  30 次循环 (每次 30kg)                      │
+│                                                             │
+│  每次循环:                                                   │
+│  1. nav_to_pick   → POST /api/robot/nav-pick (含取货)       │
+│     等待 status === 'idle' (最多3分钟)                       │
+│                                                             │
+│  2. nav_to_drop   → POST /api/robot/nav-drop (含卸货)       │
+│     等待 status === 'idle' (最多3分钟)                       │
+│                                                             │
+│  3. 完成一次循环 → currentCycle++, completedKg += 30kg      │
+│                                                             │
+│  重复直到 currentCycle >= totalCycles                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**使用示例:**
-```typescript
-const { rgbStream, depthStream, isStreaming, streamMetrics } = useWebRTCConnection();
+### 数据来源
 
-// 在组件中使用
-{isStreaming && rgbStream && (
-  <video autoPlay playsInline srcObject={rgbStream} />
-)}
-```
+| 数据 | 1号装载机 | 2-6号装载机 |
+|------|-----------|-------------|
+| 状态 | 真实 (useRobotStore) | Mock (useSystemStore) |
+| 电量 | 真实 | Mock |
+| 速度 | 真实 (m/min) | Mock |
+| 位置 | 真实 (地图显示) | Mock |
 
 ---
 
 ## 核心组件
 
-### SensorMonitor.tsx - 传感器监控
+### TaskPanel.tsx - 任务面板 ⭐
 
-支持两种模式:
-1. **单机器人模式** - 显示真实 WebRTC 视频流
-2. **多机器人模式** - 第一个设备用真实视频流，其他用 Canvas 模拟
+任务控制主界面，包含：
+- 目标设置 (kg)
+- 进度显示 (仪表盘 + 进度条)
+- 控制按钮 (启动/暂停/终止)
+- 实时状态显示
 
-**Props:**
-```typescript
-interface SensorMonitorProps {
-  type: 'rgb' | 'depth';  // 传感器类型
-}
-```
+### WorkingDevices.tsx - 设备列表
 
-### VideoStreamView.tsx - 视频流显示 ⭐ 新增
-
-纯视频显示组件，用于渲染 MediaStream。
-
-**Props:**
-```typescript
-interface VideoStreamViewProps {
-  stream: MediaStream | null;
-  type: 'rgb' | 'depth';
-  isConnected: boolean;
-  metrics?: { width: number; height: number; fps: number } | null;
-  deviceName?: string;
-}
-```
+显示所有设备，1号装载机标记为"本机"：
+- 真实数据：速度 (m/min)、电量、状态
+- 装载量：1号 = 30kg，其他 = 0.85吨
 
 ### MapMonitor.tsx - 地图监控
 
-基于 Leaflet 的地图可视化组件，显示设备位置和区域。
+基于后端地图图片的可视化：
+- 显示机器人实时位置
+- 显示站点标记 (取货站/卸货站/充电站)
+- 支持缩放、拖拽、偏移校准
 
-### TaskPanel.tsx - 任务面板
+### StatsCards.tsx - 统计卡片
 
-任务列表展示，支持进度条、快速操作按钮。
-
-### HarvestControl.tsx - 铲糖控制
-
-自动铲糖循环控制面板，显示流程步骤。
+显示关键指标：
+- 在线设备数
+- 任务进度
+- 已装载重量
 
 ---
 
@@ -346,10 +288,9 @@ interface VideoStreamViewProps {
 |------|------|------|
 | `connect` | - | Socket 连接成功 |
 | `disconnect` | - | Socket 断开 |
-| `metadata_update` | { system_stats, metadata_streams } | 系统状态和流元数据 |
+| `metadata_update` | { system_stats } | 系统状态更新 |
 | `bt_event` | { event_type, current_cycle, max_cycles } | 行为树事件 |
-| `task_event` | { event_type, task_id, status, progress } | 任务事件 |
-| `robot_task_finish` | { task_id } | 机器人任务完成 |
+| `robot_position_update` | { x, y, z, a } | 机器人位置更新 |
 
 ### 发送事件
 
@@ -367,68 +308,15 @@ interface VideoStreamViewProps {
 // 机器人状态
 export type RobotState = 'idle' | 'moving' | 'scooping' | 'dumping' | 'error' | 'emergency_stop';
 
-// 任务状态
-export type TaskStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped' | 'cancelled';
+// 任务阶段
+export type TaskPhase = 'idle' | 'nav_to_pick' | 'nav_to_drop' | 'paused' | 'completed' | 'error';
 
 // 设备状态
 export type DeviceStatus = 'online' | 'offline' | 'warning' | 'error';
 
-// 告警级别
-export type AlertLevel = 'info' | 'warning' | 'error' | 'critical';
-
-// 设备信息
-export interface DeviceInfo {
-  device_id: string;
-  name: string;
-  status: DeviceStatus;
-  work_state: DeviceWorkState;
-  battery: number;
-  position: [number, number];
-  last_heartbeat: string;
-  task_id?: string;
-  spec?: LoaderSpec;
-}
-
-// 任务信息
-export interface TaskInfo {
-  task_id: string;
-  task_type: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  device_id?: string;
-  config: TaskConfig;
-  params: Record<string, unknown>;
-  created_at: string;
-  started_at?: string;
-  completed_at?: string;
-  progress: TaskProgress;
-  result?: TaskResult;
-}
-
-// 铲糖配置
-export interface SugarHarvestConfig {
-  navigation_point: [number, number];
-  dump_point: [number, number];
-  bucket_width_m?: number;
-  approach_offset_m?: number;
-  scoop_position?: number;
-  dump_position?: number;
-  max_cycles?: number;
-  height_threshold_m?: number;
-}
+// 设备工作状态
+export type DeviceWorkState = 'idle' | 'working' | 'fault' | 'maintenance';
 ```
-
----
-
-## 与 SW 前端的差异
-
-| 特性 | Admin-Frontend (SWNFP) | SW Frontend |
-|------|------------------------|-------------|
-| UI 框架 | Ant Design 6 | shadcn/ui + Radix |
-| 状态管理 | Zustand | React Hooks |
-| 布局 | 18 列固定网格 | 自适应布局 |
-| 路由 | 无 (单页) | 无 (单页) |
-| 用途 | 后台管理、多设备监控 | 机器人操控、实时控制 |
 
 ---
 
@@ -446,9 +334,6 @@ npm run dev
 
 # 构建生产版本
 npm run build
-
-# 预览生产版本
-npm run preview
 ```
 
 ---
@@ -470,5 +355,5 @@ journalctl -u sweetbomb-admin-frontend -f
 
 ---
 
-*Version: v1.0*
+*Version: v2.0*
 *Last Updated: 2026-04-15*

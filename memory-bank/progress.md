@@ -6,13 +6,21 @@
 
 ## Current Status
 
-**Phase**: 机器人通讯协议完善与系统守护化 (Phase 7)
-**Last Milestone**: TCP 通讯协议完善、点云分析回调修复、systemd 自启动配置
-**Next Milestone**: 前端点云参数同步、cameraCheck 距离发送验证
+**Phase**: 点云分析精度优化 (Phase 8)
+**Last Milestone**: move_distance 计算修复、噪点过滤、单位转换
+**Next Milestone**: 前端点云参数同步、实际物料测试验证
 
 ---
 
 ## Completed Milestones
+
+### 2026-04-15: 点云分析精度优化
+
+- [x] **[move_distance 修复]**: 无物料时返回 0，增加 `has_material` 检查
+- [x] **[单位转换]**: `camera_to_teeth` 前端传入 mm，后端转换为 m
+- [x] **[工作范围修正]**: X 范围改为 `camera_to_teeth + 0.3 ~ ∞`
+- [x] **[噪点过滤]**: 双重过滤（高度 + 密度），过滤地面噪点和孤立点
+- [x] **[文档更新]**: changelog.md 记录所有修复
 
 ### 2026-04-14: 系统守护化配置
 
@@ -101,8 +109,8 @@
 ### 待完成
 
 - [ ] 前端 SliceView 修改参数时调用 settings API 同步后端
-- [ ] cameraCheck 距离发送验证（250ms 间隔）
-- [ ] material_distance 计算参数调整（camera_to_teeth 当前 1.044m）
+- [ ] 实际物料测试验证噪点过滤效果
+- [ ] camera_to_teeth 参数从前端同步（当前使用默认值 800mm）
 
 ---
 
@@ -127,7 +135,8 @@
 | TCP 延迟 | ~50ms | < 100ms |
 | API P99 | ~30ms | < 50ms |
 | 点云分析频率 | 4Hz | 4Hz |
+| material_distance 稳定性 | 稳定 | 无跳动 |
 
 ---
 
-*Last Updated: 2026-04-14*
+*Last Updated: 2026-04-15*

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useSystemStore } from '@/stores/useSystemStore';
 import { useRobotStore } from '@/stores/useRobotStore';
-import { useTaskStore } from '@/stores/useTaskStore';
 import { Header } from './Header';
 import { FixedModule } from './FixedModule';
 import { MapMonitor } from '@/components/map/MapMonitor';
@@ -20,22 +19,16 @@ export function DashboardLayout() {
   const updateTime = useSystemStore((s) => s.updateTime);
   const robotConnect = useRobotStore((s) => s.connect);
   const robotDisconnect = useRobotStore((s) => s.disconnect);
-  const taskConnect = useTaskStore((s) => s.connect);
-  const taskDisconnect = useTaskStore((s) => s.disconnect);
-  const refreshTasks = useTaskStore((s) => s.refreshTasks);
 
   useEffect(() => {
     robotConnect();
-    taskConnect();
-    refreshTasks();
 
     const timer = setInterval(updateTime, 1000);
     return () => {
       clearInterval(timer);
       robotDisconnect();
-      taskDisconnect();
     };
-  }, [robotConnect, robotDisconnect, taskConnect, taskDisconnect, refreshTasks, updateTime]);
+  }, [robotConnect, robotDisconnect, updateTime]);
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">

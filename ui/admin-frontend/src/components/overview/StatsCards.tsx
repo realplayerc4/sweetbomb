@@ -16,9 +16,10 @@ interface StatCard {
 export function StatsCards() {
   const stats = useSystemStore((s) => s.stats);
   const isOffline = useSystemStore((s) => s.isOffline);
-  const runningCount = useTaskStore((s) => s.runningCount);
-  const pendingCount = useTaskStore((s) => s.pendingCount);
-  const completedToday = useTaskStore((s) => s.completedToday);
+  const isTaskRunning = useTaskStore((s) => s.isRunning);
+  const currentCycle = useTaskStore((s) => s.currentCycle);
+  const totalCycles = useTaskStore((s) => s.totalCycles);
+  const completedKg = useTaskStore((s) => s.completedKg);
 
   const primaryCards: StatCard[] = [
     {
@@ -31,13 +32,13 @@ export function StatsCards() {
     },
     {
       label: '运行中',
-      value: runningCount,
+      value: isTaskRunning ? 1 : 0,
       icon: ListChecks,
       color: 'text-cyan-400',
     },
     {
-      label: '待执行',
-      value: pendingCount,
+      label: '任务进度',
+      value: totalCycles > 0 ? `${currentCycle}/${totalCycles}` : '0/0',
       icon: Clock,
       color: 'text-tech-orange',
     },
@@ -45,11 +46,12 @@ export function StatsCards() {
 
   const secondaryCards: StatCard[] = [
     {
-      label: '今日完成',
-      value: completedToday,
+      label: '已装载',
+      value: completedKg,
+      unit: 'kg',
       icon: CheckCircle2,
       color: 'text-tech-green',
-      subText: `完成率 ${Math.min(100, (completedToday / Math.max(1, completedToday + pendingCount)) * 100).toFixed(0)}%`,
+      subText: totalCycles > 0 ? `完成 ${Math.round((currentCycle / totalCycles) * 100)}%` : '完成 0%',
     },
     {
       label: '活跃告警',

@@ -4,6 +4,7 @@
 - 体积计算（在指定宽度范围内积分）
 - 最近物料点检测
 - 达到目标体积的深度位置计算
+- 噪点过滤（高度过滤 + 密度过滤）
 """
 
 import numpy as np
@@ -33,6 +34,9 @@ class PointCloudAnalysisResult:
     # 状态
     has_material: bool = False  # 是否在范围内检测到物料
 
+    # 过滤统计
+    raw_points: int = 0         # 原始点数
+    filtered_points: int = 0    # 过滤后点数
 
 
 class PointCloudAnalyzer:
@@ -42,12 +46,69 @@ class PointCloudAnalyzer:
         self,
         cell_size: float = 0.02,           # 格子大小 (m)
         bucket_width: float = 0.6,         # 铲斗宽度 (m)
-        working_range_x: float = 2.0,      # X方向工作范围 (m)
+        working_range_x: float = 0.3,      # X方向工作范围 (m)，铲齿前方探测距离
+        min_height: float = 0.05,          # 最小高度阈值 (m)，过滤地面噪点
+        density_radius: float = 0.1,       # 密度检测半径 (m)
+        min_neighbors: int = 5,            # 最小邻居点数
     ):
         self.cell_size = cell_size
         self.bucket_width = bucket_width
         self.working_range_x = working_range_x
         self.bucket_half_width = bucket_width / 2
+        self.min_height = min_height
+        self.density_radius = density_radius
+        self.min_neighbors = min_neighbors
+
+    def _filter_noise(self, points: np.ndarray, z1: float) -> np.ndarray:
+        """
+        过滤噪点：高度过滤 + 密度过滤（纯 numpy 实现）
+
+        Args:
+            points: N x 3 的点云数组
+            z1: 铲齿高度 (m)
+
+        Returns:
+            过滤后的点云数组
+        """
+        if len(points) == 0:
+            return points
+
+        # 1. 高度过滤：只保留高于 z1 + min_height 的点
+        height_mask = points[:, 2] >= (z1 + self.min_height)
+        height_filtered = points[height_mask]
+
+        if len(height_filtered) == 0:
+            return np.empty((0, 3), dtype=np.float32)
+
+        # 2. 密度过滤：只保留周围有足够邻居点的点（纯 numpy 实现）
+        if self.min_neighbors > 0 and len(height_filtered) > self.min_neighbors:
+            try:
+                # 计算所有点之间的距离矩阵（只计算 XY 平面距离，因为高度已过滤）
+                xy_coords = height_filtered[:, :2]  # 只取 X, Y
+                n_points = len(xy_coords)
+
+                # 使用广播计算距离矩阵（内存优化：分块处理）
+                radius_sq = self.density_radius ** 2
+
+                # 计算每个点的邻居数
+                neighbors_count = np.zeros(n_points, dtype=np.int32)
+
+                for i in range(n_points):
+                    # 计算 i 点到所有其他点的 XY 距离平方
+                    diff = xy_coords - xy_coords[i]
+                    dist_sq = np.sum(diff ** 2, axis=1)
+                    # 统计半径内的点数（包括自己）
+                    neighbors_count[i] = np.sum(dist_sq <= radius_sq)
+
+                # 过滤：只保留邻居数足够的点
+                density_mask = neighbors_count >= self.min_neighbors
+                density_filtered = height_filtered[density_mask]
+                return density_filtered
+            except Exception:
+                # 如果密度过滤失败，返回高度过滤后的结果
+                return height_filtered
+
+        return height_filtered
 
     def analyze(
         self,
@@ -82,10 +143,14 @@ class PointCloudAnalyzer:
 
         # 转换为 numpy 数组并 reshape 为 [N, 3]
         points = point_cloud.reshape(-1, 3)
+        raw_points_count = len(points)
 
         # 工作范围定义
-        min_x = camera_to_teeth
-        max_x = camera_to_teeth + self.working_range_x
+        # X 轴：从铲齿前方 0.3m 开始，向远方延伸（查找最近的物料点）
+        # material_distance = nearest_x - camera_to_teeth
+        # 只检测铲齿前方的物料，忽略铲齿下方或相机到铲齿之间的区域
+        min_x = camera_to_teeth + 0.3
+        max_x = float('inf')  # 无上限，实际受点云范围限制
         min_y = -self.bucket_half_width
         max_y = self.bucket_half_width
 
@@ -98,17 +163,23 @@ class PointCloudAnalyzer:
 
         valid_points = points[mask]
 
-        if len(valid_points) == 0:
+        # 噪点过滤：高度过滤 + 密度过滤
+        filtered_points = self._filter_noise(valid_points, z1)
+        filtered_points_count = len(filtered_points)
+
+        if filtered_points_count == 0:
             return PointCloudAnalysisResult(
                 actual_volume=0.0,
                 target_volume=target_volume / 1000,
                 volume_reached=False,
                 has_material=False,
+                raw_points=raw_points_count,
+                filtered_points=0,
             )
 
         # 找到最近物料点（X坐标最小的点）
-        nearest_idx = np.argmin(valid_points[:, 0])
-        nearest_point = valid_points[nearest_idx]
+        nearest_idx = np.argmin(filtered_points[:, 0])
+        nearest_point = filtered_points[nearest_idx]
         nearest_x = nearest_point[0]
         nearest_y = nearest_point[1]
 
@@ -116,7 +187,7 @@ class PointCloudAnalyzer:
         material_distance = nearest_x - camera_to_teeth
 
         # 计算体积（简化方法：平均高度 × 底面积）
-        avg_height = np.mean(valid_points[:, 2]) - z1  # 相对于Z1的高度
+        avg_height = np.mean(filtered_points[:, 2]) - z1  # 相对于Z1的高度
         base_area = self.working_range_x * self.bucket_width
         actual_volume = max(0.0, avg_height * base_area)
 
@@ -124,9 +195,9 @@ class PointCloudAnalyzer:
         # 相机高度0.6m（从地面起算）
         camera_height = 0.6
 
-        # 在valid_points中进一步筛选X≤lr的点
-        pile_mask = valid_points[:, 0] <= lr
-        pile_points = valid_points[pile_mask]
+        # 在filtered_points中进一步筛选X≤lr的点
+        pile_mask = filtered_points[:, 0] <= lr
+        pile_points = filtered_points[pile_mask]
 
         if len(pile_points) > 0:
             # 找到最高点的Z坐标（Z坐标是相机直接输出的值）
@@ -148,8 +219,8 @@ class PointCloudAnalyzer:
         if volume_reached:
             # 已经达到，找到实际达到目标体积的深度
             # 按X坐标排序，找到累计体积达到目标的点
-            sorted_indices = np.argsort(valid_points[:, 0])
-            sorted_points = valid_points[sorted_indices]
+            sorted_indices = np.argsort(filtered_points[:, 0])
+            sorted_points = filtered_points[sorted_indices]
 
             cumulative_volume = 0.0
             cell_area = self.cell_size * self.cell_size
@@ -183,6 +254,8 @@ class PointCloudAnalyzer:
             pile_max_z=pile_max_z if 'pile_max_z' in locals() else None,
             camera_height=camera_height if 'camera_height' in locals() else 1.0,
             has_material=True,
+            raw_points=raw_points_count,
+            filtered_points=filtered_points_count,
         )
 
 

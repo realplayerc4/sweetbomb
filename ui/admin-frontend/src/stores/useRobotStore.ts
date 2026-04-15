@@ -63,10 +63,21 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
 
     socket.on('connect', () => {
       set({ isConnected: true });
+      // 连接后立即获取状态
+      get().refreshStatus();
     });
 
     socket.on('disconnect', () => {
       set({ isConnected: false });
+    });
+
+    // 监听机器人位置更新事件
+    socket.on('robot_position_update', (data: { x: number; y: number; z: number; a: number }) => {
+      set({
+        position: [data.x, data.y, data.z],
+        orientation: [data.a, 0, 0],
+        imu: { roll: 0, pitch: 0, yaw: data.a },
+      });
     });
 
     socket.on('metadata_update', (data: { system_stats?: { battery?: number; cpu_load?: number; temperature?: number; signal?: number; imu?: { roll: number; pitch: number; yaw: number } } }) => {
@@ -87,11 +98,22 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
       if (event.max_cycles !== undefined) set({ harvestMaxCycles: event.max_cycles });
     });
 
+    // Socket 心跳
     const heartbeat = setInterval(() => {
       if (socket.connected) socket.emit('ping');
     }, HEARTBEAT_INTERVAL);
 
-    socket.on('disconnect', () => clearInterval(heartbeat));
+    // HTTP 定时轮询机器人状态（每 1 秒）
+    const pollInterval = setInterval(() => {
+      if (socket.connected) {
+        get().refreshStatus();
+      }
+    }, 1000);
+
+    socket.on('disconnect', () => {
+      clearInterval(heartbeat);
+      clearInterval(pollInterval);
+    });
 
     set({ socket });
   },
@@ -108,13 +130,15 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
     try {
       const status = await robotApi.getStatus();
       set({
-        status: status.state,
-        battery: status.battery_level,
-        position: status.current_position,
-        orientation: status.orientation,
-        imu: status.imu ?? { roll: 0, pitch: 0, yaw: 0 },
-        leftTrackSpeed: status.left_track_speed,
-        rightTrackSpeed: status.right_track_speed,
+        status: status.status as RobotState,
+        battery: status.charge,
+        // 后端返回的 x, y, z 单位是 mm，a 是角度（度）
+        position: [status.x, status.y, status.z],
+        orientation: [status.a, 0, 0],
+        imu: { roll: 0, pitch: 0, yaw: status.a },
+        leftTrackSpeed: status.speed,
+        rightTrackSpeed: status.speed,
+        isConnected: status.connected,
       });
     } catch {
       // silently fail - status will be updated via socket

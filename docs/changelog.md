@@ -72,6 +72,26 @@
 
 ### [Fixed]
 
+- **move_distance 无物料时显示 0.3m**
+  - 根因：仅检查 `material_distance is not None`，未检查 `has_material`
+  - 当点云噪点落在工作范围内时，`material_distance=0.0` 导致 `move_distance=0+0.3=0.3`
+  - 修复：增加 `has_material` 检查，无物料时 `move_distance=0.0`
+
+- **camera_to_teeth 单位不一致导致点云过滤错误**
+  - 根因：前端传入 mm（1020），点云坐标是 m，导致工作范围计算错误
+  - 原 `min_x=1020, max_x=1022` 过滤掉了所有点云（实际坐标 0.5~2m）
+  - 修复：在 `stream_controller.py` 中将 `camera_to_teeth` 从 mm 转换为 m
+
+- **nearest_x 工作范围过滤错误**
+  - 根因：X 范围从 `camera_to_teeth` 开始，过滤掉了相机到铲齿之间的物料点
+  - 修复：X 范围改为 `camera_to_teeth + 0.3 ~ ∞`（从铲齿前方 0.3m 开始）
+
+- **nearest_x 噪点干扰**
+  - 问题：孤立噪点被误判为最近物料点
+  - 修复：增加双重噪点过滤
+    - 高度过滤：只保留 `Z >= z1 + 0.05m` 的点（过滤地面噪点）
+    - 密度过滤：只保留半径 0.1m 内有 ≥5 个邻居点的点（过滤孤立噪点）
+
 - **numpy 序列化错误**
   - `PointCloudAnalysisResponse` 中 `nearest_point` 转换为 Python float
   - `material_distance` 为 None 时不再触发格式化错误

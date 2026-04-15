@@ -1,327 +1,222 @@
 import { create } from 'zustand';
-import { io, type Socket } from 'socket.io-client';
-import { SOCKET_URL } from '../config';
-import { taskApi } from '../services/taskApi';
-import type { TaskInfo, TaskStatus, TaskCreateRequest } from '../types';
+import { robotApi } from '../services/robotApi';
 
-interface TaskEvent {
-  event_type: string;
-  task_id: string;
-  task_type: string;
-  status: TaskStatus;
-  progress?: TaskInfo['progress'] | null;
-  result?: TaskInfo['result'] | null;
-  timestamp: string;
-}
+/**
+ * 任务状态
+ * - idle: 空闲，无任务
+ * - nav_to_pick: 导航到取货点（含取货）
+ * - nav_to_drop: 导航到卸货点（含卸货）
+ * - paused: 暂停
+ * - completed: 任务完成
+ * - error: 错误
+ */
+type TaskPhase = 'idle' | 'nav_to_pick' | 'nav_to_drop' | 'paused' | 'completed' | 'error';
 
 interface TaskStore {
-  tasks: TaskInfo[];
-  isLoading: boolean;
-  isConnected: boolean;
-  runningCount: number;
-  pendingCount: number;
-  completedToday: number;
+  // 任务配置
+  targetKg: number;           // 目标重量 (kg)
+  perCycleKg: number;         // 每次循环重量 (kg)，默认 30kg
+  totalCycles: number;        // 总循环次数
+  currentCycle: number;       // 当前循环次数
+
+  // 任务状态
+  phase: TaskPhase;           // 当前阶段
+  isRunning: boolean;         // 是否正在运行
+  completedKg: number;        // 已完成重量 (kg)
+
+  // 错误信息
   error: string | null;
-  socket: Socket | null;
 
-  connect: () => void;
-  disconnect: () => void;
-  refreshTasks: () => Promise<void>;
-  createTask: (request: TaskCreateRequest) => Promise<TaskInfo>;
-  startTask: (taskId: string) => Promise<void>;
-  pauseTask: (taskId: string) => Promise<void>;
-  resumeTask: (taskId: string) => Promise<void>;
-  stopTask: (taskId: string) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
+  // Actions
+  setTarget: (kg: number) => void;
+  start: () => Promise<void>;
+  pause: () => Promise<void>;
+  resume: () => Promise<void>;
+  stop: () => Promise<void>;
   clearError: () => void;
-}
 
-function updateCounts(tasks: TaskInfo[]) {
-  const running = tasks.filter((t) => t.status === 'running').length;
-  const pending = tasks.filter((t) => t.status === 'pending').length;
-  const today = new Date().toDateString();
-  const completed = tasks.filter(
-    (t) => t.status === 'completed' && new Date(t.completed_at ?? '').toDateString() === today
-  ).length;
-  return { runningCount: running, pendingCount: pending, completedToday: completed };
+  // 内部方法
+  _runCycle: () => Promise<void>;
+  _waitForRobotIdle: (timeoutMs: number) => Promise<boolean>;
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
-  tasks: [
-    {
-      task_id: 'task-001',
-      task_type: 'sugar_harvest',
-      status: 'running',
-      priority: 10,
-      device_id: 'loader-001',
-      config: {
-        device_id: 'loader-001',
-        priority: 10,
-        max_retries: 3,
-        timeout_seconds: 3600
-      },
-      params: {
-        navigation_point: [22.5431, 108.3743],
-        dump_point: [22.5445, 108.3750],
-        bucket_width_m: 0.8,
-        approach_offset_m: 0.5,
-        max_cycles: 10,
-        height_threshold_m: 0.3
-      },
-      created_at: new Date(Date.now() - 1800000).toISOString(),
-      started_at: new Date(Date.now() - 1500000).toISOString(),
-      progress: {
-        current_step: 3,
-        total_steps: 10,
-        percentage: 30,
-        message: '正在执行第3趟作业',
-        elapsed_seconds: 3000
-      },
-      target_ton: 8.5
-    },
-    {
-      task_id: 'task-002',
-      task_type: 'sugar_harvest',
-      status: 'running',
-      priority: 10,
-      device_id: 'loader-002',
-      config: {
-        device_id: 'loader-002',
-        priority: 10,
-        max_retries: 3,
-        timeout_seconds: 3600
-      },
-      params: {
-        navigation_point: [22.5435, 108.3747],
-        dump_point: [22.5445, 108.3750],
-        bucket_width_m: 0.8,
-        approach_offset_m: 0.5,
-        max_cycles: 10,
-        height_threshold_m: 0.3
-      },
-      created_at: new Date(Date.now() - 2100000).toISOString(),
-      started_at: new Date(Date.now() - 1800000).toISOString(),
-      progress: {
-        current_step: 5,
-        total_steps: 10,
-        percentage: 50,
-        message: '正在执行第5趟作业',
-        elapsed_seconds: 3600
-      },
-      target_ton: 8.5
-    },
-    {
-      task_id: 'task-003',
-      task_type: 'sugar_harvest',
-      status: 'paused',
-      priority: 5,
-      device_id: 'loader-004',
-      config: {
-        device_id: 'loader-004',
-        priority: 5,
-        max_retries: 3,
-        timeout_seconds: 3600
-      },
-      params: {
-        navigation_point: [22.5440, 108.3740],
-        dump_point: [22.5445, 108.3750],
-        bucket_width_m: 0.8,
-        approach_offset_m: 0.5,
-        max_cycles: 10,
-        height_threshold_m: 0.3
-      },
-      created_at: new Date(Date.now() - 2400000).toISOString(),
-      started_at: new Date(Date.now() - 2100000).toISOString(),
-      progress: {
-        current_step: 2,
-        total_steps: 10,
-        percentage: 20,
-        message: '已暂停，等待维护',
-        elapsed_seconds: 1800
-      },
-      target_ton: 8.5
-    },
-    {
-      task_id: 'task-004',
-      task_type: 'sugar_harvest',
-      status: 'running',
-      priority: 5,
-      device_id: 'loader-006',
-      config: {
-        device_id: 'loader-006',
-        priority: 5,
-        max_retries: 3,
-        timeout_seconds: 3600
-      },
-      params: {
-        navigation_point: [22.5438, 108.3755],
-        dump_point: [22.5445, 108.3750],
-        bucket_width_m: 0.8,
-        approach_offset_m: 0.5,
-        max_cycles: 10,
-        height_threshold_m: 0.3
-      },
-      created_at: new Date(Date.now() - 900000).toISOString(),
-      started_at: new Date(Date.now() - 600000).toISOString(),
-      progress: {
-        current_step: 1,
-        total_steps: 10,
-        percentage: 10,
-        message: '正在执行第1趟作业',
-        elapsed_seconds: 600
-      },
-      target_ton: 8.5
-    }
-  ],
-  isLoading: false,
-  isConnected: false,
-  runningCount: 3,
-  pendingCount: 0,
-  completedToday: 0,
+  // 默认配置
+  targetKg: 900,
+  perCycleKg: 30,
+  totalCycles: 30,
+  currentCycle: 0,
+
+  // 初始状态
+  phase: 'idle',
+  isRunning: false,
+  completedKg: 0,
   error: null,
-  socket: null,
 
-  connect: () => {
-    const existing = get().socket;
-    if (existing) return;
-
-    const socket = io(SOCKET_URL, {
-      path: '/socket.io',
-      transports: ['websocket'],
+  // 设置目标重量，自动计算循环次数
+  setTarget: (kg: number) => {
+    const perCycle = get().perCycleKg;
+    const cycles = Math.ceil(kg / perCycle);
+    set({
+      targetKg: kg,
+      totalCycles: cycles,
+      completedKg: 0,
+      currentCycle: 0,
+      phase: 'idle',
     });
+  },
 
-    socket.on('connect', () => set({ isConnected: true }));
-    socket.on('disconnect', () => set({ isConnected: false }));
+  // 启动任务
+  start: async () => {
+    const { isRunning, currentCycle, totalCycles } = get();
+    if (isRunning) return;
 
-    socket.on('task_event', (event: TaskEvent) => {
-      set((state) => {
-        const idx = state.tasks.findIndex((t) => t.task_id === event.task_id);
-        let newTasks: TaskInfo[];
-        if (idx >= 0) {
-          newTasks = [...state.tasks];
-          newTasks[idx] = {
-            ...newTasks[idx],
-            status: event.status,
-            progress: event.progress ?? newTasks[idx].progress,
-            result: event.result ?? newTasks[idx].result,
-          };
-        } else {
-          taskApi.listTasks().then((res) => {
-            set({ tasks: res.tasks, ...updateCounts(res.tasks) });
-          });
-          newTasks = state.tasks;
-        }
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
+    // 如果已完成所有循环
+    if (currentCycle >= totalCycles) {
+      set({ phase: 'completed', isRunning: false });
+      return;
+    }
+
+    set({ isRunning: true, error: null });
+
+    // 开始执行循环
+    get()._runCycle();
+  },
+
+  // 暂停任务
+  pause: async () => {
+    const { isRunning } = get();
+    if (!isRunning) return;
+
+    try {
+      await robotApi.pause();
+      set({ phase: 'paused', isRunning: false });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '暂停失败';
+      set({ error: msg });
+    }
+  },
+
+  // 恢复任务
+  resume: async () => {
+    const { phase } = get();
+    if (phase !== 'paused') return;
+
+    set({ isRunning: true, error: null });
+
+    try {
+      await robotApi.resume();
+      get()._runCycle();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '恢复失败';
+      set({ error: msg, isRunning: false });
+    }
+  },
+
+  // 停止任务
+  stop: async () => {
+    try {
+      await robotApi.stop();
+    } catch {
+      // 忽略错误
+    }
+    set({
+      isRunning: false,
+      phase: 'idle',
+      currentCycle: 0,
+      completedKg: 0,
     });
-
-    set({ socket });
-  },
-
-  disconnect: () => {
-    const socket = get().socket;
-    if (socket) {
-      socket.disconnect();
-      set({ socket: null, isConnected: false });
-    }
-  },
-
-  refreshTasks: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const res = await taskApi.listTasks();
-      set({ tasks: res.tasks, ...updateCounts(res.tasks), isLoading: false });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '获取任务列表失败';
-      set({ error: msg, isLoading: false });
-    }
-  },
-
-  createTask: async (request) => {
-    set({ error: null });
-    try {
-      const task = await taskApi.createTask(request);
-      set((state) => {
-        const newTasks = [...state.tasks, task];
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
-      return task;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '创建任务失败';
-      set({ error: msg });
-      throw new Error(msg);
-    }
-  },
-
-  startTask: async (taskId) => {
-    set({ error: null });
-    try {
-      const updated = await taskApi.startTask(taskId);
-      set((state) => {
-        const newTasks = state.tasks.map((t) => (t.task_id === taskId ? updated : t));
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '启动任务失败';
-      set({ error: msg });
-    }
-  },
-
-  pauseTask: async (taskId) => {
-    set({ error: null });
-    try {
-      const updated = await taskApi.pauseTask(taskId);
-      set((state) => {
-        const newTasks = state.tasks.map((t) => (t.task_id === taskId ? updated : t));
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '暂停任务失败';
-      set({ error: msg });
-    }
-  },
-
-  resumeTask: async (taskId) => {
-    set({ error: null });
-    try {
-      const updated = await taskApi.resumeTask(taskId);
-      set((state) => {
-        const newTasks = state.tasks.map((t) => (t.task_id === taskId ? updated : t));
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '恢复任务失败';
-      set({ error: msg });
-    }
-  },
-
-  stopTask: async (taskId) => {
-    set({ error: null });
-    try {
-      const updated = await taskApi.stopTask(taskId);
-      set((state) => {
-        const newTasks = state.tasks.map((t) => (t.task_id === taskId ? updated : t));
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '停止任务失败';
-      set({ error: msg });
-    }
-  },
-
-  deleteTask: async (taskId) => {
-    set({ error: null });
-    try {
-      await taskApi.deleteTask(taskId);
-      set((state) => {
-        const newTasks = state.tasks.filter((t) => t.task_id !== taskId);
-        return { tasks: newTasks, ...updateCounts(newTasks) };
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '删除任务失败';
-      set({ error: msg });
-    }
   },
 
   clearError: () => set({ error: null }),
+
+  // 等待机器人变为空闲状态
+  _waitForRobotIdle: async (timeoutMs: number) => {
+    const startTime = Date.now();
+
+    return new Promise<boolean>((resolve) => {
+      const checkInterval = setInterval(async () => {
+        // 检查是否暂停或停止
+        if (!get().isRunning) {
+          clearInterval(checkInterval);
+          resolve(false);
+          return;
+        }
+
+        // 检查超时
+        if (Date.now() - startTime > timeoutMs) {
+          clearInterval(checkInterval);
+          set({ error: '等待超时' });
+          resolve(false);
+          return;
+        }
+
+        // 检查机器人状态
+        try {
+          const status = await robotApi.getStatus();
+          if (status.status === 'idle') {
+            clearInterval(checkInterval);
+            resolve(true);
+          }
+        } catch {
+          // 忽略错误，继续等待
+        }
+      }, 500); // 每500ms检查一次
+    });
+  },
+
+  // 执行循环任务
+  // 简化流程：nav-pick 已包含取货，nav-drop 已包含卸货
+  _runCycle: async () => {
+    const { totalCycles, perCycleKg } = get();
+
+    while (get().isRunning) {
+      const cycleNum = get().currentCycle + 1;
+
+      // 检查是否完成所有循环
+      if (cycleNum > totalCycles) {
+        set({ phase: 'completed', isRunning: false });
+        return;
+      }
+
+      try {
+        console.log(`[Task] 开始第 ${cycleNum}/${totalCycles} 次循环`);
+
+        // 阶段1: 导航到取货点并取货（nav-pick 已包含取货动作）
+        set({ phase: 'nav_to_pick' });
+        console.log('[Task] 导航到取货点并取货...');
+        await robotApi.navToPick();
+
+        // 等待完成
+        const pickDone = await get()._waitForRobotIdle(180000); // 最多等待3分钟
+        if (!pickDone || !get().isRunning) return;
+
+        // 阶段2: 导航到卸货点并卸货（nav-drop 已包含卸货动作）
+        set({ phase: 'nav_to_drop' });
+        console.log('[Task] 导航到卸货点并卸货...');
+        await robotApi.navToDrop();
+
+        // 等待完成
+        const dropDone = await get()._waitForRobotIdle(180000);
+        if (!dropDone || !get().isRunning) return;
+
+        // 完成一次循环
+        const newCompletedKg = get().completedKg + perCycleKg;
+        const newCycle = get().currentCycle + 1;
+        set({
+          currentCycle: newCycle,
+          completedKg: newCompletedKg,
+          phase: 'idle',
+        });
+
+        console.log(`[Task] 完成第 ${newCycle}/${totalCycles} 次循环，已装载 ${newCompletedKg}kg`);
+
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '任务执行失败';
+        console.error('[Task] 错误:', msg);
+        set({ error: msg, phase: 'error', isRunning: false });
+        return;
+      }
+    }
+  },
 }));

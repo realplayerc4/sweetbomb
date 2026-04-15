@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useRobotStore } from './useRobotStore';
 import type { AlertInfo, AlertLevel, SystemStats, DeviceInfo, ZoneInfo, MaintenanceRecord, LoaderRegistration, DeviceWorkState } from '../types';
 
 interface SystemStore {
