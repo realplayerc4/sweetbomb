@@ -29,8 +29,16 @@
   - `sweetbomb-admin-frontend.service` systemd 服务配置
   - 双前端独立运行：SW 前端 (port 5173) 机器人操控，SWNFP 前端 (port 5174) 后台管理
   - 统一后端 (port 8000) 服务两个前端
-  - ISUI 技术栈：React 18 + Ant Design 6 + Zustand + ECharts + Leaflet
+  - ISUI 技术栈升级：React 19 + Ant Design 6 + Zustand + ECharts + Leaflet
   - API 服务层后续逐步对接 SW 后端
+
+- **SWNFP 前端 WebRTC 视频流接入**
+  - 新增 `src/services/webrtcApi.ts` - WebRTC API 服务
+  - 新增 `src/hooks/useWebRTCConnection.ts` - WebRTC 连接 Hook
+  - 新增 `src/components/monitor/VideoStreamView.tsx` - 视频流显示组件
+  - 修改 `SensorMonitor.tsx`：单机器人模式使用真实 WebRTC 视频流
+  - 多机器人模式：一号机器人使用真实视频流，其他使用 Canvas 模拟
+  - 支持 RGB 和深度两种视频流同时显示
 
 - **systemd 服务配置**
   - `sweetbomb-backend.service` - 后端 FastAPI 服务
