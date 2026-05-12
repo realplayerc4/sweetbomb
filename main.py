@@ -111,8 +111,8 @@ async def camera_distance_sender_loop():
                     distance_mm = int(move_distance * 1000)
                     mat_dist_str = f"{material_distance:.3f}m" if material_distance is not None else "None"
                     print(f"[CameraDistance] move_distance={move_distance:.3f}m, material_distance={mat_dist_str}, sending={distance_mm}mm")
-                    if move_distance > 0:
-                        await server.send_camera_distance(distance_mm)
+                    # 始终发送距离给下位机（包括 0）
+                    await server.send_camera_distance(distance_mm)
                 break
         except Exception as e:
             print(f"[CameraDistance] Error: {e}")
