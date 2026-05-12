@@ -515,14 +515,14 @@ class StreamController:
 
                             # 执行点云分析（体积、距离计算等）
                             try:
+                                # camera_to_teeth 固定为 1m（物理固定值）
+                                camera_to_teeth = 1.0
+
                                 # 从设备参数配置获取（优先使用前端传入的值）
                                 params = self._analysis_params.get(device_id, {})
                                 teeth_height = params.get('teeth_height', -0.1)
                                 bucket_volume = params.get('bucket_volume', 30.0)
                                 bucket_depth = params.get('bucket_depth', 0.3)
-                                # camera_to_teeth 前端传入 mm，需转换为 m
-                                camera_to_teeth_mm = params.get('camera_to_teeth', 800)
-                                camera_to_teeth = camera_to_teeth_mm / 1000.0
                                 lr = params.get('lr', 3.0)
 
                                 analysis_result = self.point_cloud_analyzer.analyze(

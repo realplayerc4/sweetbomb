@@ -136,6 +136,11 @@ class RealSenseManager:
         """自动启动设备的 color 和 depth 流并激活点云处理。"""
         from app.models.stream import StreamConfig
 
+        # 先同步默认参数到 stream_controller
+        default_settings = self.get_pointcloud_settings(device_id)
+        self._stream.update_analysis_params(device_id, default_settings)
+        print(f"[AutoStart] Synced default params: camera_to_teeth={self.CAMERA_TO_TEETH_M}m (fixed)")
+
         # 创建 depth 流配置 (640x360 降低带宽压力)
         depth_config = StreamConfig(
             sensor_id=f"{device_id}-sensor-0",
@@ -206,19 +211,22 @@ class RealSenseManager:
 
     # ========== 点云参数设置 ==========
 
+    # camera_to_teeth 固定为 1m（物理固定值）
+    CAMERA_TO_TEETH_M = 1.0
+
     def get_pointcloud_settings(self, device_id: str) -> dict:
         """获取设备的点云分析参数，返回默认值如果未设置。
 
         单位说明：
         - teeth_height: m (铲齿高度)
-        - camera_to_teeth: mm (相机到铲齿距离，前端传入 mm，内部转换为 m)
+        - camera_to_teeth: 固定 1m (物理固定)
         - bucket_depth: m (铲斗深度)
         - bucket_volume: L (铲斗体积)
         - lr: m (取料半径)
         """
         default = {
             "teeth_height": -0.85,
-            "camera_to_teeth": 800,  # mm，前端传入 mm
+            "camera_to_teeth": self.CAMERA_TO_TEETH_M,  # 固定 1m
             "bucket_depth": 0.3,
             "bucket_volume": 30.0,
             "lr": 3.0,
@@ -226,11 +234,11 @@ class RealSenseManager:
         return self._pointcloud_settings.get(device_id, default)
 
     def update_pointcloud_settings(self, device_id: str, settings: dict) -> dict:
-        """更新设备的点云分析参数。"""
+        """更新设备的点云分析参数。camera_to_teeth 固定为 1m，不接受修改。"""
         # 获取当前设置
         current = self.get_pointcloud_settings(device_id)
-        # 合并新设置
-        updated = {**current, **settings}
+        # 合并新设置，但 camera_to_teeth 始终保持固定值
+        updated = {**current, **settings, "camera_to_teeth": self.CAMERA_TO_TEETH_M}
         self._pointcloud_settings[device_id] = updated
         # 同步更新 stream_controller 的参数
         self._stream.update_analysis_params(device_id, updated)

@@ -184,6 +184,7 @@ class PointCloudAnalyzer:
         nearest_y = nearest_point[1]
 
         # 计算铲齿到物料的距离
+        # camera_to_teeth 固定为 1m（物理固定值）
         material_distance = nearest_x - camera_to_teeth
 
         # 计算体积（简化方法：平均高度 × 底面积）
