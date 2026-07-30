@@ -22,12 +22,275 @@
 
 ## [Unreleased]
 
-### Planned
+### [Added]
 
-- [ ] 铲糖任务成功率统计与优化建议
-- [ ] 远程节点管理功能上线
-- [ ] 多语言支持 (i18n)
-- [ ] 数据导出功能 (CSV/JSON)
+- **SWNFP 分支 - 双前端架构**
+  - 新增 `ui/admin-frontend/` 目录，融合 ISUI 管理后台前端
+  - `sweetbomb-admin-frontend.service` systemd 服务配置
+  - 双前端独立运行：SW 前端 (port 5173) 机器人操控，SWNFP 前端 (port 5174) 后台管理
+  - 统一后端 (port 8000) 服务两个前端
+  - ISUI 技术栈升级：React 19 + Ant Design 6 + Zustand + ECharts + Leaflet
+  - API 服务层后续逐步对接 SW 后端
+
+- **SWNFP 前端 WebRTC 视频流接入**
+  - 新增 `src/services/webrtcApi.ts` - WebRTC API 服务
+  - 新增 `src/hooks/useWebRTCConnection.ts` - WebRTC 连接 Hook
+  - 新增 `src/components/monitor/VideoStreamView.tsx` - 视频流显示组件
+  - 修改 `SensorMonitor.tsx`：单机器人模式使用真实 WebRTC 视频流
+  - 多机器人模式：一号机器人使用真实视频流，其他使用 Canvas 模拟
+  - 支持 RGB 和深度两种视频流同时显示
+
+- **systemd 服务配置**
+  - `sweetbomb-backend.service` - 后端 FastAPI 服务
+  - `sweetbomb-frontend.service` - 前端 Vite 服务
+  - `install-service.sh` - 自动安装脚本，配置开机自启动
+  - 服务特性：`Restart=always`（崩溃自动重启）、`RestartSec=3`（3秒重启间隔）
+
+- **点云参数同步 API**
+  - `POST /api/devices/{device_id}/point_cloud/settings` - 同步前端参数到后端
+  - 支持 teethHeight、cameraToTeeth、bucketDepth、bucketVolume、lr 参数
+  - 后端 rs_manager 存储参数并传递给 stream_controller
+  - 前端 SliceView 增加 lr 输入框（取料半径，防止超挖）
+  - 当 `material_distance > lr` 时 `move_distance = 0`（禁止前进）
+
+- **点云分析回调修复**
+  - stream_controller 调用 `_analysis_result_callback` 将结果传递给 rs_manager
+  - API `/move_distance` 和 `/analysis` 现可返回有效数据
+  - cameraCheck 距离发送（250ms 间隔）可获取真实 move_distance
+
+### [Changed]
+
+- **TCP 通讯协议完善**
+  - 仅 taskFinish 消息回复下位机，其他消息不回复
+  - 举升角度范围修正为 60-124 度（前端显示）
+  - "铲齿深度"标签改为"相机高度"
+
+- **部署方式变更**
+  - 移除 PM2 配置，改用 systemd 服务
+  - 适合嵌入式 Linux（Jetson）稳定运行
+  - 更新 CLAUDE.md、README.md 文档
+
+### [Fixed]
+
+- **move_distance 无物料时显示 0.3m**
+  - 根因：仅检查 `material_distance is not None`，未检查 `has_material`
+  - 当点云噪点落在工作范围内时，`material_distance=0.0` 导致 `move_distance=0+0.3=0.3`
+  - 修复：增加 `has_material` 检查，无物料时 `move_distance=0.0`
+
+- **camera_to_teeth 单位不一致导致点云过滤错误**
+  - 根因：前端传入 mm（1020），点云坐标是 m，导致工作范围计算错误
+  - 原 `min_x=1020, max_x=1022` 过滤掉了所有点云（实际坐标 0.5~2m）
+  - 修复：在 `stream_controller.py` 中将 `camera_to_teeth` 从 mm 转换为 m
+
+- **nearest_x 工作范围过滤错误**
+  - 根因：X 范围从 `camera_to_teeth` 开始，过滤掉了相机到铲齿之间的物料点
+  - 修复：X 范围改为 `camera_to_teeth + 0.3 ~ ∞`（从铲齿前方 0.3m 开始）
+
+- **nearest_x 噪点干扰**
+  - 问题：孤立噪点被误判为最近物料点
+  - 修复：增加双重噪点过滤
+    - 高度过滤：只保留 `Z >= z1 + 0.05m` 的点（过滤地面噪点）
+    - 密度过滤：只保留半径 0.1m 内有 ≥5 个邻居点的点（过滤孤立噪点）
+
+- **numpy 序列化错误**
+  - `PointCloudAnalysisResponse` 中 `nearest_point` 转换为 Python float
+  - `material_distance` 为 None 时不再触发格式化错误
+
+- **点云分析 Volume 显示 0.00L**
+  - 分析参数（teeth_height、camera_to_teeth）未从前端同步导致 ROI 计算错误
+  - 需通过 settings API 同步前端参数
+
+### [Removed]
+
+- PM2 相关配置和命令文件（ecosystem.config.cjs、pm2-* 命令）
+
+---
+
+### [Added] (Previous)
+
+- **地图栅格旋转功能**
+  - 新增全局 theta 旋转参数，支持手动输入角度值（默认 -178.0472°，顺时针旋转）
+  - 后端 `map_converter` 服务新增 `coordinate_rotate` 函数，对所有栅格点应用旋转
+  - 后端 `/api/map/{name}.png` 支持 `theta` 参数（度），自动转换弧度后生成旋转PNG
+  - 后端 `/api/map/{name}/info` 支持 `theta` 参数，返回旋转后边界 `rotated_bounds` 和图片像素尺寸 `img_width_px/img_height_px`
+  - 缓存机制支持不同 theta 值的独立缓存（文件名带 `_theta{x.xxxx}` 后缀）
+  - 前端 MapPanel 右上角添加 theta 输入框，可手动修改角度
+
+- **地图车辆位置指示器**
+  - 在地图上叠加显示带箭头的银色方块，表示车辆实时位置和朝向
+  - 方块尺寸与真实车体比例一致：宽 800mm，长 1400mm
+  - 根据地图分辨率自动计算像素尺寸，跟随地图缩放
+  - XYZA 数值表示车辆正中心，角度 A 为车头与X轴夹角
+  - 通过 `imageLoaded` 状态 + `onLoad` 回调确保图片加载后才计算位置
+
+- **机器人控制按钮新协议**
+  - `POST /api/robot/scoop` → 发送铲取任务（Type=pick）
+  - `POST /api/robot/dump` → 发送倾倒任务（Type=drop）
+  - `POST /api/robot/dock` → 发送回桩任务（Type=charge）
+  - `POST /api/robot/stop` → 发送取消任务命令（cancelTask）
+  - `POST /api/robot/pause` → 发送暂停任务命令（pauseTask）
+  - `POST /api/robot/resume` → 发送取消暂停命令（pauseCancel）
+  - `POST /api/robot/nav-pick` → 导航到取货点（Type=allPick）
+  - `POST /api/robot/nav-drop` → 导航到卸货点（Type=allDrop）
+  - 新协议格式: `{MessageType=task\nTaskId=xxx\nType=xxxx\n}`
+  - TaskId 生成器（线程安全）: `YYYYMMDDHHMMSS` + 3位序号
+
+- **按钮互锁与任务状态跟踪**
+  - 铲取/倾倒/回桩按钮互锁：按下任意一个时，另外两个锁定
+  - 收到下位机 `{MessageType=taskFinish TaskId=xxx}` 后解除锁定
+  - 后端通过 Socket.IO 广播 `robot_task_finish` 事件
+  - 暂停/停止按钮不受互锁影响，可用于取消任务
+
+- **相机距离定时发送**
+  - 后端每 250ms 读取 `move_distance`（相机检测推荐前进值）
+  - 通过 TCP 发送 `{MessageType=cameraCheckDistance=xxxx}`（单位mm）到下位机
+  - 无反馈报文
+
+- **前端计算移至后端**
+  - 前进距离（铲齿→物料、建议前进）改为后端计算，前端仅显示
+  - 点云卡片"铲齿深度"标签改为"相机高度"
+
+- **任务系统导航按钮**
+  - BehaviorTreeViz 中「导航到取糖点」胶囊按钮可点击，发送 allPick
+  - BehaviorTreeViz 中「导航到卸载点」胶囊按钮可点击，发送 allDrop
+  - 任务运行时两个导航按钮自动禁用
+
+- **任务系统位置显示**
+  - 新增位置显示区域：铲取入口、卸载位置、充电位置、车辆位置、糖堆位置
+  - 所有位置文字统一使用石墨橙色（#FD802E）
+  - 铲取入口：X/Y 为 connect_node 节点坐标，n 为节点号
+  - 卸载位置：X/Y 为 dropStation 坐标，n 为 connect_node
+  - 充电位置：X/Y 通过 chargeStation.node 在 nodes 中查找，n 为节点号
+  - 糖堆位置：X/Y/R/S 可编辑输入框，localStorage 持久化
+
+- **地图站点标记叠加显示**
+  - 取货站：紫色小点显示 connectNode（1003）和 8 个站位（101-108）
+  - 放货站：紫色小点显示卸载位置坐标
+  - 充电站：紫色小点显示充电位置坐标
+  - 糖堆区域：金黄色圆点（中心）+ 虚线圆（R半径）
+  - 所有标记使用与车辆相同的坐标偏移方法
+
+- **取货站圆形分布算法**
+  - 后端 `_resolve_coordinates()` 按 C++ 原版算法生成圆形分布站位
+  - 根据 ox/oy（圆心）、R（半径）、stationNum（数量）、connectNode 计算
+  - 逆时针方向生成 stationNum 个站位坐标
+  - 自动选择离 connectNode 最近的圆交点作为起点
+
+### [Changed]
+
+- **机器人控制面板底部按钮**
+  - 五个按钮：铲取、倾倒、暂停、停止、回桩
+  - 铲取/倾倒/回桩在任务执行中互锁禁用
+  - 暂停按钮调用 pauseTask 协议，仅在任务运行时可点击
+  - 举升进度条范围更新为 60°~124°
+
+- **TCP 通讯回复规则**
+  - 只有收到 taskFinish 时回复下位机，其他报文不再回复
+
+- **机器人状态卡片速度显示**
+  - "设定速度"改为"车辆速度"
+  - 使用 status.speed 实时更新数值，替代原来的固定值 0.5 m/s
+
+- **地图坐标显示**
+  - X/Y 显示原始机器人数据（mm），不应用 theta 旋转转换
+  - X/Y 单位为整数（mm），A 单位为度（1位小数）
+
+### [Fixed]
+
+- **修复 matplotlib 导入失败导致地图PNG转换失败**
+  - 根因：venv 中 matplotlib 3.5.1（系统包）与 NumPy 2.2.6 版本不兼容
+  - 解决：在 venv 中安装新版 matplotlib 3.10.8
+
+- **修复前端 auto_cycle 轮询 404 错误**
+  - 前端每 2 秒轮询 `/api/robot/auto_cycle/status`，后端无此端点
+  - 移除该轮询，消除大量 404 控制台错误
+
+- **修复前端 MapInfo 数据结构与后端 API 不匹配**
+  - 后端 `/api/map/` 返回 `filename, size_bytes, modified_time` 等字段
+  - 前端 `MapInfo` 接口期望 `resolution, origin_x, grid_width` 等字段
+  - 统一接口定义，新增 `MapDetailInfo` 接口包含旋转后边界信息
+
+- **修复车辆指示器不显示问题**
+  - 根因：`useMemo` 依赖 `imageRef.current`，但 ref 在渲染时为 null 且 ref 变化不触发重渲染
+  - 解决：添加 `imageLoaded` 状态 + `onLoad` 回调，确保图片加载完成后才计算位置
+
+- **修复 PickStation R/r 字段名大小写不匹配**
+  - 后端 Pydantic 模型字段名 `r`，alias `R`，FastAPI 序列化输出大写 `R`
+  - 前端 TypeScript 接口统一使用 `R` 与 API 响应匹配
+
+- **修复 useRobotController 重复声明和返回值缺失**
+  - 删除 `pendingTaskId`/`isTaskRunning` 重复的 useState 声明
+  - 在 return 中补充返回 `pendingTaskId` 和 `isTaskRunning`，修复 TypeScript 类型错误
+
+- **修复地图站点标记不显示**
+  - 根因：`usePathMap` 每个组件创建独立实例，MapPanel 未调用 `loadPathMap()`
+  - 解决：MapPanel 组件加载时自动调用 `loadPathMap()` 获取站点数据
+
+- **修复 BEV SLICE 无点云时不显示网格**
+  - 根因：`filteredCount === 0` 时直接 return，跳过网格绘制逻辑
+  - 解决：删除该 early return，让视图框架（网格、坐标轴、焦点区域）始终显示
+
+### [Refactor]
+
+- **地图 API 后端重构**
+  - `map_converter.py` 新增 `coordinate_rotate` 旋转函数
+  - `to_png` 方法支持 theta 参数，对所有栅格点应用旋转后生成 PNG
+  - `convert_map` 便捷函数透传 theta 参数
+  - `map.py` API 缓存 key 包含 theta 值，支持不同角度独立缓存
+
+- **前端 MapPanel 重构**
+  - 分离 `robotStatus`（原始坐标显示）和 `vehicleData`（地图指示器定位）
+  - `useMapImage` hook 支持 thetaDeg 参数传递给后端
+  - `useMapInfo` hook 支持 thetaDeg 参数获取旋转后边界
+  - 移除未使用的 `coordinateRotate` 前端函数（后端统一处理）
+
+- **后端 path_map_manager 重构**
+  - `_resolve_coordinates()` 重写取货站圆形分布算法
+  - 新增 `ChargeStation` 前端接口定义
+  - `usePathMap` hook 返回 `chargeStations` 和 `nodes`
+
+- **前端 BehaviorTreeViz 重构**
+  - 位置显示区域从 slate 色改为石墨橙色统一风格
+  - 新增 `pickPosition`、`dropPosition`、`chargePosition` 的 useMemo 计算
+  - 位置顺序调整：铲取入口 → 卸载位置 → 充电位置 → 车辆位置 → 糖堆位置
+
+---
+
+## [2.0.0] - 2026-03-20
+
+### [Removed]
+
+- **移除任务系统 (Task Management)**
+  - 删除 `TaskManager` 及相关服务
+  - 删除 `/api/tasks` 端点
+  - 删除任务数据模型
+  - 移除 Socket.IO 任务事件
+
+- **移除行为树系统 (Behavior Tree)**
+  - 删除 `bt_nodes.py` 行为树节点
+  - 删除 `bt_action_nodes.py` 动作节点
+  - 删除 `bt_dump_action.py` 倾倒动作
+  - 删除 `bt_scoop_action.py` 铲糖动作
+  - 删除 `behavior_tree_engine.py` 引擎
+
+- **移除路径点系统 (Waypoints)**
+  - 删除 `/api/waypoints` 端点
+  - 删除路径点管理服务
+
+- **移除机器人控制系统 (Robot Control)**
+  - 删除 `/api/robot` 端点
+  - 删除 `RobotTCPServer`
+  - 删除机器人命令协议
+
+### [Changed]
+
+- 简化架构，专注 RealSense 视频流和点云处理
+- WebRTC 成为主要视频传输方式
+- 保留 Socket.IO 用于元数据推送
+
+### [Migration Guide]
+
+如需机器人控制功能，请使用独立的机器人控制服务。
 
 ---
 

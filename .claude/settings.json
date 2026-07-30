@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__zai-mcp-server__ui_to_artifact",
+      "Bash(ss -tlnp)",
+      "Bash(node node_modules/pm2/bin/pm2 restart sweetbomb-5173 sweetbomb-8000)",
+      "Bash(node node_modules/pm2/bin/pm2 start ecosystem.config.cjs)",
+      "Read(//home/jetson/sweetbomb/**)",
+      "Bash(pip show python-socketio)",
+      "Bash(xargs -r kill -9)",
+      "Read(//home/jetson/.pm2/logs/**)",
+      "Bash(npm run build -- --mode production --reporter compact)",
+      "Bash(chmod +x /home/jetson/sweetbomb/start-simple.sh)",
+      "Bash(/home/jetson/sweetbomb/start-simple.sh)",
+      "Bash(npm run dev)",
+      "Bash(bash /home/jetson/sweetbomb/start-simple.sh)",
+      "Bash(git checkout -- src/app/components/SliceView.tsx)",
+      "Bash(./start-simple.sh)"
+    ],
+    "additionalDirectories": [
+      "/home/jetson/sweetbomb/app/services",
+      "/home/jetson/sweetbomb/ui/frontend/src/app/components"
+    ]
+  },
+  "model": "glm-5"
+}

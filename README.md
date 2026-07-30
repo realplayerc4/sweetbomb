@@ -4,6 +4,126 @@
 
 ---
 
+## 🚀 Jetson 部署指南
+
+### 环境要求
+- **硬件**: Jetson Orin Nano / Orin NX / Xavier NX
+- **系统**: JetPack 6.x (Ubuntu 22.04)
+- **Python**: 3.10+
+- **Node.js**: 20.x (推荐) 或 18.x
+
+### 快速部署步骤
+
+#### 1. 系统准备
+```bash
+# 更新系统
+sudo apt update
+sudo apt install -y python3.10 python3.10-venv python3.10-dev git curl
+
+# 安装 Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+#### 2. 克隆项目
+```bash
+cd ~
+git clone <repository-url> sweetbomb
+cd sweetbomb
+```
+
+#### 3. 后端配置
+```bash
+# 创建虚拟环境
+python3.10 -m venv venv
+source venv/bin/activate
+
+# 安装依赖
+pip install fastapi uvicorn pydantic python-socketio aiortc psutil
+
+# 链接系统 pyrealsense2
+echo "/usr/lib/python3/dist-packages" > venv/lib/python3.10/site-packages/pyrealsense2.pth
+
+# 创建日志目录
+mkdir -p logs
+```
+
+#### 4. 前端配置
+```bash
+cd ui/frontend
+
+# 安装依赖
+npm install
+
+# 确保 vite.config.ts 配置正确 (已配置 host: '0.0.0.0')
+
+# 编译前端
+npm run build
+
+cd ../..
+```
+
+#### 5. 启动服务
+
+```bash
+# 方式一：使用启动脚本（开发调试）
+./start-simple.sh
+
+# 方式二：安装开机自启动（生产环境）
+sudo ./install-service.sh
+```
+
+**常用服务命令：**
+```bash
+systemctl start sweetbomb-backend sweetbomb-frontend   # 启动
+systemctl stop sweetbomb-backend sweetbomb-frontend    # 停止
+systemctl restart sweetbomb-backend sweetbomb-frontend # 重启
+systemctl status sweetbomb-backend sweetbomb-frontend  # 状态
+journalctl -u sweetbomb-backend -u sweetbomb-frontend -f  # 日志
+```
+
+### 常见问题
+
+#### 1. Node.js 版本不兼容
+**现象**: `Vite requires Node.js version 20.19+ or 22.12+`
+**解决**: 升级到 Node.js 20.x
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+#### 2. pyrealsense2 导入失败
+**现象**: `ModuleNotFoundError: No module named 'pyrealsense2'`
+**解决**: 创建 .pth 文件链接系统 pyrealsense2
+```bash
+echo "/usr/lib/python3/dist-packages" > venv/lib/python3.10/site-packages/pyrealsense2.pth
+```
+
+#### 3. 前端无法访问 (跨设备)
+**现象**: 其他设备无法访问 `http://<jetson-ip>:5173`
+**解决**: 修改 `ui/frontend/vite.config.ts`，添加 `server.host: '0.0.0.0'`
+
+#### 4. RealSense 设备权限错误
+**现象**: `RuntimeError: No device connected` 或权限错误
+**解决**: 安装 udev 规则并重新插拔设备
+```bash
+sudo cp config/99-realsense-libusb.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+### 路径修改总结 (从 x86 迁移到 Jetson)
+
+主要修改了以下文件中的路径 `/home/yq` → `/home/jetson`:
+
+1. `app/core/logging_config.py` - 日志目录路径
+2. `start-simple.sh` - 启动脚本工作目录
+3. `deploy/setup_systemd.py` - systemd 服务配置
+4. `deploy/clean_remote_deploy.py` - 部署脚本
+5. `.claude/settings.json` - Claude 配置
+
+---
+
 ## 🌟 核心功能 (Features)
 
 ### 设备与视频流
@@ -32,6 +152,19 @@
 ### 航点与导航
 - **航点管理**: 持久化航点存储，支持添加、删除、查询航点
 - **导航接口**: 标准化导航服务接口，支持目标点导航与状态追踪
+
+### 地图管理
+- **地图转换**: 自动将 txt 栅格地图转换为 PNG/SVG 图片
+- **地图API**: RESTful API 提供地图列表、地图图片、地图信息查询
+- **前端组件**: React 组件支持地图显示、缩放、参数调节
+- **颜色主题**: 石墨橙色 (#c25e1f) 点图配色，深色背景
+- **缓存机制**: 自动缓存转换后的地图图片，支持强制刷新
+
+**API 端点**:
+- `GET /api/map/` - 获取地图列表
+- `GET /api/map/{name}.png` - 获取地图 PNG 图片（支持 dpi、point_size 参数）
+- `GET /api/map/{name}/info` - 获取地图详细信息
+- `POST /api/map/cache/clear` - 清理地图缓存
 
 ---
 
@@ -76,11 +209,8 @@ source venv/bin/activate
 # 安装依赖
 pip install -r requirements.txt
 
-# 方式一：直接启动
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-# 方式二：使用 PM2 (推荐)
-pm2 start ecosystem.config.cjs
+# 启动服务
+uvicorn main:combined_app --host 0.0.0.0 --port 8000
 ```
 后端服务将运行在 `http://localhost:8000`。
 API 文档: `http://localhost:8000/docs`
@@ -97,24 +227,20 @@ npm run dev
 ```
 前端页面将运行在 `http://localhost:5173`。
 
-### 4. PM2 进程管理 (PM2 Process Management)
-项目已集成 PM2 配置，可使用 Claude 命令便捷控制：
+### 4. 生产环境部署 (Production Deployment)
 
+安装 systemd 服务实现开机自启动：
 ```bash
-# 启动所有服务
-/pm2-all
+sudo ./install-service.sh
+```
 
-# 停止所有服务
-/pm2-all-stop
-
-# 重启所有服务
-/pm2-all-restart
-
-# 查看状态
-/pm2-status
-
-# 查看日志
-/pm2-logs
+**服务管理命令：**
+```bash
+systemctl start sweetbomb-backend sweetbomb-frontend   # 启动
+systemctl stop sweetbomb-backend sweetbomb-frontend    # 停止
+systemctl restart sweetbomb-backend sweetbomb-frontend # 重启
+systemctl status sweetbomb-backend sweetbomb-frontend  # 状态
+journalctl -u sweetbomb-backend -u sweetbomb-frontend -f  # 日志
 ```
 
 ---
@@ -211,19 +337,5 @@ sweetbomb/
 
 ---
 
-## 🤖 PM2 命令参考 (PM2 Commands)
-
-| Claude 命令 | 功能 |
-|------------|------|
-| `/pm2-all` | 启动所有服务并打开监控 |
-| `/pm2-all-stop` | 停止所有服务 |
-| `/pm2-all-restart` | 重启所有服务 |
-| `/pm2-8000` | 仅启动后端服务 |
-| `/pm2-5173` | 仅启动前端服务 |
-| `/pm2-status` | 查看服务状态 |
-| `/pm2-logs` | 查看所有日志 |
-
----
-
-**版本**: 1.2.0
-**最后更新**: 2026-03-03
+**版本**: 1.3.0
+**最后更新**: 2026-04-14

@@ -2,20 +2,20 @@ import paramiko
 
 def setup_systemd():
     host = "192.168.0.73"
-    user = "yq"
-    password = "1"
+    user = "jetson"
+    password = "jetson"
     
     service_content = """[Unit]
 Description=RealSense Web Monitor (FastAPI & SPA)
 After=network.target
 
 [Service]
-User=yq
-Group=yq
-WorkingDirectory=/home/yq/sweetbomb
-Environment="PATH=/home/yq/node-v18/bin:/home/yq/miniconda3/envs/rs_env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-Environment="PYTHONPATH=/home/yq/sweetbomb"
-ExecStart=/home/yq/miniconda3/envs/rs_env/bin/python main.py
+User=jetson
+Group=jetson
+WorkingDirectory=/home/jetson/sweetbomb
+Environment="PATH=/home/jetson/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONPATH=/home/jetson/sweetbomb"
+ExecStart=/home/jetson/sweetbomb/venv/bin/python main.py
 Restart=always
 RestartSec=5
 

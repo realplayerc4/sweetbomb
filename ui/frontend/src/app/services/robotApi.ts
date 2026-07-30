@@ -40,21 +40,25 @@ export interface ServoState {
     is_moving: boolean;
 }
 
-/** 机器人状态 */
+/** 机器人状态 - 匹配后端 RobotStatusResponse */
 export interface RobotStatus {
-    state: RobotState;
-    battery_level: number;
-    current_position: [number, number, number];
-    orientation: [number, number, number]; // [Roll, Pitch, Yaw]
-    imu?: {
-        roll: number;
-        pitch: number;
-        yaw: number;
-    };
-    left_track_speed: number;
-    right_track_speed: number;
-    servos: Record<string, ServoState>;
-    timestamp: string;
+    connected: boolean;
+    mode: string;
+    status: string;  // 对应前端的 state
+    charge: number;  // 对应前端的 battery_level
+    speed: number;   // 对应前端的 track_speed
+    fault: string;
+    fault_level: string;
+    task_id: string;
+    station: string;
+    map_name: string;
+    x: number;
+    y: number;
+    z: number;
+    a: number;  // orientation angle
+    boom: number;  // lift angle (°)
+    bucket: number;  // bucket angle (°)
+    last_update?: string;
 }
 
 /** 移动请求 */
@@ -91,7 +95,6 @@ export interface SugarHarvestConfig {
     navigation_point: [number, number];
     dump_point: [number, number];
     bucket_width_m?: number;
-    approach_offset_m?: number;
     scoop_position?: number;
     dump_position?: number;
     max_cycles?: number;
@@ -115,6 +118,14 @@ export interface SugarHarvestStatus {
 
 // ==================== API ====================
 
+// 点云分析参数
+export interface PointCloudSettings {
+    teethHeight: number;    // Z1: 铲齿高度 (m)
+    cameraToTeeth: number;  // 相机到铲齿距离 (m)
+    bucketDepth: number;    // 铲斗深度 (m)
+    bucketVolume: number;   // 目标体积 (L)
+}
+
 export const robotApi = {
     // --- 运动控制 ---
 
@@ -130,11 +141,47 @@ export const robotApi = {
     },
 
     /** 紧急停止机器人 */
-    async stop(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async stop(): Promise<{ success: boolean; message: string }> {
         const res = await fetch(`${API_BASE}/robot/stop`, {
             method: 'POST',
         });
         if (!res.ok) throw new Error('Failed to stop robot');
+        return res.json();
+    },
+
+    /** 暂停任务 (pauseTask) */
+    async pause(): Promise<{ success: boolean; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/pause`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to pause robot');
+        return res.json();
+    },
+
+    /** 取消暂停 (pauseCancel) */
+    async resume(): Promise<{ success: boolean; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/resume`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to resume robot');
+        return res.json();
+    },
+
+    /** 导航到取货点 (allPick) */
+    async navToPick(): Promise<{ success: boolean; task_id: string; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/nav-pick`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to navigate to pick point');
+        return res.json();
+    },
+
+    /** 导航到卸货点 (allDrop) */
+    async navToDrop(): Promise<{ success: boolean; task_id: string; message: string }> {
+        const res = await fetch(`${API_BASE}/robot/nav-drop`, {
+            method: 'POST',
+        });
+        if (!res.ok) throw new Error('Failed to navigate to drop point');
         return res.json();
     },
 
@@ -165,7 +212,7 @@ export const robotApi = {
     },
 
     /** 执行铲取动作 */
-    async scoop(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async scoop(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/scoop`, {
             method: 'POST',
         });
@@ -174,7 +221,7 @@ export const robotApi = {
     },
 
     /** 执行倾倒动作 */
-    async dump(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async dump(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/dump`, {
             method: 'POST',
         });
@@ -182,7 +229,7 @@ export const robotApi = {
         return res.json();
     },
     /** 执行回桩动作 */
-    async dock(): Promise<{ success: boolean; message: string; status: RobotState }> {
+    async dock(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/dock`, {
             method: 'POST',
         });

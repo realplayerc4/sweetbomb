@@ -3,7 +3,7 @@ import os
 from logging.handlers import RotatingFileHandler
 
 def setup_logging():
-    log_dir = "/home/yq/sweetbomb/logs"
+    log_dir = "/home/jetson/sweetbomb/logs"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 

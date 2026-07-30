@@ -21,7 +21,6 @@ export function useRobotConnection() {
         temperature: number;
         signal: number;
         hostname: string;
-        imu?: { roll: number; pitch: number; yaw: number };
     } | null>(null);
     const [pointCloudAnalysis, setPointCloudAnalysis] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -142,7 +141,7 @@ export function useRobotConnection() {
                         sensor_id: `${device.device_id}-sensor-0`, // Assuming sensor 0 is depth, checking later
                         stream_type: "depth",
                         format: "z16",
-                        resolution: { width: 1280, height: 720 },
+                        resolution: { width: 640, height: 360 },
                         framerate: 15,
                         enable: true
                     },
@@ -150,7 +149,7 @@ export function useRobotConnection() {
                         sensor_id: `${device.device_id}-sensor-1`, // Assuming sensor 1 is RGB
                         stream_type: "color",
                         format: "rgb8",
-                        resolution: { width: 1280, height: 720 },
+                        resolution: { width: 640, height: 360 },
                         framerate: 30,
                         enable: true
                     }
@@ -161,9 +160,28 @@ export function useRobotConnection() {
             // 2. Activate Point Cloud
             await api.activatePointCloud(device.device_id);
 
-            // 3. WebRTC Offer
-            const offerData = await api.getWebRTCOffer(device.device_id, ['color', 'depth']);
-            sessionId.current = offerData.session_id;
+            // 3. WebRTC Offer (with retry logic)
+            let offerData: any;
+            let retryCount = 0;
+            const maxRetries = 5;
+            const retryDelay = 500;
+
+            while (retryCount < maxRetries) {
+                try {
+                    offerData = await api.getWebRTCOffer(device.device_id, ['color', 'depth']);
+                    console.log(`[WebRTC] Got offer after ${retryCount + 1} attempt(s)`);
+                    break;
+                } catch (error: any) {
+                    retryCount++;
+                    if (retryCount >= maxRetries) {
+                        console.error(`[WebRTC] Failed to get offer after ${maxRetries} attempts`);
+                        throw error;
+                    }
+                    console.warn(`[WebRTC] Attempt ${retryCount} failed, retrying in ${retryDelay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                }
+            }
+            sessionId.current = offerData!.session_id;
 
             // 4. Create Peer Connection
             const pc = new RTCPeerConnection({

@@ -1,0 +1,16 @@
+[Unit]
+Description=Sweetbomb Backend Service (FastAPI + RealSense)
+After=network.target
+
+[Service]
+Type=simple
+User=jetson
+WorkingDirectory=/home/jetson/sweetbomb
+ExecStart=/home/jetson/sweetbomb/venv/bin/python -m uvicorn main:combined_app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+StandardOutput=append:/home/jetson/sweetbomb/logs/backend.log
+StandardError=append:/home/jetson/sweetbomb/logs/backend.log
+
+[Install]
+WantedBy=multi-user.target

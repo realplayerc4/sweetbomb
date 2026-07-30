@@ -18,7 +18,7 @@
 │  FastAPI Router + Dependencies Injection                 │
 ├─────────────────────────────────────────────────────────┤
 │                    Service Layer                         │
-│  rs_manager | task_manager | webrtc_manager             │
+│  rs_manager | webrtc_manager | sensor_control           │
 ├─────────────────────────────────────────────────────────┤
 │                    Hardware Layer                        │
 │  pyrealsense2 | Intel RealSense D400                    │
@@ -30,63 +30,12 @@
 | 通道 | 协议 | 用途 | 延迟要求 |
 |------|------|------|----------|
 | 视频流 | WebRTC | RGB/Depth 视频传输 | < 100ms |
-| 元数据 | Socket.IO | 设备状态、任务事件 | < 500ms |
-| 控制 | REST API | 参数配置、任务管理 | < 1s |
+| 元数据 | Socket.IO | 设备状态、流事件 | < 500ms |
+| 控制 | REST API | 参数配置、设备管理 | < 1s |
 
 ---
 
-## 2. 行为树规范
-
-### 2.1 节点类型
-
-| 节点类型 | 语义 | 成功条件 | 失败条件 |
-|----------|------|----------|----------|
-| **Sequence** | 顺序执行 | 所有子节点成功 | 任一子节点失败 |
-| **Selector** | 选择执行 | 任一子节点成功 | 所有子节点失败 |
-| **Repeat** | 重复执行 | 达到重复次数 | 子节点返回 FAILURE |
-| **Action** | 执行动作 | 动作成功完成 | 动作执行失败 |
-| **Condition** | 检查条件 | 条件为真 | 条件为假 |
-| **Inverter** | 反转结果 | 子节点返回 FAILURE | 子节点返回 SUCCESS |
-
-### 2.2 节点状态
-
-```
-IDLE → RUNNING → SUCCESS/FAILURE
-              ↓
-           (异常处理)
-              ↓
-           FAILURE
-```
-
-### 2.3 铲糖行为树结构
-
-```
-RepeatNode (SugarHarvestMainLoop, max_count=cycles)
-└── SequenceNode (FullHarvestCycle)
-    ├── NavigateToSugarPoint          [导航到取糖点]
-    ├── CheckShovelFlat               [检查车铲是否放平]
-    ├── AnalyzeSugarDistance          [分析糖堆距离和高度]
-    └── SelectorNode (HeightCheck)
-        ├── 路径 A: 高度足够 → SequenceNode
-        │   ├── CalculateApproachDistance  [计算前进距离]
-        │   ├── ScoopAndReturn             [连贯动作：前进→翻转→倒退]
-        │   └── DumpAndReturn              [连贯动作：导航A点→举升→导航B点→倾倒→倒退→归零]
-        └── 路径 B: 高度不足 → ReturnToHome [回桩]
-```
-
-### 2.4 黑板数据流
-
-```yaml
-NodeContext.blackboard:
-├── nav_point_position       (NavigateToSugarPoint 记录，ScoopAndReturn 使用)
-├── distance_analysis        (AnalyzeSugarDistance 记录)
-├── approach_distance        (CalculateApproachDistance 记录，ScoopAndReturn 使用)
-└── dump_point_a_final       (DumpAndReturn 内部使用)
-```
-
----
-
-## 3. API 规范
+## 2. API 规范
 
 ### 3.1 RESTful 端点规范
 
@@ -111,20 +60,6 @@ NodeContext.blackboard:
 |--------|----------|------|--------|
 | POST | `/stream/start` | 启动流 | 200, 409 |
 | POST | `/stream/stop` | 停止流 | 200 |
-
-#### 任务管理 `/api/tasks`
-
-| Method | Endpoint | 描述 | 响应码 |
-|--------|----------|------|--------|
-| GET | `/api/tasks/types` | 获取任务类型 | 200 |
-| POST | `/api/tasks/` | 创建任务 | 201, 400 |
-| GET | `/api/tasks/` | 列出任务 | 200 |
-| GET | `/api/tasks/{task_id}` | 任务详情 | 200, 404 |
-| POST | `/api/tasks/{task_id}/start` | 启动任务 | 200, 409 |
-| POST | `/api/tasks/{task_id}/pause` | 暂停任务 | 200 |
-| POST | `/api/tasks/{task_id}/resume` | 恢复任务 | 200 |
-| POST | `/api/tasks/{task_id}/stop` | 停止任务 | 200 |
-| DELETE | `/api/tasks/{task_id}` | 删除任务 | 204, 404 |
 
 ### 3.2 WebRTC 端点
 

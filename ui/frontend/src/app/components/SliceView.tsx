@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Locate } from 'lucide-react';
-import { useRobotController } from '../hooks/useRobotController';
 
 interface SliceViewProps {
     isActive: boolean;
     pointCloudData: Float32Array | null;
     systemStats?: {
-        imu?: { roll: number; pitch: number; yaw: number };
+        cpu_load?: number;
+        battery?: number;
+        temperature?: number;
+        signal?: number;
+        hostname?: string;
     } | null;
     pointCloudAnalysis?: {
         volume: {
@@ -28,11 +31,14 @@ interface SliceViewProps {
     } | null;
 }
 
+import { API_BASE } from '../config';
+
 interface SliceSettings {
     teethHeight: number;   // Z1: 铲齿放平时的高度 (米)
     cameraToTeeth: number;  // 相机到铲齿前沿距离 (米)
     bucketDepth: number;    // 铲斗深度 (米)
     bucketVolume: number;   // 铲斗目标体积 (升)
+    lr: number;             // 取料半径 (米) - 防止超挖
 }
 
 
@@ -52,10 +58,11 @@ const BUCKET_HEIGHT = 0.3;
 const FOCUS_HALF_WIDTH = 0.3;
 
 const DEFAULT_SETTINGS: SliceSettings = {
-    teethHeight: -0.1,
-    cameraToTeeth: 0.8,
+    teethHeight: -0.85,
+    cameraToTeeth: 1000,
     bucketDepth: 0.3,
     bucketVolume: 30,
+    lr: 3.0,
 };
 
 const STORAGE_KEY = 'slice-view-settings-v3';
@@ -120,10 +127,9 @@ function getMockPointCloud(): Float32Array {
 export function SliceView({
     isActive,
     pointCloudData,
-    systemStats,
+    systemStats: _systemStats,
     pointCloudAnalysis
 }: SliceViewProps) {
-    const { status } = useRobotController();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [settings, setSettings] = useState<SliceSettings>(loadSettings);
     const [pointCount, setPointCount] = useState(0);
@@ -139,6 +145,25 @@ export function SliceView({
 
     useEffect(() => {
         const timer = setTimeout(() => saveSettings(settings), 500);
+        return () => clearTimeout(timer);
+    }, [settings]);
+
+    // 同步设置到后端
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            try {
+                const res = await fetch(`${API_BASE}/devices/038122250462/point_cloud/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings),
+                });
+                if (res.ok) {
+                    console.log('[SliceView] Settings synced to backend:', settings);
+                }
+            } catch (e) {
+                console.warn('[SliceView] Failed to sync settings:', e);
+            }
+        }, 600);
         return () => clearTimeout(timer);
     }, [settings]);
 
@@ -170,9 +195,6 @@ export function SliceView({
         const maxY = VIEW_MAX_Y;
 
         let filteredCount = 0;
-        let nearestX = Infinity;
-        let nearestY = 0;
-        const BUCKET_HALF_WIDTH = 0.3;
 
         for (let i = 0; i < activeData.length; i += 3) {
             const x = activeData[i];
@@ -180,24 +202,24 @@ export function SliceView({
             const z = activeData[i + 2];
             if (x >= fixedMinX && x <= fixedMaxX && y >= minY && y <= maxY && z >= minHeight && z <= maxHeight) {
                 filteredCount++;
-                if (y >= -BUCKET_HALF_WIDTH && y <= BUCKET_HALF_WIDTH) {
-                    if (x < nearestX) { nearestX = x; nearestY = y; }
-                }
             }
         }
 
         setPointCount(filteredCount);
 
-        if (nearestX !== Infinity) {
-            const materialDistance = nearestX - settings.cameraToTeeth;
-            const advanceDistance = materialDistance + settings.bucketDepth;
+        // 使用后端分析结果，前端不再计算
+        if (pointCloudAnalysis?.distances?.nearest_material !== undefined && pointCloudAnalysis.distances.nearest_material !== null) {
+            const materialDistance = pointCloudAnalysis.distances.nearest_material;
+            // 超挖风险检测：materialDistance > lr 时存在超挖风险
+            const advanceDistance = materialDistance > settings.lr ? 0 : materialDistance + settings.bucketDepth;
+            const nearestX = pointCloudAnalysis.distances.nearest_x ?? (materialDistance + settings.cameraToTeeth);
+            const nearestY = pointCloudAnalysis.distances.nearest_y ?? 0;
             setAdvanceInfo({ nearestX, nearestY, materialDistance, advanceDistance });
         } else {
             setAdvanceInfo(null);
         }
 
-        if (filteredCount === 0) return;
-
+        // 计算视图参数（即使没有点也要显示网格框架）
         const xRange = fixedMaxX - fixedMinX;
         const yRange = VIEW_MAX_Y - VIEW_MIN_Y;
         const gridCols = Math.max(1, Math.ceil(yRange / CELL_SIZE));
@@ -347,18 +369,6 @@ export function SliceView({
                 </span>
             </div>
 
-            {/* IMU Telemetry (Top Right) */}
-            <div className="absolute top-[15px] right-[15px] z-[100] flex flex-col items-end gap-1 opacity-90 select-none">
-                <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end">
-                        <span className="text-[7px] text-slate-500 font-bold uppercase tracking-widest pl-1">Roll</span>
-                        <span className="text-[11px] text-[#FD802E] font-black font-mono leading-none w-10 inline-block text-right">
-                            {(systemStats?.imu?.roll ?? status?.imu?.roll ?? status?.orientation?.[0] ?? 0).toFixed(1)}°
-                        </span>
-                    </div>
-                </div>
-            </div>
-
             <canvas ref={canvasRef} width={600} height={330} className="w-full h-full" />
 
             <div className="absolute bottom-[10px] right-[10px] z-[100] bg-black/80 backdrop-blur-md p-2 rounded-lg border border-[#FD802E]/30 max-w-[153px]">
@@ -401,12 +411,24 @@ export function SliceView({
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] text-[#FD802E] font-mono w-14">铲齿深度</span>
+                    <span className="text-[10px] text-[#FD802E] font-mono w-14">相机高度</span>
                     <input
                         type="number"
                         step="0.001"
                         value={settings.teethHeight.toFixed(3)}
                         onChange={(e) => setSettings(prev => ({ ...prev, teethHeight: parseFloat(e.target.value) || 0 }))}
+                        className="w-[48px] h-4 bg-transparent border border-[#FD802E]/20 rounded text-[10px] text-[#FD802E] text-center font-mono focus:outline-none focus:border-[#FD802E]"
+                    />
+                    <span className="text-[10px] text-[#FD802E] font-mono">m</span>
+                </div>
+
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] text-[#FD802E] font-mono w-14">取料半径</span>
+                    <input
+                        type="number"
+                        step="0.001"
+                        value={settings.lr.toFixed(3)}
+                        onChange={(e) => setSettings(prev => ({ ...prev, lr: parseFloat(e.target.value) || 3 }))}
                         className="w-[48px] h-4 bg-transparent border border-[#FD802E]/20 rounded text-[10px] text-[#FD802E] text-center font-mono focus:outline-none focus:border-[#FD802E]"
                     />
                     <span className="text-[10px] text-[#FD802E] font-mono">m</span>
@@ -430,8 +452,15 @@ export function SliceView({
                         </div>
                         <div className="flex items-center justify-between">
                             <span className="text-[10px] text-[#FD802E] font-mono font-bold">建议前进</span>
-                            <span className="text-[10px] text-[#FD802E] font-mono font-bold">{advanceInfo.advanceDistance.toFixed(3)}m</span>
+                            <span className={`text-[10px] font-mono font-bold ${advanceInfo.advanceDistance === 0 ? 'text-red-500' : 'text-[#FD802E]'}`}>
+                                {advanceInfo.advanceDistance.toFixed(3)}m
+                            </span>
                         </div>
+                        {advanceInfo.advanceDistance === 0 && (
+                            <div className="text-[10px] text-red-500 font-mono mt-1 font-bold">
+                                ⚠ 超挖预警
+                            </div>
+                        )}
                     </div>
                 )}
 

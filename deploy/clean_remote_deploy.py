@@ -14,8 +14,8 @@ def run_sudo_cmd(client, cmd, password):
 
 def clean_and_install():
     host = "192.168.0.73"
-    user = "yq"
-    password = "1"
+    user = "jetson"
+    password = "jetson"
     
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -24,8 +24,8 @@ def clean_and_install():
         client.connect(host, username=user, password=password)
         
         print("--- Step 0: Backup and PURGE sources.list.d ---")
-        run_sudo_cmd(client, "mkdir -p /home/yq/apt_backup", password)
-        run_sudo_cmd(client, "mv -v /etc/apt/sources.list.d/* /home/yq/apt_backup/", password)
+        run_sudo_cmd(client, "mkdir -p /home/jetson/apt_backup", password)
+        run_sudo_cmd(client, "mv -v /etc/apt/sources.list.d/* /home/jetson/apt_backup/", password)
         
         print("--- Step 1: Clean Update ---")
         run_sudo_cmd(client, "apt-get clean", password)
@@ -58,16 +58,16 @@ def clean_and_install():
         run_sudo_cmd(client, "rm -rf sweetbomb", password)
         client.exec_command("git clone https://github.com/realplayerc4/sweetbomb.git")
         time.sleep(5)
-        
+
         print("Setting up Backend venv...")
-        run_sudo_cmd(client, "cd /home/yq/sweetbomb && python3.10 -m venv venv", password)
-        run_sudo_cmd(client, "cd /home/yq/sweetbomb && ./venv/bin/python -m pip install --upgrade pip", password)
+        run_sudo_cmd(client, "cd /home/jetson/sweetbomb && python3.10 -m venv venv", password)
+        run_sudo_cmd(client, "cd /home/jetson/sweetbomb && ./venv/bin/python -m pip install --upgrade pip", password)
         print("Installing Backend Requirements...")
-        run_sudo_cmd(client, "cd /home/yq/sweetbomb && ./venv/bin/python -m pip install -r requirements.txt", password)
+        run_sudo_cmd(client, "cd /home/jetson/sweetbomb && ./venv/bin/python -m pip install -r requirements.txt", password)
 
         print("Setting up Frontend...")
-        run_sudo_cmd(client, "cd /home/yq/sweetbomb/ui/frontend && npm install --registry=https://registry.npmmirror.com", password)
-        run_sudo_cmd(client, "cd /home/yq/sweetbomb/ui/frontend && npm run build", password)
+        run_sudo_cmd(client, "cd /home/jetson/sweetbomb/ui/frontend && npm install --registry=https://registry.npmmirror.com", password)
+        run_sudo_cmd(client, "cd /home/jetson/sweetbomb/ui/frontend && npm run build", password)
 
         print("\nClean Deployment finished.")
 

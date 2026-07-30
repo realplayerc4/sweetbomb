@@ -31,6 +31,7 @@ class StreamController:
         filters: dict,
         point_cloud_ref,
         metadata_socket_server,
+        analysis_result_callback=None,  # 回调函数，用于将结果保存到 RealSenseManager
     ):
         self.ctx = ctx
         self.lock = lock
@@ -55,9 +56,19 @@ class StreamController:
         self.point_cloud_analyzer = PointCloudAnalyzer()
         self.latest_analysis_result = None  # 存储最新分析结果
 
+        # 回调函数，用于将结果保存到 RealSenseManager
+        self._analysis_result_callback = analysis_result_callback
+
         # 健康监控相关
         self.last_frame_time: Dict[str, float] = {}  # device_id -> timestamp
         self._stream_configs_cache: Dict[str, dict] = {}  # device_id -> {configs, align_to}
+
+        # 点云分析参数（per device，由 rs_manager 同步更新）
+        self._analysis_params: Dict[str, dict] = {}
+
+    def update_analysis_params(self, device_id: str, params: dict):
+        """更新指定设备的点云分析参数。"""
+        self._analysis_params[device_id] = params
 
     def start_stream(
         self,
@@ -95,14 +106,6 @@ class StreamController:
         for stream_config in configs:
             self._enable_single_stream(device_id, config, stream_config, active_streams)
 
-        # 尝试自动开启 IMU
-        try:
-            config.enable_stream(rs.stream.accel, rs.format.motion_xyz32f, 250)
-            config.enable_stream(rs.stream.gyro, rs.format.motion_xyz32f, 200)
-            active_streams.add("accel")
-            active_streams.add("gyro")
-        except RuntimeError:
-            print("[Warning] Could not enable IMU streams. Device might not support it.")
 
         try:
             pipeline.start(config)
@@ -461,23 +464,6 @@ class StreamController:
                         "width": data_array.shape[1],
                         "height": data_array.shape[0],
                     }
-                elif stype == rs.stream.gyro.name or stype == rs.stream.accel.name:
-                    motion_data = None
-                    frame_data = None
-                    for f in frames:
-                        if f.get_profile().stream_type().name == stype:
-                            frame_data = f.as_motion_frame()
-                            motion_data = frame_data.get_motion_data()
-                    if motion_data is None:
-                        continue
-                    raw_frames[stream_type] = {
-                        "type": "motion",
-                        "motion_data": motion_data,
-                        "timestamp": frame_data.get_timestamp(),
-                        "frame_number": frame_data.get_frame_number(),
-                        "width": 640,
-                        "height": 480,
-                    }
 
                 if stream_type not in raw_frames:
                     print(f"[DEBUG_STREAM] Could not extract raw frame for {stream_type}. frames object contains: {[f.get_profile().stream_type().name for f in frames]}")
@@ -486,7 +472,7 @@ class StreamController:
                 if stype.lower() == "depth" and pc_enabled:
                     import time
                     now = time.time()
-                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.2:
+                    if now - self._last_pc_calc_time.get(device_id, 0.0) >= 0.25:
                         self._last_pc_calc_time[device_id] = now
                         fd = raw_frames.get(stream_type, {}).get("frame_data")
                         if fd:
@@ -529,20 +515,28 @@ class StreamController:
 
                             # 执行点云分析（体积、距离计算等）
                             try:
-                                # 从设备信息或默认值获取参数
-                                # 注意：这些参数应该从配置中读取，这里使用合理默认值
-                                teeth_height = getattr(self, 'slice_z1', -0.1)
-                                bucket_volume = getattr(self, 'target_volume', 30.0)  # 默认30L
-                                bucket_depth = getattr(self, 'bucket_depth', 0.3)
-                                camera_to_teeth = getattr(self, 'camera_to_teeth', 0.8)  # 默认0.8m
+                                # camera_to_teeth 固定为 1m（物理固定值）
+                                camera_to_teeth = 1.0
+
+                                # 从设备参数配置获取（优先使用前端传入的值）
+                                params = self._analysis_params.get(device_id, {})
+                                teeth_height = params.get('teeth_height', -0.1)
+                                bucket_volume = params.get('bucket_volume', 30.0)
+                                bucket_depth = params.get('bucket_depth', 0.3)
+                                lr = params.get('lr', 3.0)
 
                                 analysis_result = self.point_cloud_analyzer.analyze(
                                     point_cloud=verts,
                                     target_volume=bucket_volume,
                                     camera_to_teeth=camera_to_teeth,
                                     z1=teeth_height,
-                                    z2=teeth_height + 0.3,  # 铲斗高度0.3m
+                                    z2=teeth_height + bucket_depth,
+                                    lr=lr,
                                 )
+
+                                # 调用回调函数，将结果传递给 rs_manager
+                                if self._analysis_result_callback:
+                                    self._analysis_result_callback(device_id, analysis_result)
 
                                 # 将分析结果转换为可序列化的字典
                                 self.latest_analysis_result = {
@@ -565,8 +559,10 @@ class StreamController:
                                     "timestamp": time.time(),
                                 }
 
+                                nearest_mat = self.latest_analysis_result['distances']['nearest_material']
+                                nearest_str = f"{nearest_mat:.3f}m" if nearest_mat is not None else "None"
                                 print(f"[PointCloudAnalysis] Volume: {self.latest_analysis_result['volume']['current']:.2f}L, "
-                                      f"Nearest: {self.latest_analysis_result['distances']['nearest_material']:.3f}m")
+                                      f"Nearest: {nearest_str}")
 
                             except Exception as e:
                                 print(f"[PointCloudAnalysis] Error during analysis: {e}")
@@ -621,30 +617,6 @@ class StreamController:
                 elif raw["type"] == "infrared":
                     frame = raw["data"]
 
-                elif raw["type"] == "motion":
-                    motion_data = raw["motion_data"]
-                    metadata["motion_data"] = {
-                        "x": float(motion_data.x),
-                        "y": float(motion_data.y),
-                        "z": float(motion_data.z),
-                    }
-                    text = f"x: {motion_data.x:.6f}\ny: {motion_data.y:.6f}\nz: {motion_data.z:.6f}".split(
-                        "\n"
-                    )
-                    frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                    y0, dy = 50, 40
-                    for i, coord in enumerate(text):
-                        y = y0 + dy * i
-                        cv2.putText(
-                            frame,
-                            coord,
-                            (10, y),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1,
-                            (255, 255, 255),
-                            2,
-                            cv2.LINE_AA,
-                        )
 
                 if frame is None:
                     continue

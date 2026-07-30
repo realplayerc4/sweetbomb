@@ -14,12 +14,31 @@
 import asyncio
 import json
 import logging
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Callable, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+# TaskId生成器（线程安全）
+_task_id_lock = threading.Lock()
+_task_id_counter = 0
+_task_id_last_timestamp = ""
+
+
+def generate_task_id() -> str:
+    """生成任务ID: YYYYMMDDHHMMSS + 3位序号（同一秒内序号递增）"""
+    global _task_id_counter, _task_id_last_timestamp
+    with _task_id_lock:
+        ts = datetime.now().strftime('%Y%m%d%H%M%S')
+        if ts == _task_id_last_timestamp:
+            _task_id_counter += 1
+        else:
+            _task_id_counter = 1
+            _task_id_last_timestamp = ts
+        return f"{ts}{_task_id_counter:03d}"
 
 
 class RobotMode(Enum):
@@ -43,6 +62,8 @@ class MessageType(Enum):
     CANCEL_TASK = "cancelTask"  # 取消任务
     COMMAND = "command"         # 命令
     REMOTE_CONTROL = "remoteControl"  # 远程控制
+    PAUSE_TASK = "pauseTask"    # 暂停任务
+    PAUSE_CANCEL = "pauseCancel"  # 取消暂停
 
 
 @dataclass
@@ -61,7 +82,7 @@ class RobotState:
     y: float = 0.0                      # Y坐标 mm
     z: float = 0.0                      # Z坐标 mm
     a: float = 0.0                      # 车体角度 °
-    boom: float = 0.0                   # 臂位置 mm
+    boom: float = 0.0                   # 臂角度 °
     bucket: float = 0.0                  # 铲斗角度 °
     last_update: datetime = field(default_factory=datetime.now)
 
@@ -94,7 +115,6 @@ class RobotTCPClient:
         self.writer = writer
         self.server = server
         self.addr = writer.get_extra_info('peername')
-        self.robot_id: Optional[str] = None
         self.connected = True
         self.last_heartbeat = datetime.now()
         self.state = RobotState()
@@ -103,12 +123,20 @@ class RobotTCPClient:
         self.remote_control_active = False
         self.last_remote_control_time: Optional[datetime] = None
 
+        # 心跳计数 - 用于检测掉线
+        self.missed_heartbeats = 0
+        self.max_missed_heartbeats = 20  # 20次未回复判定为掉线
+
     async def send_message(self, message: str):
         """发送报文"""
         try:
-            self.writer.write(message.encode('utf-8'))
+            # 确保报文以UTF-8编码，包含正确的换行符
+            encoded = message.encode('utf-8')
+            self.writer.write(encoded)
             await self.writer.drain()
-            logger.debug(f"发送给 {self.addr}: {message[:100]}...")
+            # 记录十六进制前50字节用于调试
+            hex_str = ' '.join(f'{b:02x}' for b in encoded[:50])
+            logger.debug(f"发送给 {self.addr}: {hex_str}")
         except Exception as e:
             logger.error(f"发送失败 {self.addr}: {e}")
             self.connected = False
@@ -135,7 +163,7 @@ class RobotTCPServer:
         self.host = host
         self.port = port
         self.server: Optional[asyncio.Server] = None
-        self.clients: Dict[str, RobotTCPClient] = {}  # robot_id -> client
+        self.client: Optional[RobotTCPClient] = None
         self.running = False
 
         # 消息处理器
@@ -146,13 +174,15 @@ class RobotTCPServer:
             MessageType.CANCEL_TASK: self._handle_cancel_task,
             MessageType.COMMAND: self._handle_command,
             MessageType.REMOTE_CONTROL: self._handle_remote_control,
+            MessageType.PAUSE_TASK: self._handle_pause_task,
+            MessageType.PAUSE_CANCEL: self._handle_pause_cancel,
         }
 
         # 回调函数
-        self.on_robot_connected: Optional[Callable[[str], None]] = None
-        self.on_robot_disconnected: Optional[Callable[[str], None]] = None
-        self.on_state_update: Optional[Callable[[str, RobotState], None]] = None
-        self.on_task_complete: Optional[Callable[[str, str], None]] = None
+        self.on_robot_connected: Optional[Callable[[], None]] = None
+        self.on_robot_disconnected: Optional[Callable[[], None]] = None
+        self.on_state_update: Optional[Callable[[RobotState], None]] = None
+        self.on_task_complete: Optional[Callable[[str], None]] = None
 
     async def start(self):
         """启动服务器"""
@@ -172,20 +202,56 @@ class RobotTCPServer:
     async def stop(self):
         """停止服务器"""
         self.running = False
-        # 关闭所有客户端连接
-        for client in list(self.clients.values()):
-            await client.close()
-        self.clients.clear()
+        # 关闭客户端连接
+        if self.client:
+            await self.client.close()
+            self.client = None
 
         if self.server:
             self.server.close()
             await self.server.wait_closed()
         logger.info("机器人TCP服务器已停止")
 
+    async def send_camera_distance(self, distance_mm: int) -> bool:
+        """
+        发送相机检测距离到机器人
+
+        Args:
+            distance_mm: 距离值，单位毫米
+
+        Returns:
+            bool: 是否发送成功
+
+        协议格式: {MessageType=cameraCheck\nDistance=xxxx\n}
+        """
+        message = f"{{\nMessageType=cameraCheck\nDistance={distance_mm}\n}}"
+
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接，无法发送相机距离")
+            return False
+
+        try:
+            await self.client.send_message(message)
+            logger.debug(f"发送相机距离: {distance_mm}mm")
+        except Exception as e:
+            logger.error(f"发送相机距离失败: {e}")
+            return False
+
+        return True
+
     async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """处理客户端连接"""
+        # 如果已有连接，先断开旧连接
+        if self.client and self.client.connected:
+            logger.info(f"新连接到来，断开旧连接: {self.client.addr}")
+            await self._remove_client(self.client)
+
         client = RobotTCPClient(reader, writer, self)
+        self.client = client
         logger.info(f"机器人连接: {client.addr}")
+
+        if self.on_robot_connected:
+            await self._trigger_callback(self.on_robot_connected)
 
         try:
             while client.connected and self.running:
@@ -236,10 +302,45 @@ class RobotTCPServer:
             logger.warning(f"未实现的消息处理器: {msg_type}")
 
     async def _handle_status(self, client: RobotTCPClient, data: Dict):
-        """处理状态查询"""
+        """处理状态查询回复"""
+        # 收到回复，重置未回复计数
+        client.missed_heartbeats = 0
+
         # 更新机器人状态
-        client.state.mode = RobotMode(data.get('Mode', 'auto'))
-        client.state.status = RobotStatus(data.get('Status', 'idle'))
+        # 模式下位机返回中文：手柄控制/自动任务/远程控制
+        mode_map = {
+            '手柄控制': RobotMode.HANDLE,
+            '自动任务': RobotMode.AUTO,
+            '远程控制': RobotMode.REMOTE,
+            'auto': RobotMode.AUTO,
+            'handle': RobotMode.HANDLE,
+            'remote': RobotMode.REMOTE,
+        }
+        try:
+            mode_str = data.get('Mode', 'auto')
+            if mode_str in mode_map:
+                client.state.mode = mode_map[mode_str]
+            elif mode_str in [m.value for m in RobotMode]:
+                client.state.mode = RobotMode(mode_str)
+        except (ValueError, KeyError):
+            pass
+
+        # 状态下位机返回中文：空闲/运行中
+        status_map = {
+            '空闲': RobotStatus.IDLE,
+            '运行中': RobotStatus.RUNNING,
+            'idle': RobotStatus.IDLE,
+            'running': RobotStatus.RUNNING,
+        }
+        try:
+            status_str = data.get('Status', 'idle')
+            if status_str in status_map:
+                client.state.status = status_map[status_str]
+            elif status_str in [s.value for s in RobotStatus]:
+                client.state.status = RobotStatus(status_str)
+        except (ValueError, KeyError):
+            pass
+
         client.state.charge = float(data.get('Charge', 0))
         client.state.speed = float(data.get('Speed', 0))
         client.state.fault = data.get('Fault', '')
@@ -255,15 +356,13 @@ class RobotTCPServer:
         client.state.bucket = float(data.get('Bucket', 0))
         client.state.last_update = datetime.now()
 
-        # 发送状态回复
-        response = "{\nMessageType=status\n}"
-        await client.send_message(response)
+        # 状态查询不需要回复（因为是上位机主动查询，下位机回复）
 
         # 触发回调
-        if self.on_state_update and client.robot_id:
-            await self._trigger_callback(self.on_state_update, client.robot_id, client.state)
+        if self.on_state_update:
+            await self._trigger_callback(self.on_state_update, client.state)
 
-        logger.debug(f"状态更新: {client.robot_id}, 电量: {client.state.charge}%")
+        logger.debug(f"状态更新: 电量: {client.state.charge}%")
 
     async def _handle_task(self, client: RobotTCPClient, data: Dict):
         """处理任务下发"""
@@ -272,40 +371,41 @@ class RobotTCPServer:
         drop_station = data.get('DropStationId', '')
 
         logger.info(f"收到任务: {task_id}, 取货: {pick_station}, 放货: {drop_station}")
-
-        # 发送确认回复
-        response = f"{{\nMessageType=task\nTaskId={task_id}\nResult=1\n}}"
-        await client.send_message(response)
+        # 不需要回复下位机
 
     async def _handle_task_finish(self, client: RobotTCPClient, data: Dict):
         """处理任务完成"""
         task_id = data.get('TaskId', '')
         logger.info(f"任务完成: {task_id}")
 
-        # 发送确认回复
+        # 发送确认回复（只有taskFinish需要回复）
         response = f"{{\nMessageType=taskFinish\nTaskId={task_id}\n}}"
         await client.send_message(response)
 
         # 触发回调
-        if self.on_task_complete and client.robot_id:
-            await self._trigger_callback(self.on_task_complete, client.robot_id, task_id)
+        if self.on_task_complete:
+            await self._trigger_callback(self.on_task_complete, task_id)
 
     async def _handle_cancel_task(self, client: RobotTCPClient, data: Dict):
         """处理取消任务"""
-        logger.info(f"取消任务: {client.robot_id}")
+        logger.info("取消任务")
+        # 不需要回复下位机
 
-        # 发送确认回复
-        response = "{\nMessageType=cancelTask\n}"
-        await client.send_message(response)
+    async def _handle_pause_task(self, client: RobotTCPClient, data: Dict):
+        """处理暂停任务"""
+        logger.info("暂停任务")
+        # 不需要回复下位机
+
+    async def _handle_pause_cancel(self, client: RobotTCPClient, data: Dict):
+        """处理取消暂停"""
+        logger.info("取消暂停")
+        # 不需要回复下位机
 
     async def _handle_command(self, client: RobotTCPClient, data: Dict):
         """处理命令"""
         operate = data.get('Operate', '')
-        logger.info(f"收到命令: {operate}, 机器人: {client.robot_id}")
-
-        # 发送确认回复
-        response = f"{{\nMessageType=command\nOperate={operate}\n}}"
-        await client.send_message(response)
+        logger.info(f"收到命令: {operate}")
+        # 不需要回复下位机
 
     async def _handle_remote_control(self, client: RobotTCPClient, data: Dict):
         """处理远程控制"""
@@ -322,22 +422,27 @@ class RobotTCPServer:
         # 远程控制无回复报文
 
     async def _heartbeat_checker(self):
-        """心跳检测器"""
+        """心跳检测器 - 每250ms发送status查询，20次未回复判定掉线"""
         while self.running:
             try:
-                await asyncio.sleep(5)  # 每5秒检查一次
+                await asyncio.sleep(0.25)  # 每250ms发送一次
 
-                now = datetime.now()
-                timeout_clients = []
+                if not self.client or not self.client.connected:
+                    continue
 
-                for robot_id, client in self.clients.items():
-                    if client.is_timeout(timeout_seconds=10):
-                        logger.warning(f"机器人 {robot_id} 心跳超时")
-                        timeout_clients.append(client)
+                # 发送status查询报文
+                status_query = "{\nMessageType=status\n}"
+                try:
+                    await self.client.send_message(status_query)
+                    self.client.missed_heartbeats += 1
 
-                # 关闭超时连接
-                for client in timeout_clients:
-                    await self._remove_client(client)
+                    # 检查是否超过20次未回复（5秒）
+                    if self.client.missed_heartbeats >= 20:
+                        logger.warning("机器人超过20次未回复状态查询，判定掉线")
+                        await self._remove_client(self.client)
+                except Exception as e:
+                    logger.error(f"发送状态查询失败: {e}")
+                    await self._remove_client(self.client)
 
             except Exception as e:
                 logger.error(f"心跳检测错误: {e}")
@@ -348,32 +453,32 @@ class RobotTCPServer:
             try:
                 await asyncio.sleep(0.1)  # 每100ms检查一次
 
-                now = datetime.now()
+                if not self.client:
+                    continue
 
-                for client in self.clients.values():
-                    if client.remote_control_active:
-                        # 检查是否超过500ms未收到远程控制报文
-                        if client.last_remote_control_time:
-                            elapsed = (now - client.last_remote_control_time).total_seconds()
-                            if elapsed > 0.5:
-                                logger.warning(f"机器人 {client.robot_id} 远程控制超时，自动停止")
-                                client.remote_control_active = False
-                                # 这里可以触发自动停止逻辑
+                if self.client.remote_control_active:
+                    # 检查是否超过500ms未收到远程控制报文
+                    if self.client.last_remote_control_time:
+                        elapsed = (datetime.now() - self.client.last_remote_control_time).total_seconds()
+                        if elapsed > 0.5:
+                            logger.warning("机器人远程控制超时，自动停止")
+                            self.client.remote_control_active = False
+                            # 这里可以触发自动停止逻辑
 
             except Exception as e:
                 logger.error(f"远程控制监控错误: {e}")
 
     async def _remove_client(self, client: RobotTCPClient):
         """移除客户端"""
-        if client.robot_id and client.robot_id in self.clients:
-            del self.clients[client.robot_id]
+        if self.client is client:
+            self.client = None
 
         await client.close()
 
-        if self.on_robot_disconnected and client.robot_id:
-            await self._trigger_callback(self.on_robot_disconnected, client.robot_id)
+        if self.on_robot_disconnected:
+            await self._trigger_callback(self.on_robot_disconnected)
 
-        logger.info(f"机器人断开连接: {client.robot_id}")
+        logger.info(f"机器人断开连接: {client.addr}")
 
     async def _trigger_callback(self, callback: Callable, *args):
         """触发回调函数"""
@@ -387,47 +492,80 @@ class RobotTCPServer:
 
     # 公共API
 
-    async def send_command(self, robot_id: str, operate: str) -> bool:
-        """发送命令到指定机器人"""
-        client = self.clients.get(robot_id)
-        if not client:
-            logger.warning(f"机器人 {robot_id} 未连接")
+    async def send_command(self, operate: str) -> bool:
+        """发送命令到机器人"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
             return False
 
         message = f"{{\nMessageType=command\nOperate={operate}\n}}"
-        await client.send_message(message)
+        await self.client.send_message(message)
         return True
 
-    async def send_task(self, robot_id: str, task_id: str, pick_station: str, drop_station: str) -> bool:
-        """发送任务到指定机器人"""
-        client = self.clients.get(robot_id)
-        if not client:
-            logger.warning(f"机器人 {robot_id} 未连接")
+    async def send_task(self, task_id: str, pick_station: str, drop_station: str) -> bool:
+        """发送任务到机器人"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
             return False
 
         message = f"{{\nMessageType=task\nTaskId={task_id}\nPickStationId={pick_station}\nDropStationId={drop_station}\n}}"
-        await client.send_message(message)
+        await self.client.send_message(message)
         return True
 
-    async def cancel_task(self, robot_id: str) -> bool:
-        """取消指定机器人的任务"""
-        client = self.clients.get(robot_id)
-        if not client:
-            logger.warning(f"机器人 {robot_id} 未连接")
+    async def send_simple_task(self, task_id: str, task_type: str) -> bool:
+        """发送简单任务（新协议格式）"""
+        valid_types = {"pick", "drop", "charge", "allPick", "allDrop"}
+        if task_type not in valid_types:
+            logger.error(f"无效的任务类型: {task_type}")
+            return False
+
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
+            return False
+
+        message = f"{{\nMessageType=task\nTaskId={task_id}\nType={task_type}\n}}"
+        await self.client.send_message(message)
+        return True
+
+    async def cancel_task(self) -> bool:
+        """取消机器人的任务"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
             return False
 
         message = "{\nMessageType=cancelTask\n}"
-        await client.send_message(message)
+        await self.client.send_message(message)
         return True
 
-    def get_robot_ids(self) -> list:
-        """获取所有连接的机器人ID"""
-        return list(self.clients.keys())
+    async def pause_task(self) -> bool:
+        """发送暂停任务命令"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
+            return False
 
-    def get_robot_state(self, robot_id: str) -> Optional[RobotState]:
-        """获取指定机器人的状态"""
-        client = self.clients.get(robot_id)
-        return client.state if client else None
+        message = "{MessageType=pauseTask}"
+        await self.client.send_message(message)
+        return True
+
+    async def pause_cancel(self) -> bool:
+        """发送取消暂停命令"""
+        if not self.client or not self.client.connected:
+            logger.warning("机器人未连接")
+            return False
+
+        message = "{MessageType=pauseCancel}"
+        await self.client.send_message(message)
+        return True
+
+    def is_connected(self) -> bool:
+        """检查机器人是否已连接"""
+        return self.client is not None and self.client.connected
+
+    def get_state(self) -> Optional[RobotState]:
+        """获取机器人状态"""
+        if self.client:
+            return self.client.state
+        return None
 
 
 # 使用示例
@@ -436,17 +574,17 @@ async def main():
     server = RobotTCPServer(host="0.0.0.0", port=9090)
 
     # 设置回调
-    async def on_connect(robot_id):
-        print(f"机器人 {robot_id} 已连接")
+    async def on_connect():
+        print("机器人已连接")
 
-    async def on_disconnect(robot_id):
-        print(f"机器人 {robot_id} 已断开")
+    async def on_disconnect():
+        print("机器人已断开")
 
-    async def on_state_update(robot_id, state):
-        print(f"机器人 {robot_id} 状态更新: 电量{state.charge}%, 位置({state.x}, {state.y})")
+    async def on_state_update(state):
+        print(f"机器人状态更新: 电量{state.charge}%, 位置({state.x}, {state.y})")
 
-    async def on_task_complete(robot_id, task_id):
-        print(f"机器人 {robot_id} 完成任务: {task_id}")
+    async def on_task_complete(task_id):
+        print(f"机器人完成任务: {task_id}")
 
     server.on_robot_connected = on_connect
     server.on_robot_disconnected = on_disconnect
@@ -461,11 +599,11 @@ async def main():
         while True:
             await asyncio.sleep(1)
 
-            # 示例：每10秒查询一次所有机器人的状态
-            for robot_id in server.get_robot_ids():
-                state = server.get_robot_state(robot_id)
+            # 示例：每10秒查询一次机器人状态
+            if server.is_connected():
+                state = server.get_state()
                 if state:
-                    logger.info(f"机器人 {robot_id}: 电量{state.charge}%, 状态{state.status.value}")
+                    logger.info(f"机器人: 电量{state.charge}%, 状态{state.status.value}")
 
     except KeyboardInterrupt:
         print("正在停止服务器...")

@@ -163,11 +163,13 @@ class WebRTCManager:
         print(f"[DEBUG] requested_streams: {stream_types}")
 
         if not stream_status.is_streaming:
+            print(f"[ERROR] Device {device_id} is not streaming. Status: is_streaming={stream_status.is_streaming}")
             raise RealSenseError(status_code=400, detail=f"Device {device_id} is not streaming")
 
         # 验证请求的流类型可用
         for stream_type in stream_types:
             if stream_type not in stream_status.active_streams:
+                print(f"[ERROR] Stream type '{stream_type}' is not active. Active streams: {stream_status.active_streams}")
                 raise RealSenseError(status_code=400, detail=f"Stream type {stream_type} is not active (Active: {stream_status.active_streams})")
 
         # 创建 PeerConnection

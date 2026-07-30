@@ -9,6 +9,7 @@
 
 import threading
 from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 import numpy as np
 import pyrealsense2 as rs
@@ -25,6 +26,7 @@ from app.services.sensor_control import SensorControl
 from app.services.stream_controller import StreamController
 from app.services.point_cloud_processor import PointCloudProcessor
 from app.services.metadata_socket_server import MetadataSocketServer
+from app.services.point_cloud_analyzer import PointCloudAnalysisResult
 
 
 class RealSenseManager:
@@ -47,10 +49,10 @@ class RealSenseManager:
         colorizer.set_option(rs.option.color_scheme, 0)
         colorizer.set_option(rs.option.histogram_equalization_enabled, 1)
         colorizer.set_option(rs.option.min_distance, 1.0)
-        colorizer.set_option(rs.option.max_distance, 6.0)
+        colorizer.set_option(rs.option.max_distance, 15.0)
         threshold_filter = rs.threshold_filter()
         threshold_filter.set_option(rs.option.min_distance, 1.0)
-        threshold_filter.set_option(rs.option.max_distance, 6.0)
+        threshold_filter.set_option(rs.option.max_distance, 15.0)
 
         self.filters = {
             "decimation": decimation_filter,
@@ -76,6 +78,7 @@ class RealSenseManager:
             filters=self.filters,
             point_cloud_ref=self.pc,
             metadata_socket_server=self.metadata_socket_server,
+            analysis_result_callback=self._on_analysis_result,
         )
 
         # 让 DeviceDiscovery 能感知到 pipelines 的存在
@@ -96,8 +99,150 @@ class RealSenseManager:
             refresh_fn=self._discovery.refresh_devices,
         )
 
-        # 初始化设备列表
-        self._discovery.refresh_devices()
+        # 初始化点云分析结果存储
+        self._latest_analysis_results: Dict[str, PointCloudAnalysisResult] = {}
+        self._latest_move_distances: Dict[str, float] = {}
+        self._analysis_timestamps: Dict[str, datetime] = {}
+
+        # 点云分析参数设置（per device）
+        self._pointcloud_settings: Dict[str, dict] = {}
+
+        # 启动自动流管理后台线程
+        self._auto_stream_enabled = True
+        self._auto_stream_thread = threading.Thread(target=self._auto_stream_manager, daemon=True)
+        self._auto_stream_thread.start()
+
+        # 初始化设备列表（启动流）
+        self.refresh_devices()
+
+    def _auto_stream_manager(self) -> None:
+        """后台线程：自动管理设备流的启动和停止。"""
+        import time
+        while self._auto_stream_enabled:
+            try:
+                for device_id in list(self._discovery.devices.keys()):
+                    # 如果设备没有在流传输，自动启动
+                    if device_id not in self._stream.pipelines:
+                        try:
+                            print(f"[AutoStream] Auto-starting stream for {device_id}")
+                            self._auto_start_device_stream(device_id)
+                        except Exception as e:
+                            print(f"[AutoStream] Failed to start stream for {device_id}: {e}")
+            except Exception as e:
+                print(f"[AutoStream] Error in auto stream manager: {e}")
+            time.sleep(5)  # 每5秒检查一次
+
+    def _auto_start_device_stream(self, device_id: str) -> None:
+        """自动启动设备的 color 和 depth 流并激活点云处理。"""
+        from app.models.stream import StreamConfig
+
+        # 先同步默认参数到 stream_controller
+        default_settings = self.get_pointcloud_settings(device_id)
+        self._stream.update_analysis_params(device_id, default_settings)
+        print(f"[AutoStart] Synced default params: camera_to_teeth={self.CAMERA_TO_TEETH_M}m (fixed)")
+
+        # 创建 depth 流配置 (640x360 降低带宽压力)
+        depth_config = StreamConfig(
+            sensor_id=f"{device_id}-sensor-0",
+            stream_type="depth",
+            format="z16",
+            resolution={"width": 640, "height": 360},
+            framerate=15,
+            enable=True
+        )
+
+        # 创建 color 流配置 (640x360 降低带宽压力)
+        color_config = StreamConfig(
+            sensor_id=f"{device_id}-sensor-1",
+            stream_type="color",
+            format="rgb8",
+            resolution={"width": 640, "height": 360},
+            framerate=30,
+            enable=True
+        )
+
+        # 启动流 (color 和 depth 同时启动)
+        self._stream.start_stream(device_id, [depth_config, color_config], align_to="color")
+
+        # 激活点云处理
+        self._pointcloud.activate(device_id, True)
+
+        print(f"[AutoStart] Stream and point cloud activated for {device_id}")
+
+    def _on_analysis_result(self, device_id: str, result: PointCloudAnalysisResult) -> None:
+        """回调函数：保存点云分析结果。"""
+
+        # 将 numpy 类型转换为 Python 原生类型，避免 JSON 序列化失败
+        for attr in ('actual_volume', 'target_volume', 'target_depth_x',
+                     'nearest_x', 'nearest_y', 'material_distance',
+                     'pile_height', 'pile_max_z', 'camera_height'):
+            val = getattr(result, attr, None)
+            if val is not None:
+                setattr(result, attr, float(val))
+
+        self._latest_analysis_results[device_id] = result
+        self._analysis_timestamps[device_id] = datetime.now()
+
+        # 只有检测到物料时才计算 move_distance
+        if result.has_material and result.material_distance is not None:
+            settings = self.get_pointcloud_settings(device_id)
+            bucket_depth = settings.get("bucket_depth", 0.3)
+            lr = settings.get("lr", 3.0)
+
+            # 超挖风险检测
+            if result.material_distance > lr:
+                move_distance = 0.0  # 存在超挖风险，禁止前进
+            else:
+                move_distance = float(result.material_distance) + bucket_depth
+
+            self._latest_move_distances[device_id] = move_distance
+        else:
+            # 没有检测到物料，前进距离为 0
+            self._latest_move_distances[device_id] = 0.0
+
+    def get_analysis_result(self, device_id: str) -> Optional[PointCloudAnalysisResult]:
+        return self._latest_analysis_results.get(device_id)
+
+    def get_move_distance(self, device_id: str) -> Optional[float]:
+        return self._latest_move_distances.get(device_id)
+
+    def get_analysis_timestamp(self, device_id: str) -> Optional[datetime]:
+        return self._analysis_timestamps.get(device_id)
+
+    # ========== 点云参数设置 ==========
+
+    # camera_to_teeth 固定为 1m（物理固定值）
+    CAMERA_TO_TEETH_M = 1.0
+
+    def get_pointcloud_settings(self, device_id: str) -> dict:
+        """获取设备的点云分析参数，返回默认值如果未设置。
+
+        单位说明：
+        - teeth_height: m (铲齿高度)
+        - camera_to_teeth: 固定 1m (物理固定)
+        - bucket_depth: m (铲斗深度)
+        - bucket_volume: L (铲斗体积)
+        - lr: m (取料半径)
+        """
+        default = {
+            "teeth_height": -0.85,
+            "camera_to_teeth": self.CAMERA_TO_TEETH_M,  # 固定 1m
+            "bucket_depth": 0.3,
+            "bucket_volume": 30.0,
+            "lr": 3.0,
+        }
+        return self._pointcloud_settings.get(device_id, default)
+
+    def update_pointcloud_settings(self, device_id: str, settings: dict) -> dict:
+        """更新设备的点云分析参数。camera_to_teeth 固定为 1m，不接受修改。"""
+        # 获取当前设置
+        current = self.get_pointcloud_settings(device_id)
+        # 合并新设置，但 camera_to_teeth 始终保持固定值
+        updated = {**current, **settings, "camera_to_teeth": self.CAMERA_TO_TEETH_M}
+        self._pointcloud_settings[device_id] = updated
+        # 同步更新 stream_controller 的参数
+        self._stream.update_analysis_params(device_id, updated)
+        return updated
 
     # ========== 设备管理 API ==========
 

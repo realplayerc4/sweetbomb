@@ -10,9 +10,14 @@ import socketio
 from app.services.socketio import sio
 from app.core.logging_config import setup_logging
 from app.api.dependencies import get_realsense_manager, get_webrtc_manager
+from app.services.robot_tcp_server import RobotTCPServer
+from app.api.endpoints.robot import set_robot_server
 
 # Initialize logging
 setup_logging()
+
+# 全局 TCP Server 实例
+robot_tcp_server: RobotTCPServer | None = None
 
 
 # --- Create FastAPI App ---
@@ -44,14 +49,33 @@ setup_exception_handlers(app)
 # Note: socketio_path must match the client's path option
 combined_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app)
 
+
 @app.on_event("startup")
 async def startup_event():
+    global robot_tcp_server
+
     # 启动 WebRTC 清理循环
     webrtc_manager = get_webrtc_manager()
     await webrtc_manager.start_cleanup_loop()
-    
+
     # 启动 10 分钟健康检查循环
     asyncio.create_task(health_check_loop())
+
+    # 启动机器人 TCP Server
+    robot_tcp_server = RobotTCPServer(host="0.0.0.0", port=9090)
+    set_robot_server(robot_tcp_server)
+
+    # 注册任务完成回调 - 通过 Socket.IO 广播给前端
+    async def on_robot_task_complete(task_id: str):
+        await sio.emit('robot_task_finish', {'task_id': task_id})
+
+    robot_tcp_server.on_task_complete = on_robot_task_complete
+
+    await robot_tcp_server.start()
+
+    # 启动相机距离定时发送循环（每250ms发送一次到下位机）
+    asyncio.create_task(camera_distance_sender_loop())
+
 
 async def health_check_loop():
     """定时对所有活跃流进行健康检查（每10分钟）"""
@@ -63,7 +87,36 @@ async def health_check_loop():
             print("[System] Running scheduled 10-min health check...")
             rs_manager.check_all_streams_health()
         except Exception as e:
-            print(f"[System] Error in health check loop: {str(e)}")
+            print(f"[System] Error in health check: {str(e)}")
+
+
+async def camera_distance_sender_loop():
+    """每100ms向后端发送相机检测距离（cameraCheckDistance）"""
+    print("[System] Camera distance sender loop started (Interval: 100ms)")
+    while True:
+        await asyncio.sleep(0.1)
+        try:
+            server = robot_tcp_server
+            if not server or not server.is_connected():
+                continue
+
+            rs_manager = get_realsense_manager()
+            for device_id in rs_manager._discovery.devices:
+                move_distance = rs_manager.get_move_distance(device_id)
+                # 获取原始 material_distance 用于调试
+                analysis_result = rs_manager.get_analysis_result(device_id)
+                material_distance = analysis_result.material_distance if analysis_result else None
+
+                if move_distance is not None:
+                    distance_mm = int(move_distance * 1000)
+                    mat_dist_str = f"{material_distance:.3f}m" if material_distance is not None else "None"
+                    print(f"[CameraDistance] move_distance={move_distance:.3f}m, material_distance={mat_dist_str}, sending={distance_mm}mm")
+                    # 始终发送距离给下位机（包括 0）
+                    await server.send_camera_distance(distance_mm)
+                break
+        except Exception as e:
+            print(f"[CameraDistance] Error: {e}")
+
 
 if __name__ == "__main__":
     uvicorn.run("main:combined_app", host="0.0.0.0", port=8000, reload=False, log_level="debug")

@@ -1,12 +1,13 @@
+"""API Dependencies."""
+
 from app.services.rs_manager import RealSenseManager
 from app.services.webrtc_manager import WebRTCManager
-from app.services.task_manager import TaskManager
 from app.services.socketio import sio
 
 # Singleton instances
 _realsense_manager = None
 _webrtc_manager = None
-_task_manager = None
+
 
 def get_realsense_manager() -> RealSenseManager:
     global _realsense_manager
@@ -14,15 +15,9 @@ def get_realsense_manager() -> RealSenseManager:
         _realsense_manager = RealSenseManager(sio)
     return _realsense_manager
 
+
 def get_webrtc_manager() -> WebRTCManager:
     global _webrtc_manager
     if _webrtc_manager is None:
         _webrtc_manager = WebRTCManager(get_realsense_manager())
     return _webrtc_manager
-
-def get_task_manager() -> TaskManager:
-    """Get the singleton TaskManager instance."""
-    global _task_manager
-    if _task_manager is None:
-        _task_manager = TaskManager.get_instance(sio, get_realsense_manager())
-    return _task_manager
