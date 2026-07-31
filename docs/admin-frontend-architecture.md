@@ -1,4 +1,4 @@
-# Admin-Frontend (SWNFP) 架构文档
+# 后台管理前端架构文档
 
 > 后台管理前端 - 糖厂机器人车队管理系统
 
@@ -355,5 +355,5 @@ journalctl -u sweetbomb-admin-frontend -f
 
 ---
 
-*Version: v2.0*
-*Last Updated: 2026-04-15*
+*Version: v2.1.0*
+*Last Updated: 2026-07-31*

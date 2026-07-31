@@ -6,9 +6,9 @@
 
 ## Project Identity
 
-**Name**: RealSense Web Monitor
-**Type**: Hardware Monitoring Platform
-**Tech Stack**: FastAPI + React + WebRTC + RealSense
+**Name**: Sweetbomb — 智能铲糖机器人平台
+**Type**: Hardware Monitoring & Robot Control Platform
+**Tech Stack**: FastAPI + React + WebRTC + RealSense + Socket.IO + Three.js
 
 ---
 
@@ -49,6 +49,8 @@
 
 ## Behavior Tree System
 
+> **Note**: The behavior tree system (`behavior_tree_engine.py`, `bt_nodes.py`, `bt_action_nodes.py`) was removed in v2.0.0 and restored in v2.1.0 via the SWNFP merge. It is now part of the active codebase.
+
 ### 铲糖任务行为树结构
 
 ```
@@ -81,10 +83,10 @@ NodeContext.blackboard:
 
 | 指标 | 当前值 | 目标值 |
 |------|--------|--------|
-| 视频延迟 | ~80ms | < 100ms |
+| TCP 延迟 | ~50ms | < 100ms |
 | API P99 | ~30ms | < 50ms |
-| 并发任务 | 4 | 4 |
-| 测试覆盖率 | 60% | 80% |
+| 点云分析频率 | 4Hz | 4Hz |
+| material_distance 稳定性 | 稳定 | 无跳动 |
 
 ---
 
@@ -98,5 +100,5 @@ NodeContext.blackboard:
 
 ---
 
-*Version: v1.2 (Behavior Tree Enhanced)*
-*Last Updated: 2026-03-03*
+*Version: v2.1.0*
+*Last Updated: 2026-07-31*

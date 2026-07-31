@@ -6,9 +6,9 @@
 
 ## Current Status
 
-**Phase**: 点云分析精度优化 (Phase 8)
-**Last Milestone**: move_distance 计算修复、噪点过滤、单位转换
-**Next Milestone**: 前端点云参数同步、实际物料测试验证
+**Phase**: 双前端架构整合与 YOLOv8 检测集成 (Phase 9)
+**Last Milestone**: YOLOv8 检测服务、任务/行为树系统恢复、SWNFP 前端重构
+**Next Milestone**: 前端点云参数实时同步、实际物料测试验证
 
 ---
 
@@ -21,6 +21,18 @@
 - [x] **[工作范围修正]**: X 范围改为 `camera_to_teeth + 0.3 ~ ∞`
 - [x] **[噪点过滤]**: 双重过滤（高度 + 密度），过滤地面噪点和孤立点
 - [x] **[文档更新]**: changelog.md 记录所有修复
+
+### 2026-07-31: SWNFP 合并与系统增强
+
+- [x] **[SWNFP 合并]**: 将 SWNFP 分支合并入 main，停止跟踪 venv/
+- [x] **[YOLOv8 检测]**: 新增 `yolo_detector.py`，支持 RGB/Depth 双流 ONNX 推理
+- [x] **[深度阈值]**: 将深度距离阈值从 6m 扩展到 15m
+- [x] **[camera_to_teeth 固定]**: 固定为 1m（物理固定值，不再从前端传入）
+- [x] **[任务系统恢复]**: 恢复 `task_manager.py`、`tasks/` 实现包、`/api/tasks` 端点
+- [x] **[行为树恢复]**: 恢复 `behavior_tree_engine.py`、`bt_nodes.py`、`bt_action_nodes.py` 等
+- [x] **[admin-frontend 重构]**: 重构任务系统、地图组件、设备监控，连接后端真实数据
+- [x] **[robot API 增强]**: 添加 pause/resume/navToPick/navToDrop 接口
+- [x] **[文档]**: 新增 `robot_communication_protocol.md`、`behavior_tree_analysis_report.md`
 
 ### 2026-04-14: 系统守护化配置
 
@@ -110,7 +122,8 @@
 
 - [ ] 前端 SliceView 修改参数时调用 settings API 同步后端
 - [ ] 实际物料测试验证噪点过滤效果
-- [ ] camera_to_teeth 参数从前端同步（当前使用默认值 800mm）
+- [ ] YOLOv8 模型文件放置与验证 (`models/yolov8n/best.onnx`)
+- [ ] admin-frontend 地图/任务 API 完全对接 SW 后端
 
 ---
 
@@ -139,4 +152,4 @@
 
 ---
 
-*Last Updated: 2026-04-15*
+*Last Updated: 2026-07-31*
