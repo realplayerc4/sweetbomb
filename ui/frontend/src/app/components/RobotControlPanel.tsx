@@ -22,9 +22,9 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
     } = useRobotController();
 
     const [isRemote] = useState(true);
-    const [moveSpeed] = useState(0.5); // Default move speed for controls
+    const [moveSpeed] = useState(0.5); // 控制默认移动速度
 
-    // Get current vehicle speed from status
+    // 从状态中获取当前车辆速度
     const currentSpeed = status?.speed ?? 0;
 
     const handleDirectionClick = async (direction: MoveDirection) => {
@@ -53,7 +53,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
             "relative flex flex-col h-full bg-[#1c1c1e] border-[#FD802E]/20 shadow-[0_0_25px_rgba(253,128,46,0.1)] rounded-[10px] overflow-hidden",
             className
         )}>
-            {/* Top Bar Area - Independent Absolute Elements for Pixel-Perfect Centering */}
+            {/* 顶部栏区域 - 独立绝对定位元素，用于像素级居中 */}
             {/* 1. Left: Set Speed */}
             <div className="absolute top-[16px] left-[32px] z-[100] flex flex-col items-start">
                 <span className="text-[7px] font-black tracking-[0.3em] text-[#FD802E]/40 uppercase">System Ready // Speed</span>
@@ -80,10 +80,10 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 )}
             </div>
 
-            {/* Main Interactive Layer */}
+            {/* 主交互层 */}
             <div className="flex-1 relative mt-[60px] mb-[100px]">
 
-                {/* Left Controls: Vertical Bucket Bars (50px from left, 20px gap) */}
+                {/* 左侧控制：垂直铲斗条（距左侧 50px，间距 20px） */}
                 <div className="absolute left-[50px] top-1/2 -translate-y-1/2 flex gap-[20px] items-center">
                     {/* BOOM Bar - Display Only */}
                     <div className="flex flex-col items-center gap-2">
@@ -142,7 +142,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                     </div>
                 </div>
 
-                {/* Center Controls: Direction Arrows (Center Middle) */}
+                {/* 中心控制：方向箭头（垂直水平居中） */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                     <div className="p-8 rounded-[2rem] bg-[#FD802E]/5 border border-[#FD802E]/10 shadow-[inset_0_0_30px_rgba(253,128,46,0.1)]">
                         <div className="grid grid-cols-3 gap-4">
@@ -200,7 +200,7 @@ export function RobotControlPanel({ className }: RobotControlPanelProps) {
                 </div>
             </div>
 
-            {/* Bottom Action Buttons */}
+            {/* 底部操作按钮 */}
             <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 flex justify-center items-center gap-[5px] z-[120]">
                 {/* 1. Scoop */}
                 <Button

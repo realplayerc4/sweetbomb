@@ -12,7 +12,7 @@ import { RobotControlPanel } from './components/RobotControlPanel';
 import { BehaviorTreeViz } from './components/BehaviorTreeViz';
 
 export default function App() {
-  // Connection Hook
+  // 连接 Hook
   const {
     device,
     isStreaming,
@@ -27,18 +27,18 @@ export default function App() {
     stopConnection
   } = useRobotConnection();
 
-  // Control States (Local for now, until backend has control API)
+  // 控制状态（暂时本地维护，直到后端提供控制 API）
   const [power, setPower] = useState(75);
 
 
 
-  // Status States
+  // 状态
   const [battery, setBattery] = useState(85);
   const [cpu, setCpu] = useState(45);
   const [temperature, setTemperature] = useState(38);
   const [signal, setSignal] = useState(92);
 
-  // Toggle Streaming
+  // 切换流
   const handleToggleRunning = () => {
     if (isStreaming) {
       stopConnection();
@@ -49,7 +49,7 @@ export default function App() {
 
 
 
-  // Simulate status changes
+  // 模拟状态变化
   useEffect(() => {
     if (!isStreaming || power === 0) return;
 
@@ -63,7 +63,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isStreaming, power]);
 
-  // Auto-start stream when device is discovered and not currently streaming
+  // 设备发现且当前未流式传输时自动启动流
   useEffect(() => {
     if (device && !isStreaming && !error) {
       startConnection();
@@ -85,7 +85,7 @@ export default function App() {
       <Toaster position="top-right" theme="dark" />
 
       <div className="max-w-[1900px] mx-auto p-6 lg:p-10 flex flex-col gap-[30px]">
-        {/* Header - Industrial Card Style */}
+        {/* 头部 - 工业卡片风格 */}
         <header className="flex items-center justify-between p-6 bg-transparent rounded-2xl">
           <div className="flex items-center gap-6">
             <div className="p-4 bg-[#FD802E] rounded-2xl shadow-lg shadow-[#FD802E]/20">
@@ -109,7 +109,7 @@ export default function App() {
           </div>
         )}
 
-        {/* First Row: Video(RGB) + Slice + Depth */}
+        {/* 第一行：视频(RGB) + 切片 + 深度 */}
         <div className="grid grid-cols-3 gap-[30px] h-[350px]">
           <VideoView
             isActive={isStreaming}
@@ -129,7 +129,7 @@ export default function App() {
           />
         </div>
 
-        {/* Second Row: Map + Control + BehaviorTree */}
+        {/* 第二行：地图 + 控制 + 行为树 */}
         <div className="grid grid-cols-3 gap-[30px] min-h-[400px]">
           <MapPanel />
           <RobotControlPanel />
@@ -141,7 +141,7 @@ export default function App() {
           />
         </div>
 
-        {/* Global Footer Status Bar */}
+        {/* 全局底部状态栏 */}
         <footer className="mt-4 flex flex-col md:flex-row items-center justify-between px-6 py-4 bg-black/20 rounded-xl text-[10px] font-mono tracking-wider text-slate-500 gap-4">
           <div className="flex flex-wrap items-center gap-6">
             <span className="flex items-center gap-2"><Activity className="w-3 h-3" /> 延迟: 1.2ms</span>

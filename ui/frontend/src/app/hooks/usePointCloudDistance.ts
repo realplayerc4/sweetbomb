@@ -16,8 +16,8 @@ interface UsePointCloudDistanceReturn {
 }
 
 /**
- * Hook to fetch move_distance from backend REST API
- * This replaces the WebSocket-based advanceDistance with REST API polling
+ * 从后端 REST API 获取 move_distance 的 Hook
+ * 替代原先基于 WebSocket 的 advanceDistance，改为 REST 轮询
  */
 export function usePointCloudDistance(
   deviceId: string | null,
@@ -48,14 +48,14 @@ export function usePointCloudDistance(
     }
   }, [deviceId]);
 
-  // Polling effect
+    // 轮询效果
   useEffect(() => {
     if (!deviceId) {
       setData(null);
       return;
     }
 
-    // Initial fetch
+    // 初始获取
     fetchDistance();
 
     // Setup polling interval

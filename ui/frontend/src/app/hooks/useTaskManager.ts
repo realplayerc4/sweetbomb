@@ -1,5 +1,5 @@
 /**
- * React hook for managing tasks with Socket.IO real-time updates.
+ * 任务管理 React hook，基于 Socket.IO 实时更新。
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -82,7 +82,7 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
   // Refs
   const socketRef = useRef<Socket | null>(null);
 
-  // --- Socket.IO Connection ---
+  // --- Socket.IO 连接 ---
 
   useEffect(() => {
     if (!autoConnect) return;
@@ -114,13 +114,13 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
     };
   }, [autoConnect]);
 
-  // Handle task events from Socket.IO
+  // 处理来自 Socket.IO 的任务事件
   const handleTaskEvent = useCallback((event: TaskEvent) => {
     setTasks((prevTasks) => {
       const existingIndex = prevTasks.findIndex((t) => t.task_id === event.task_id);
 
       if (existingIndex >= 0) {
-        // Update existing task
+        // 更新现有任务
         const updated = [...prevTasks];
         const existing = updated[existingIndex];
 
@@ -133,7 +133,7 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
 
         return updated;
       } else {
-        // New task - fetch full info
+        // 新任务 - 获取完整信息
         taskApi.getTask(event.task_id).then((task) => {
           setTasks((prev) => [...prev, task]);
         });
@@ -145,7 +145,7 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
     updateCounts();
   }, []);
 
-  // Update running/pending counts
+  // 更新运行/等待计数
   const updateCounts = useCallback(() => {
     setTasks((prevTasks) => {
       const running = prevTasks.filter((t) => t.status === 'running').length;
@@ -157,7 +157,7 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
     });
   }, []);
 
-  // --- Data Fetching ---
+  // --- 数据获取 ---
 
   const refreshWaypoints = useCallback(async () => {
     setIsLoadingWaypoints(true);
@@ -229,7 +229,7 @@ export function useTaskManager(options: UseTaskManagerOptions = {}): UseTaskMana
     }
   }, [deviceId]);
 
-  // Initial fetch
+  // 初始获取
   useEffect(() => {
     refreshTaskTypes();
     refreshTasks();

@@ -1,6 +1,6 @@
 /**
- * Joystick component for robot control.
- * Supports both mouse/touch and keyboard control.
+ * 机器人控制摇杆组件。
+ * 支持鼠标/触摸和键盘控制。
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -21,9 +21,9 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
     const knobRef = useRef<HTMLDivElement>(null);
 
     const radius = size / 2;
-    const maxDistance = radius * 0.6; // Maximum knob movement
+    const maxDistance = radius * 0.6; // 摇杆最大移动距离
 
-    // Calculate direction and intensity from position
+    // 根据位置计算方向和强度
     const calculateDirection = useCallback((x: number, y: number) => {
         const distance = Math.sqrt(x * x + y * y);
         const intensity = Math.min(distance / maxDistance, 1);
@@ -34,7 +34,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
 
         const angle = Math.atan2(y, x) * (180 / Math.PI);
 
-        // Determine direction based on angle
+        // 根据角度确定方向
         let direction: 'forward' | 'backward' | 'left' | 'right' | null = null;
 
         if (angle >= -45 && angle < 45) {
@@ -50,7 +50,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         return { direction, intensity };
     }, [maxDistance]);
 
-    // Handle move events
+    // 处理移动事件
     const handleMove = useCallback((clientX: number, clientY: number) => {
         if (!containerRef.current) return;
 
@@ -61,7 +61,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         let x = clientX - centerX;
         let y = clientY - centerY;
 
-        // Clamp to max distance
+        // 限制在最大距离内
         const distance = Math.sqrt(x * x + y * y);
         if (distance > maxDistance) {
             const ratio = maxDistance / distance;
@@ -75,14 +75,14 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         onMove(direction, intensity);
     }, [radius, maxDistance, calculateDirection, onMove]);
 
-    // Mouse events
+    // 鼠标事件
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         if (disabled) return;
         setIsDragging(true);
         handleMove(e.clientX, e.clientY);
     }, [disabled, handleMove]);
 
-    // Touch events
+    // 触摸事件
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         if (disabled) return;
         e.preventDefault();
@@ -91,7 +91,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         handleMove(touch.clientX, touch.clientY);
     }, [disabled, handleMove]);
 
-    // Global move and stop handlers
+    // 全局移动与停止处理
     useEffect(() => {
         if (!isDragging) return;
 
@@ -125,7 +125,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
         };
     }, [isDragging, handleMove, onMove, onStop]);
 
-    // Keyboard controls
+    // 键盘控制
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (disabled) return;
@@ -190,10 +190,10 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
         >
-            {/* Direction indicators */}
+            {/* 方向指示器 */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-full h-full relative opacity-60">
-                    {/* Arrow indicators */}
+                    {/* 箭头指示器 */}
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 text-[#FD802E] text-[10px] font-black">↑</div>
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[#FD802E] text-[10px] font-black">↓</div>
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[#FD802E] text-[10px] font-black">←</div>
@@ -201,10 +201,10 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
                 </div>
             </div>
 
-            {/* Center indicator */}
+            {/* 中心指示器 */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#FD802E]/5 border border-[#FD802E]/20" />
 
-            {/* Draggable knob */}
+            {/* 可拖拽旋钮 */}
             <div
                 ref={knobRef}
                 className={cn(
@@ -219,7 +219,7 @@ export function Joystick({ className, onMove, onStop, disabled = false, size = 1
                 }}
             />
 
-            {/* Direction label */}
+            {/* 方向标签 */}
             <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-[10px] font-black text-[#FD802E]/50 uppercase tracking-[0.2em] whitespace-nowrap">
                 {isDragging ? 'MANUAL ACTIVE' : 'WASD / DRAG'}
             </div>

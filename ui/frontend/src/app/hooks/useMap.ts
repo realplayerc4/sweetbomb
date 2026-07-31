@@ -94,7 +94,7 @@ export function useMapImage(mapName: string | null, thetaDeg: number = 0) {
   ) => {
     if (!mapName) return;
 
-    // Clean up previous object URL
+    // 清理上一次的对象 URL
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;

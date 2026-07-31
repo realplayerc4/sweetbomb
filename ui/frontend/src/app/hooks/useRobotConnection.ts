@@ -32,7 +32,7 @@ export function useRobotConnection() {
     const lastMetricsUpdateTime = useRef<number>(0);
     const lastPointCountUpdateTime = useRef<number>(0);
 
-    // Auto-connect to first available device
+    // 自动连接到第一个可用设备
     useEffect(() => {
         api.getDevices().then(devices => {
             if (devices.length > 0) {
@@ -41,7 +41,7 @@ export function useRobotConnection() {
         }).catch(err => console.error("Failed to fetch devices:", err));
     }, []);
 
-    // Initialize Socket.IO
+    // 初始化 Socket.IO
     useEffect(() => {
         socket.current = io(SOCKET_URL, {
             path: '/socket.io',
@@ -57,7 +57,7 @@ export function useRobotConnection() {
                 setSystemStats(data.system_stats);
             }
 
-            // Update Stream Metrics - Throttled to 1 sec
+            // 更新流指标 - 限制为 1 秒一次
             const now = Date.now();
             if (now - lastMetricsUpdateTime.current >= 1000) {
                 lastMetricsUpdateTime.current = now;
@@ -67,12 +67,11 @@ export function useRobotConnection() {
                     newMetrics.rgb = {
                         width: data.metadata_streams.color.width || 0,
                         height: data.metadata_streams.color.height || 0,
-                        fps: data.metadata_streams.color.frame_number ? Math.round(data.metadata_streams.color.frame_number / Math.max(1, data.metadata_streams.color.timestamp)) : 30 // Approximate or fallback
+                        fps: data.metadata_streams.color.frame_number ? Math.round(data.metadata_streams.color.frame_number / Math.max(1, data.metadata_streams.color.timestamp)) : 30 // 近似值或回退
                     };
-                    // Since RealSense wrapper might not easily provide exact instantaneous FPS here without historical tracking,
-                    // we'll rely on our requested framerate config (30) or backend calculation if available.
-                    // Assuming we fallback to 30/15 depending on requested config until backend sends explicit fps.
-                    // For now, hardcode to 30/15 as configured or parse from metadata if backend adds it.
+                    // RealSense 包装器在此处不易提供精确瞬时 FPS，需历史统计；
+                    // 先沿用请求帧率配置（30），或等待后端显式下发 fps。
+                    // 目前暂时按配置写死为 30/15，后续若后端补充字段可改为解析。
                     newMetrics.rgb.fps = 30; // using configured 30 FPS
                 }
 
@@ -101,11 +100,11 @@ export function useRobotConnection() {
 
                     console.log('[RobotConnection] Received REAL point cloud data:', rawVertices.length / 3, 'points');
 
-                    // Backend already transformed coordinates to ROS coordinate system
-                    // Just pass through directly - no further transformation needed
+                    // 后端已将坐标转换到 ROS 坐标系
+                    // 此处直接透传，无需额外转换
                     setPointCloudData(rawVertices);
 
-                    // Update Point Cloud Metrics - independent throttling for point count
+                    // 更新点云指标 - 点数量独立节流
                     const vertexCount = rawVertices.length / 3;
                     if (now - lastPointCountUpdateTime.current >= 100) {  // 更新频率: 100ms
                         lastPointCountUpdateTime.current = now;
@@ -116,7 +115,7 @@ export function useRobotConnection() {
                     console.error("Error parsing point cloud:", e);
                 }
             }
-            // 点云分析数据 (如有)
+            // 点云分析数据（如有）
             if (data.metadata_streams?.depth?.point_cloud?.analysis) {
                 setPointCloudAnalysis(data.metadata_streams.depth.point_cloud.analysis);
             } else if (data.point_cloud_analysis) {
@@ -134,11 +133,11 @@ export function useRobotConnection() {
         setError(null);
 
         try {
-            // 1. Start Streams on Backend
+            // 1. 在后端启动流
             await api.startStream(device.device_id, {
                 configs: [
                     {
-                        sensor_id: `${device.device_id}-sensor-0`, // Assuming sensor 0 is depth, checking later
+                        sensor_id: `${device.device_id}-sensor-0`, // 假设 sensor 0 为 depth，后续校验
                         stream_type: "depth",
                         format: "z16",
                         resolution: { width: 640, height: 360 },
@@ -146,7 +145,7 @@ export function useRobotConnection() {
                         enable: true
                     },
                     {
-                        sensor_id: `${device.device_id}-sensor-1`, // Assuming sensor 1 is RGB
+                        sensor_id: `${device.device_id}-sensor-1`, // 假设 sensor 1 为 RGB
                         stream_type: "color",
                         format: "rgb8",
                         resolution: { width: 640, height: 360 },
@@ -157,10 +156,10 @@ export function useRobotConnection() {
                 align_to: "color"
             });
 
-            // 2. Activate Point Cloud
+            // 2. 激活点云
             await api.activatePointCloud(device.device_id);
 
-            // 3. WebRTC Offer (with retry logic)
+            // 3. 获取 WebRTC Offer（带重试逻辑）
             let offerData: any;
             let retryCount = 0;
             const maxRetries = 5;
@@ -183,7 +182,7 @@ export function useRobotConnection() {
             }
             sessionId.current = offerData!.session_id;
 
-            // 4. Create Peer Connection
+            // 4. 创建 Peer Connection
             const pc = new RTCPeerConnection({
                 iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
             });
@@ -219,24 +218,24 @@ export function useRobotConnection() {
                 trackIndex++;
             };
 
-            // 6. Handle ICE Candidates
+            // 6. 处理 ICE Candidates
             pc.onicecandidate = (event) => {
                 if (event.candidate && sessionId.current) {
                     api.sendIceCandidate(sessionId.current, event.candidate);
                 }
             };
 
-            // 7. Set Remote Description
+            // 7. 设置远端描述
             await pc.setRemoteDescription({ type: offerData.type, sdp: offerData.sdp });
 
-            // 8. Create Answer
+            // 8. 创建 Answer
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             if (sessionId.current) {
                 await api.sendAnswer(sessionId.current, answer);
             }
 
-            // 9. Get Backend ICE Candidates
+            // 9. 获取后端 ICE Candidates
             setTimeout(async () => {
                 if (sessionId.current) {
                     const candidates = await api.getIceCandidates(sessionId.current);

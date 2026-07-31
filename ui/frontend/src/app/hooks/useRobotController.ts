@@ -1,5 +1,5 @@
 /**
- * React hook for robot control with Socket.IO real-time updates.
+ * 机器人控制 React hook，基于 Socket.IO 实时更新。
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -9,7 +9,7 @@ import { robotApi, type RobotStatus } from '../services/robotApi';
 
 interface UseRobotControllerOptions {
     autoConnect?: boolean;
-    pollInterval?: number; // Fallback polling interval if socket fails
+    pollInterval?: number; // 回退轮询间隔
 }
 
 interface UseRobotControllerReturn {
@@ -18,7 +18,7 @@ interface UseRobotControllerReturn {
     isLoading: boolean;
     isConnected: boolean;
 
-    // Task state tracking
+    // 任务状态跟踪
     pendingTaskId: string | null;  // 当前正在执行的任务ID
     isTaskRunning: boolean;        // 是否有任务正在执行
 
@@ -69,7 +69,7 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
     const socketRef = useRef<Socket | null>(null);
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // --- Socket.IO Connection ---
+    // --- Socket.IO 连接 ---
 
     useEffect(() => {
         if (!autoConnect) return;
@@ -91,7 +91,7 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
             setIsConnected(false);
         });
 
-        // Behavior tree events
+        // 行为树事件
         socket.on('bt_event', (event: any) => {
             console.log('[RobotController] BT event:', event);
             handleBTEvent(event);
@@ -118,7 +118,7 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         };
     }, [autoConnect]);
 
-    // Handle behavior tree events
+    // 处理行为树事件
     const handleBTEvent = useCallback((event: any) => {
         if (event.event_type === 'bt_started') {
             setIsHarvestRunning(true);
@@ -126,14 +126,14 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
             setIsHarvestRunning(false);
         }
 
-        // Update harvest status
+        // 更新收获状态
         setHarvestStatus({
             is_running: isHarvestRunning,
             ...event,
         });
     }, [isHarvestRunning]);
 
-    // --- Data Fetching ---
+    // --- 数据获取 ---
 
     const refreshStatus = useCallback(async () => {
         setIsLoading(true);
@@ -159,7 +159,7 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         }
     }, []);
 
-    // Polling for robot status (always active)
+    // 轮询机器人状态（始终激活）
     useEffect(() => {
         pollIntervalRef.current = setInterval(() => {
             refreshStatus().catch(() => {});
@@ -172,7 +172,7 @@ export function useRobotController(options: UseRobotControllerOptions = {}): Use
         };
     }, [pollInterval, refreshStatus]);
 
-    // Initial fetch - wrapped in try-catch to prevent app crash
+    // 初始获取 - 包裹在 try-catch 中防止应用崩溃
     useEffect(() => {
         refreshStatus().catch(() => {});
     }, [refreshStatus]);

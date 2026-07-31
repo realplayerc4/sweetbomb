@@ -26,7 +26,7 @@ export function TaskPanel() {
   const completedKg = useTaskStore((s) => s.completedKg);
   const error = useTaskStore((s) => s.error);
 
-  // Actions
+  // 操作
   const setTarget = useTaskStore((s) => s.setTarget);
   const start = useTaskStore((s) => s.start);
   const pause = useTaskStore((s) => s.pause);
