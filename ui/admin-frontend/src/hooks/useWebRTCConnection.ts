@@ -22,7 +22,7 @@ export function useWebRTCConnection() {
   const sessionId = useRef<string | null>(null);
   const autoStartAttempted = useRef(false);
 
-  // Auto-connect to first available device
+  // Auto-connect to first available device / 自动连接到第一个可用设备
   useEffect(() => {
     webrtcApi.getDevices().then(devices => {
       if (devices.length > 0) {
@@ -191,7 +191,7 @@ export function useWebRTCConnection() {
     }
   }, [device]);
 
-  // Auto-start streaming once device is ready
+  // Auto-start streaming once device is ready / 设备就绪后自动启动流
   useEffect(() => {
     let mounted = true;
     if (device && !isStreaming && !autoStartAttempted.current) {

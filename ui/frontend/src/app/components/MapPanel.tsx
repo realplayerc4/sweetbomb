@@ -395,7 +395,7 @@ export function MapPanel() {
         </button>
       </div>
 
-      {/* Zoom Level Indicator + Pixel Offset Controls */}
+      {/* Zoom Level Indicator + 像素偏移控制 */}
       <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-2">
         <div className="bg-[#1c1c1e]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#FD802E]/40">
           <span className="text-[10px] text-[#FD802E] font-mono">
@@ -427,7 +427,7 @@ export function MapPanel() {
         </div>
       </div>
 
-      {/* Map Container */}
+      {/* Map Container / 地图容器 */}
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
@@ -476,7 +476,7 @@ export function MapPanel() {
               }}
             />
 
-            {/* Vehicle Position Indicator */}
+            {/* Vehicle Position Indicator / 车辆位置指示器 */}
             {vehicleData && robotStatus && (
               <svg
                 style={{
@@ -513,7 +513,7 @@ export function MapPanel() {
               </svg>
             )}
 
-            {/* Station Markers */}
+            {/* Station Markers / 站点标记 */}
             {stationMarkers.markers.length > 0 && vehicleData && (
               <svg
                 style={{

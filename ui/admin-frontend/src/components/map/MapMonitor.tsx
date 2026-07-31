@@ -320,7 +320,7 @@ export function MapMonitor() {
 
   return (
     <div className="relative w-full h-full bg-[#0f172a] rounded-lg overflow-hidden border border-cyan-500/20">
-      {/* Status Header */}
+      {/* Status Header / 状态头部 */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-[#0f172a]/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-cyan-500/40">
         <div
           className={`w-2 h-2 rounded-full ${isConnected ? 'bg-cyan-400 animate-pulse' : 'bg-gray-500'}`}
@@ -343,7 +343,7 @@ export function MapMonitor() {
         )}
       </div>
 
-      {/* Legend */}
+      {/* Legend / 图例 */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-3 bg-[#0f172a]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-cyan-500/40">
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-3 border-2 border-cyan-400 bg-cyan-400/30 rounded-sm" />
@@ -355,7 +355,7 @@ export function MapMonitor() {
         </div>
       </div>
 
-      {/* Toolbar */}
+      {/* Toolbar / 工具栏 */}
       <div className="absolute top-1/2 right-2 -translate-y-1/2 z-10 flex flex-col gap-1">
         <button
           onClick={handleZoomIn}
@@ -387,7 +387,7 @@ export function MapMonitor() {
         </button>
       </div>
 
-      {/* Zoom Level + Offset Controls */}
+      {/* Zoom Level + Offset Controls / 缩放级别 + 偏移控制 */}
       <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-1">
         <div className="bg-[#0f172a]/90 backdrop-blur-md px-2 py-1 rounded border border-cyan-500/40">
           <span className="text-[10px] text-cyan-400 font-mono">
@@ -419,7 +419,7 @@ export function MapMonitor() {
         </div>
       </div>
 
-      {/* Map Container */}
+      {/* Map Container / 地图容器 */}
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
@@ -468,7 +468,7 @@ export function MapMonitor() {
               }}
             />
 
-            {/* Vehicle Position Indicator */}
+            {/* Vehicle Position Indicator / 车辆位置指示器 */}
             {vehicleData && robotData && (
               <svg
                 style={{
@@ -505,7 +505,7 @@ export function MapMonitor() {
               </svg>
             )}
 
-            {/* Station Markers */}
+            {/* Station Markers / 站点标记 */}
             {stationMarkers.markers.length > 0 && vehicleData && (
               <svg
                 style={{
