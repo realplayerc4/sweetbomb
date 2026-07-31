@@ -1,4 +1,4 @@
-"""Task implementations package."""
+"""任务实现包。"""
 
 from app.services.tasks.implementations.object_detection_task import ObjectDetectionTask
 from app.services.tasks.implementations.data_collection_task import DataCollectionTask

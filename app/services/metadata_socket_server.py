@@ -11,15 +11,14 @@ import math
 
 class MetadataSocketServer:
     """
-    Handles fetching metadata from RealSenseManager and broadcasting it
-    via a provided Socket.IO server instance.
+    从 RealSenseManager 获取元数据，并通过 Socket.IO 服务实例广播。
     """
 
     def __init__(
         self,
-        sio,  # Can be either socketio.Server or socketio.AsyncServer
+        sio,  # 可以是 socketio.Server 或 socketio.AsyncServer
         rs_manager,
-        update_interval: float = 1.0/30.0,  # Default to 30 FPS
+        update_interval: float = 1.0/30.0,  # 默认 30 FPS
     ):
         self._sio = sio
         self._rs_manager = rs_manager
@@ -31,7 +30,7 @@ class MetadataSocketServer:
         self._async_loop = None
 
     def _emit_event(self, event_name, data):
-        """Helper method to handle emit for both sync and async server types"""
+        """处理同步/异步 Socket.IO 服务发射事件的辅助方法。"""
         if self._async_loop is None:
             self._async_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._async_loop)
@@ -39,11 +38,11 @@ class MetadataSocketServer:
         async def async_emit():
             await self._sio.emit(event_name, data)
 
-        # Run the coroutine in the event loop
+        # 在事件循环中运行协程
         self._async_loop.run_until_complete(async_emit())
 
     def _broadcast_metadata_loop(self):
-        """The core loop that fetches and broadcasts metadata."""
+        """获取并广播元数据的核心循环。"""
         print("[MetadataBroadcaster] Starting broadcast loop...")
 
         if not self._async_loop:
@@ -61,7 +60,7 @@ class MetadataSocketServer:
                 time.sleep(self._update_interval)
                 continue
 
-            # --- Fetch status and metadata ---
+            # --- 获取状态与元数据 ---
             active_streams = []
             is_streaming = False
             try:
@@ -111,7 +110,7 @@ class MetadataSocketServer:
                                 "error": f"Unexpected: {str(e)}"
                             }
 
-            # --- Fetch System Stats ---
+            # --- 获取系统状态 ---
             current_time = time.time()
             if current_time - last_cpu_time >= 1.0:
                 last_cpu_load = psutil.cpu_percent()
@@ -122,7 +121,7 @@ class MetadataSocketServer:
                 "hostname": socket.gethostname(),
             }
 
-            # --- Emit via the provided sio instance ---
+            # --- 通过 sio 实例发射 ---
             payload = {
                 "device_id": self._target_device_id,
                 "is_streaming": is_streaming,
@@ -131,17 +130,17 @@ class MetadataSocketServer:
                 "system_stats": system_stats,
             }
             try:
-                # Debug: check if point cloud is in payload
+                # 调试：检查 payload 中是否包含点云
                 if "depth" in all_metadata and all_metadata["depth"]:
                     pass
-                # Use helper method to handle emit appropriately
+                # 使用辅助方法进行适当的 emit
                 self._emit_event("metadata_update", payload)
             except Exception as e:
                 print(
                     f"[MetadataBroadcaster] Error emitting 'metadata_update' event: {e}"
                 )
 
-            # --- Sleep ---
+            # --- 休眠 ---
             elapsed_time = time.monotonic() - start_time
             sleep_duration = max(0, self._update_interval - elapsed_time)
             time.sleep(sleep_duration)
@@ -149,7 +148,7 @@ class MetadataSocketServer:
         print("[MetadataBroadcaster] Broadcast loop stopped.")
 
     def start_broadcast(self, device_id: str):
-        """Starts the metadata broadcast loop as a background thread."""
+        """启动后台线程形式的元数据广播循环。"""
         if self._is_broadcasting:
             return
 
@@ -170,7 +169,7 @@ class MetadataSocketServer:
         )
 
     def stop_broadcast(self):
-        """Stops the metadata broadcast loop gracefully."""
+        """优雅停止元数据广播循环。"""
         if not self._is_broadcasting or not self._broadcast_thread:
             return
 
@@ -178,13 +177,13 @@ class MetadataSocketServer:
         self._is_broadcasting = False
         self._thread_stop_event.set()
 
-        # Clean up threading resources
+        # 清理线程资源
         if self._broadcast_thread and self._broadcast_thread.is_alive():
             self._broadcast_thread.join(
                 timeout=2.0
             )  # Wait for thread to terminate with timeout
 
-        # Clean up the async loop if it exists
+        # 清理异步事件循环资源
         if self._async_loop:
             self._async_loop.close()
             self._async_loop = None

@@ -117,97 +117,97 @@ class BaseTask(ABC):
             self._on_progress(self._progress)
 
     def check_paused(self):
-        """Check if task is paused and wait if so. Also checks for stop request."""
+        """检查任务是否暂停并等待。同时检查停止请求。"""
         if self._stop_requested:
             raise TaskStopException()
-        self._pause_event.wait()  # Will block if paused
+        self._pause_event.wait()  # 暂停时会阻塞
 
     async def async_check_paused(self):
-        """Async version of check_paused."""
+        """check_paused 的异步版本。"""
         if self._stop_requested:
             raise TaskStopException()
         await self._pause_event.wait()
 
     def pause(self):
-        """Pause the task."""
+        """暂停任务。"""
         if self._status == TaskStatus.RUNNING:
             self._pause_event.clear()
             self._set_status(TaskStatus.PAUSED)
             logger.info(f"Task {self.task_id} paused")
 
     def resume(self):
-        """Resume a paused task."""
+        """恢复暂停的任务。"""
         if self._status == TaskStatus.PAUSED:
             self._pause_event.set()
             self._set_status(TaskStatus.RUNNING)
             logger.info(f"Task {self.task_id} resumed")
 
     def stop(self):
-        """Request task to stop."""
+        """请求任务停止。"""
         self._stop_requested = True
-        self._pause_event.set()  # Unblock if paused
+        self._pause_event.set()  # 解除暂停阻塞
         logger.info(f"Task {self.task_id} stop requested")
 
-    # --- Abstract methods that must be implemented by subclasses ---
+    # --- 子类必须实现的抽象方法 ---
 
     @abstractmethod
     def validate(self) -> bool:
         """
-        Validate task parameters and configuration.
-        Called before setup() to ensure task can be executed.
+        校验任务参数和配置。
+        在 setup() 之前调用，确保任务可执行。
 
-        Returns:
-            True if validation passes, False otherwise
+        返回:
+            校验通过返回 True，否则返回 False
 
-        Raises:
-            ValueError: If validation fails with specific error message
+        异常:
+            ValueError: 校验失败时抛出具体错误信息
         """
         pass
 
     def setup(self):
         """
-        Setup task before running.
-        Override this method to perform initialization like:
-        - Loading models
-        - Connecting to resources
-        - Allocating memory
+        运行前准备任务。
+        重写此方法以执行初始化操作，例如:
+        - 加载模型
+        - 连接资源
+        - 分配内存
 
-        This method runs synchronously before the async run() method.
+        此方法在异步 run() 之前同步执行。
         """
         pass
 
     @abstractmethod
     async def run(self) -> TaskResult:
         """
-        Execute the main task logic.
-        This is an async method that should:
-        - Periodically call check_paused() or async_check_paused()
-        - Update progress using update_progress()
-        - Return a TaskResult when complete
+        执行主要任务逻辑。
+        此异步方法应当:
+        - 定期调用 check_paused() 或 async_check_paused()
+        - 使用 update_progress() 更新进度
+        - 完成后返回 TaskResult
 
-        Returns:
-            TaskResult containing the outcome of the task
+        返回:
+            包含任务结果的 TaskResult
         """
         pass
 
     def teardown(self):
         """
-        Cleanup after task completion.
-        Override this method to perform cleanup like:
-        - Releasing resources
-        - Saving results
-        - Closing connections
+        任务完成后清理。
+        重写此方法以执行清理操作，例如:
+        - 释放资源
+        - 保存结果
+        - 关闭连接
 
-        This method runs regardless of task success or failure.
+        此方法在任务成功或失败时都会执行。
         """
         pass
 
-    # --- Main execution method ---
+    # --- 主执行方法 ---
 
     async def execute(self) -> TaskResult:
         """
-        Execute the full task lifecycle.
-        This method should not be overridden.
+        执行完整任务生命周期。
+        此方法不应被重写。
         """
         try:
             # Validate
@@ -270,5 +270,5 @@ class BaseTask(ABC):
 
 
 class TaskStopException(Exception):
-    """Raised when a task is requested to stop."""
+    """当任务被请求停止时抛出。"""
     pass

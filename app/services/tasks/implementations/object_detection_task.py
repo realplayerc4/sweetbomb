@@ -29,7 +29,7 @@ class ObjectDetectionTask(BaseTask):
     category = "vision"
     requires_device = True
 
-    # Parameter schema for validation
+    # 参数校验模式
     params_schema = {
         "type": "object",
         "properties": {
@@ -79,20 +79,20 @@ class ObjectDetectionTask(BaseTask):
     ):
         super().__init__(task_id, config, params, device_id)
 
-        # Task parameters with defaults
+        # 任务参数及默认值
         self.model = params.get("model", "yolov8n")
         self.confidence_threshold = params.get("confidence_threshold", 0.5)
         self.interval_ms = params.get("interval_ms", 500)
         self.max_detections = params.get("max_detections", 20)
         self.classes = params.get("classes", [])
 
-        # Internal state
+        # 内部状态
         self._frame_count = 0
         self._total_detections = 0
         self._model_loaded = False
 
     def validate(self) -> bool:
-        """Validate task parameters."""
+        """校验任务参数。"""
         if not self.device_id:
             raise ValueError("device_id is required for object detection")
 
@@ -105,11 +105,11 @@ class ObjectDetectionTask(BaseTask):
         return True
 
     def setup(self):
-        """Load detection model and initialize resources."""
+        """加载检测模型并初始化资源。"""
         logger.info(f"Loading {self.model} model for task {self.task_id}")
 
-        # Simulate model loading delay
-        # In real implementation, this would load the actual model
+        # 模拟模型加载延迟
+        # 实际部署时将加载真实模型
         import time
         time.sleep(0.5)
 
@@ -117,7 +117,7 @@ class ObjectDetectionTask(BaseTask):
         logger.info(f"Model loaded for task {self.task_id}")
 
     async def run(self) -> TaskResult:
-        """Execute object detection loop."""
+        """执行目标检测循环。"""
         if not self._model_loaded:
             return TaskResult(
                 success=False,
@@ -125,11 +125,11 @@ class ObjectDetectionTask(BaseTask):
                 error="Setup did not complete successfully"
             )
 
-        # Simulated detection loop
-        # In real implementation, this would get frames from the device
+        # 模拟检测循环
+        # 实际部署时将获取设备帧并执行推理
         detection_results = []
         frames_processed = 0
-        max_frames = self.params.get("max_frames", 100)  # For demo, stop after N frames
+        max_frames = self.params.get("max_frames", 100)  # 演示用，处理 N 帧后停止
 
         self.update_progress(
             current_step=0,
@@ -138,13 +138,13 @@ class ObjectDetectionTask(BaseTask):
         )
 
         while frames_processed < max_frames:
-            # Check for pause/stop
+            # 检查暂停/停止
             await self.async_check_paused()
 
-            # Simulate frame processing
+            # 模拟帧处理
             await asyncio.sleep(self.interval_ms / 1000)
 
-            # Simulate detection (in real implementation, run inference here)
+            # 模拟检测（实际部署时将运行推理）
             detections = self._simulate_detection(frames_processed)
 
             if detections:
@@ -154,7 +154,7 @@ class ObjectDetectionTask(BaseTask):
             frames_processed += 1
             self._frame_count = frames_processed
 
-            # Update progress
+            # 更新进度
             percentage = (frames_processed / max_frames) * 100
             self.update_progress(
                 current_step=frames_processed,
@@ -162,11 +162,11 @@ class ObjectDetectionTask(BaseTask):
                 message=f"已处理 {frames_processed}/{max_frames} 帧，检测到 {self._total_detections} 个物体"
             )
 
-            # Check if stopped
+            # 检查是否停止
             if self._stop_requested:
                 break
 
-        # Prepare results
+        # 准备结果
         final_status = "stopped" if self._stop_requested else "completed"
 
         return TaskResult(
@@ -175,7 +175,7 @@ class ObjectDetectionTask(BaseTask):
             data={
                 "frames_processed": frames_processed,
                 "total_detections": self._total_detections,
-                "detections": detection_results[:100],  # Limit stored results
+                "detections": detection_results[:100],  # 限制存储结果数量
                 "model": self.model,
                 "confidence_threshold": self.confidence_threshold,
             },
@@ -186,10 +186,10 @@ class ObjectDetectionTask(BaseTask):
         )
 
     def _simulate_detection(self, frame_num: int) -> list:
-        """Simulate object detection results for demo purposes."""
+        """演示用：模拟目标检测结果。"""
         import random
 
-        # Simulate random detections
+        # 模拟随机检测
         num_detections = random.randint(0, 3)
 
         if num_detections == 0:
@@ -202,7 +202,7 @@ class ObjectDetectionTask(BaseTask):
             obj_class = random.choice(object_classes)
             confidence = random.uniform(self.confidence_threshold, 1.0)
 
-            # Skip if class filter is set and class not in list
+            # 类别过滤器已设置且当前类别不在列表中时跳过
             if self.classes and obj_class not in self.classes:
                 continue
 
@@ -221,7 +221,7 @@ class ObjectDetectionTask(BaseTask):
         return detections[:self.max_detections]
 
     def teardown(self):
-        """Cleanup resources."""
+        """清理资源。"""
         logger.info(f"Cleaning up object detection task {self.task_id}")
         self._model_loaded = False
 
