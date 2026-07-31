@@ -63,7 +63,7 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
 
     socket.on('connect', () => {
       set({ isConnected: true });
-      // 连接后立即获取状态
+      // Fetch status immediately after connection / 连接后立即获取状态
       get().refreshStatus();
     });
 
@@ -71,7 +71,7 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
       set({ isConnected: false });
     });
 
-    // 监听机器人位置更新事件
+    // Listen for robot position update events / 监听机器人位置更新事件
     socket.on('robot_position_update', (data: { x: number; y: number; z: number; a: number }) => {
       set({
         position: [data.x, data.y, data.z],
@@ -98,12 +98,12 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
       if (event.max_cycles !== undefined) set({ harvestMaxCycles: event.max_cycles });
     });
 
-    // Socket 心跳
+    // Socket heartbeat / Socket 心跳
     const heartbeat = setInterval(() => {
       if (socket.connected) socket.emit('ping');
     }, HEARTBEAT_INTERVAL);
 
-    // HTTP 定时轮询机器人状态（每 1 秒）
+    // HTTP polling for robot status every 1s / HTTP 定时轮询机器人状态（每 1 秒）
     const pollInterval = setInterval(() => {
       if (socket.connected) {
         get().refreshStatus();
@@ -132,7 +132,7 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
       set({
         status: status.status as RobotState,
         battery: status.charge,
-        // 后端返回的 x, y, z 单位是 mm，a 是角度（度）
+        // Backend returns x, y, z in mm, a in degrees / 后端返回的 x, y, z 单位是 mm，a 是角度（度）
         position: [status.x, status.y, status.z],
         orientation: [status.a, 0, 0],
         imu: { roll: 0, pitch: 0, yaw: status.a },
@@ -141,7 +141,7 @@ export const useRobotStore = create<RobotStore>((set, get) => ({
         isConnected: status.connected,
       });
     } catch {
-      // silently fail - status will be updated via socket
+      // Silently fail; status will be updated via socket / 静默失败，状态将通过 socket 更新
     }
   },
 

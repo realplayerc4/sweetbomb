@@ -21,16 +21,16 @@ export function SensorMonitor({ type }: SensorMonitorProps) {
   const frameCountRef = useRef(0);
   const lastTimeRef = useRef(Date.now());
 
-  // WebRTC 连接
+  // WebRTC connection / WebRTC 连接
   const { rgbStream, depthStream, isStreaming, streamMetrics } = useWebRTCConnection();
 
   const onlineDevices = devices.filter((d) => d.status === 'online' || d.status === 'warning');
 
-  // Canvas 模拟动画
+  // Canvas simulation animation / Canvas 模拟动画
   useEffect(() => {
-    // 单机器人模式且已连接时，不使用 Canvas
+    // In single-robot mode and connected, do not use Canvas / 单机器人模式且已连接时，不使用 Canvas
     if (monitorMode === 'single' && isStreaming) return;
-    // 多机器人模式且第一个设备有视频流时，不使用 Canvas（第一个格子用 video）
+    // In multi-robot mode and first device has video stream, do not use Canvas (first cell uses video) / 多机器人模式且第一个设备有视频流时，不使用 Canvas（第一个格子用 video）
     if (monitorMode === 'all' && isStreaming && onlineDevices.length > 0) return;
 
     const canvas = canvasRef.current;
@@ -85,7 +85,7 @@ export function SensorMonitor({ type }: SensorMonitorProps) {
     };
   }, [type, isConnected, monitorMode, onlineDevices, isStreaming]);
 
-  // 单机器人模式且已连接：使用真实视频流
+  // Single-robot mode and connected: use real video stream / 单机器人模式且已连接：使用真实视频流
   if (monitorMode === 'single' && isStreaming) {
     const stream = type === 'rgb' ? rgbStream : depthStream;
     const metrics = type === 'rgb' ? streamMetrics.rgb : streamMetrics.depth;
@@ -101,7 +101,7 @@ export function SensorMonitor({ type }: SensorMonitorProps) {
     );
   }
 
-  // 多机器人模式：第一个设备用真实视频流，其他用 Canvas 模拟
+  // Multi-robot mode: first device uses real video stream, others use Canvas simulation / 多机器人模式：第一个设备用真实视频流，其他用 Canvas 模拟
   if (monitorMode === 'all' && isStreaming && onlineDevices.length > 0) {
     const stream = type === 'rgb' ? rgbStream : depthStream;
     const metrics = type === 'rgb' ? streamMetrics.rgb : streamMetrics.depth;
@@ -139,7 +139,7 @@ export function SensorMonitor({ type }: SensorMonitorProps) {
     );
   }
 
-  // 默认：Canvas 模拟
+  // Default: Canvas simulation / 默认：Canvas 模拟
   return (
     <div className="relative w-full h-full">
       <canvas
@@ -177,7 +177,7 @@ export function SensorMonitor({ type }: SensorMonitorProps) {
   );
 }
 
-// Canvas 单元格组件（用于多机器人视图中的模拟设备）
+// Canvas cell component (for simulated devices in multi-robot view) / Canvas 单元格组件（用于多机器人视图中的模拟设备）
 function CanvasCell({ type, deviceName, timeOffset }: { type: 'rgb' | 'depth'; deviceName: string; timeOffset: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -228,7 +228,7 @@ function CanvasCell({ type, deviceName, timeOffset }: { type: 'rgb' | 'depth'; d
   );
 }
 
-// 多机器人视图：跳过第一个设备（用 video 显示）
+// Multi-robot view: skip first device (display with video) / 多机器人视图：跳过第一个设备（用 video 显示）
 function drawMultiRobotViewSkipFirst(ctx: CanvasRenderingContext2D, w: number, h: number, time: number, type: string, devices: { device_id: string; name: string }[]) {
   const count = Math.min(devices.length, 3); // 最多显示 3 个（第一个用 video）
   if (count === 0) return;

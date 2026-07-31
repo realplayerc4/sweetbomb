@@ -49,7 +49,7 @@ interface AdvanceInfo {
     advanceDistance: number;  // 需要前进的总距离
 }
 
-// ----- 固定参数 -----
+// ----- Fixed parameters / 固定参数 -----
 const CELL_SIZE = 0.02;          // 格子大小 0.02m
 const DEFAULT_VIEW_DEPTH = 2.0;  // 默认观测深度 2.0m
 const VIEW_MIN_Y = -1.5;
@@ -148,7 +148,7 @@ export function SliceView({
         return () => clearTimeout(timer);
     }, [settings]);
 
-    // 同步设置到后端
+    // Sync settings to backend / 同步设置到后端
     useEffect(() => {
         const timer = setTimeout(async () => {
             try {
@@ -207,10 +207,10 @@ export function SliceView({
 
         setPointCount(filteredCount);
 
-        // 使用后端分析结果，前端不再计算
+        // Use backend analysis result; frontend no longer computes this / 使用后端分析结果，前端不再计算
         if (pointCloudAnalysis?.distances?.nearest_material !== undefined && pointCloudAnalysis.distances.nearest_material !== null) {
             const materialDistance = pointCloudAnalysis.distances.nearest_material;
-            // 超挖风险检测：materialDistance > lr 时存在超挖风险
+            // Over-excavation risk detection: risk exists when materialDistance > lr / 超挖风险检测：materialDistance > lr 时存在超挖风险
             const advanceDistance = materialDistance > settings.lr ? 0 : materialDistance + settings.bucketDepth;
             const nearestX = pointCloudAnalysis.distances.nearest_x ?? (materialDistance + settings.cameraToTeeth);
             const nearestY = pointCloudAnalysis.distances.nearest_y ?? 0;
@@ -219,7 +219,7 @@ export function SliceView({
             setAdvanceInfo(null);
         }
 
-        // 计算视图参数（即使没有点也要显示网格框架）
+        // Calculate view parameters; show grid frame even without points / 计算视图参数（即使没有点也要显示网格框架）
         const xRange = fixedMaxX - fixedMinX;
         const yRange = VIEW_MAX_Y - VIEW_MIN_Y;
         const gridCols = Math.max(1, Math.ceil(yRange / CELL_SIZE));

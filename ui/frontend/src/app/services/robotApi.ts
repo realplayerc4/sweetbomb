@@ -1,13 +1,13 @@
 /**
- * 机器人控制 API 服务
- * 提供机器人运动控制、伺服控制和自动循环铲糖功能的 API 调用
+ * Robot control API service / 机器人控制 API 服务
+ * Provides API calls for robot motion control, servo control, and automatic sugar scooping cycle / 提供机器人运动控制、伺服控制和自动循环铲糖功能的 API 调用
  */
 
 import { API_BASE } from '../config';
 
-// ==================== 类型定义 ====================
+// ==================== Type definitions / 类型定义 ====================
 
-/** 机器人状态枚举 */
+/** Robot state enum / 机器人状态枚举 */
 export const RobotState = {
     IDLE: 'idle',
     MOVING: 'moving',
@@ -19,7 +19,7 @@ export const RobotState = {
 
 export type RobotState = (typeof RobotState)[keyof typeof RobotState];
 
-/** 移动方向枚举 */
+/** Move direction enum / 移动方向枚举 */
 export const MoveDirection = {
     FORWARD: 'forward',
     BACKWARD: 'backward',
@@ -32,7 +32,7 @@ export const MoveDirection = {
 
 export type MoveDirection = (typeof MoveDirection)[keyof typeof MoveDirection];
 
-/** 伺服状态 */
+/** Servo state / 伺服状态 */
 export interface ServoState {
     name: string;
     current_angle: number;
@@ -40,7 +40,7 @@ export interface ServoState {
     is_moving: boolean;
 }
 
-/** 机器人状态 - 匹配后端 RobotStatusResponse */
+/** Robot status - matches backend RobotStatusResponse / 机器人状态 - 匹配后端 RobotStatusResponse */
 export interface RobotStatus {
     connected: boolean;
     mode: string;
@@ -61,25 +61,25 @@ export interface RobotStatus {
     last_update?: string;
 }
 
-/** 移动请求 */
+/** Move request / 移动请求 */
 export interface MoveRequest {
     direction: MoveDirection;
     speed?: number;
     duration?: number;
 }
 
-/** 伺服控制请求 */
+/** Servo control request / 伺服控制请求 */
 export interface ServoRequest {
     servo_id: string;
     angle: number;
 }
 
-/** 距离分析请求 */
+/** Distance analysis request / 距离分析请求 */
 export interface DistanceAnalysisRequest {
     region_of_interest?: Record<string, unknown>;
 }
 
-/** 距离分析结果 */
+/** Distance analysis result / 距离分析结果 */
 export interface DistanceAnalysisResult {
     distance_m: number;
     sugar_height_m: number;
@@ -90,7 +90,7 @@ export interface DistanceAnalysisResult {
     timestamp?: string;
 }
 
-/** 铲糖配置 */
+/** Sugar harvest config / 铲糖配置 */
 export interface SugarHarvestConfig {
     navigation_point: [number, number];
     dump_point: [number, number];
@@ -101,12 +101,12 @@ export interface SugarHarvestConfig {
     height_threshold_m?: number;
 }
 
-/** 铲糖启动请求 */
+/** Sugar harvest start request / 铲糖启动请求 */
 export interface SugarHarvestStartRequest {
     config: SugarHarvestConfig;
 }
 
-/** 铲糖状态 */
+/** Sugar harvest status / 铲糖状态 */
 export interface SugarHarvestStatus {
     is_running: boolean;
     current_cycle?: number;
@@ -116,9 +116,9 @@ export interface SugarHarvestStatus {
     blackboard?: Record<string, unknown>;
 }
 
-// ==================== API ====================
+// ==================== API / 接口 ====================
 
-// 点云分析参数
+// Point cloud analysis parameters / 点云分析参数
 export interface PointCloudSettings {
     teethHeight: number;    // Z1: 铲齿高度 (m)
     cameraToTeeth: number;  // 相机到铲齿距离 (m)
@@ -127,9 +127,9 @@ export interface PointCloudSettings {
 }
 
 export const robotApi = {
-    // --- 运动控制 ---
+    // --- Motion control / 运动控制 ---
 
-    /** 移动机器人 */
+    /** Move robot / 移动机器人 */
     async move(request: MoveRequest): Promise<{ success: boolean; message: string; status: RobotState }> {
         const res = await fetch(`${API_BASE}/robot/move`, {
             method: 'POST',
@@ -140,7 +140,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 紧急停止机器人 */
+    /** Emergency stop robot / 紧急停止机器人 */
     async stop(): Promise<{ success: boolean; message: string }> {
         const res = await fetch(`${API_BASE}/robot/stop`, {
             method: 'POST',
@@ -149,7 +149,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 暂停任务 (pauseTask) */
+    /** Pause task (pauseTask) / 暂停任务 (pauseTask) */
     async pause(): Promise<{ success: boolean; message: string }> {
         const res = await fetch(`${API_BASE}/robot/pause`, {
             method: 'POST',
@@ -158,7 +158,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 取消暂停 (pauseCancel) */
+    /** Resume from pause (pauseCancel) / 取消暂停 (pauseCancel) */
     async resume(): Promise<{ success: boolean; message: string }> {
         const res = await fetch(`${API_BASE}/robot/resume`, {
             method: 'POST',
@@ -167,7 +167,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 导航到取货点 (allPick) */
+    /** Navigate to pick point (allPick) / 导航到取货点 (allPick) */
     async navToPick(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/nav-pick`, {
             method: 'POST',
@@ -176,7 +176,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 导航到卸货点 (allDrop) */
+    /** Navigate to drop point (allDrop) / 导航到卸货点 (allDrop) */
     async navToDrop(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/nav-drop`, {
             method: 'POST',
@@ -185,7 +185,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 重置紧急停止状态 */
+    /** Reset emergency stop status / 重置紧急停止状态 */
     async reset(): Promise<{ success: boolean; message: string; status: RobotState }> {
         const res = await fetch(`${API_BASE}/robot/reset`, {
             method: 'POST',
@@ -194,9 +194,9 @@ export const robotApi = {
         return res.json();
     },
 
-    // --- 伺服控制 ---
+    // --- Servo control / 伺服控制 ---
 
-    /** 设置伺服角度 */
+    /** Set servo angle / 设置伺服角度 */
     async setServo(request: ServoRequest): Promise<{
         success: boolean;
         message: string;
@@ -211,7 +211,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 执行铲取动作 */
+    /** Execute scoop action / 执行铲取动作 */
     async scoop(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/scoop`, {
             method: 'POST',
@@ -220,7 +220,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 执行倾倒动作 */
+    /** Execute dump action / 执行倾倒动作 */
     async dump(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/dump`, {
             method: 'POST',
@@ -228,7 +228,7 @@ export const robotApi = {
         if (!res.ok) throw new Error('Failed to execute dump action');
         return res.json();
     },
-    /** 执行回桩动作 */
+    /** Execute dock action / 执行回桩动作 */
     async dock(): Promise<{ success: boolean; task_id: string; message: string }> {
         const res = await fetch(`${API_BASE}/robot/dock`, {
             method: 'POST',
@@ -238,18 +238,18 @@ export const robotApi = {
     },
 
 
-    // --- 状态查询 ---
+    // --- Status query / 状态查询 ---
 
-    /** 获取机器人状态 */
+    /** Get robot status / 获取机器人状态 */
     async getStatus(): Promise<RobotStatus> {
         const res = await fetch(`${API_BASE}/robot/status`);
         if (!res.ok) throw new Error('Failed to get robot status');
         return res.json();
     },
 
-    // --- 距离分析 ---
+    // --- Distance analysis / 距离分析 ---
 
-    /** 分析糖堆距离 */
+    /** Analyze sugar pile distance / 分析糖堆距离 */
     async analyzeDistance(request?: DistanceAnalysisRequest): Promise<DistanceAnalysisResult> {
         const res = await fetch(`${API_BASE}/robot/distance_analyze`, {
             method: 'POST',
@@ -260,9 +260,9 @@ export const robotApi = {
         return res.json();
     },
 
-    // --- 自动铲糖循环 ---
+    // --- Auto sugar harvest cycle / 自动铲糖循环 ---
 
-    /** 启动自动铲糖循环 */
+    /** Start auto sugar harvest cycle / 启动自动铲糖循环 */
     async startSugarHarvest(request: SugarHarvestStartRequest): Promise<{
         success: boolean;
         message: string;
@@ -277,7 +277,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 停止自动铲糖循环 */
+    /** Stop auto sugar harvest cycle / 停止自动铲糖循环 */
     async stopSugarHarvest(): Promise<{ success: boolean; message: string }> {
         const res = await fetch(`${API_BASE}/robot/auto_cycle/stop`, {
             method: 'POST',
@@ -286,7 +286,7 @@ export const robotApi = {
         return res.json();
     },
 
-    /** 获取自动铲糖循环状态 */
+    /** Get auto sugar harvest cycle status / 获取自动铲糖循环状态 */
     async getSugarHarvestStatus(): Promise<SugarHarvestStatus> {
         const res = await fetch(`${API_BASE}/robot/auto_cycle/status`);
         if (!res.ok) throw new Error('Failed to get sugar harvest status');
