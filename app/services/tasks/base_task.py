@@ -1,4 +1,4 @@
-"""Base class for all tasks in the system."""
+"""系统中所有任务的基类。"""
 
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional
@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 
 class BaseTask(ABC):
     """
-    Abstract base class for all tasks.
+    所有任务的抽象基类。
 
-    Lifecycle:
+    生命周期:
         validate() -> setup() -> run() -> teardown()
 
-    State transitions:
+    状态转换:
         PENDING -> RUNNING -> COMPLETED
                  |    ↓
                  |  PAUSED -> RUNNING
@@ -27,22 +27,11 @@ class BaseTask(ABC):
                  └→ STOPPED/FAILED/CANCELLED
     """
 
-    # Task type identifier (must be overridden in subclass)
     task_type: str = "base_task"
-
-    # Human-readable name
     name: str = "Base Task"
-
-    # Description of what this task does
     description: str = "Base task class"
-
-    # Category for UI grouping
     category: str = "general"
-
-    # Whether this task requires a device
     requires_device: bool = True
-
-    # JSON schema for parameters validation
     params_schema: Dict[str, Any] = {}
 
     def __init__(
@@ -66,10 +55,9 @@ class BaseTask(ABC):
         self._completed_at: Optional[datetime] = None
 
         self._pause_event = asyncio.Event()
-        self._pause_event.set()  # Not paused by default
+        self._pause_event.set()
         self._stop_requested = False
 
-        # Callbacks for progress updates
         self._on_progress: Optional[Callable[[TaskProgress], None]] = None
         self._on_status_change: Optional[Callable[[TaskStatus], None]] = None
 
@@ -90,12 +78,12 @@ class BaseTask(ABC):
         on_progress: Optional[Callable[[TaskProgress], None]] = None,
         on_status_change: Optional[Callable[[TaskStatus], None]] = None
     ):
-        """Set callback functions for progress and status updates."""
+        """设置进度和状态更新回调函数。"""
         self._on_progress = on_progress
         self._on_status_change = on_status_change
 
     def _set_status(self, status: TaskStatus):
-        """Update task status and notify callback."""
+        """更新任务状态并通知回调。"""
         self._status = status
         if self._on_status_change:
             self._on_status_change(status)
@@ -108,7 +96,7 @@ class BaseTask(ABC):
         message: str = "",
         estimated_remaining: Optional[float] = None
     ):
-        """Update task progress and notify callback."""
+        """更新任务进度并通知回调。"""
         if current_step is not None:
             self._progress.current_step = current_step
         if total_steps is not None:

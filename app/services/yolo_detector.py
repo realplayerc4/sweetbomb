@@ -1,4 +1,4 @@
-"""Non-blocking YOLOv8 ONNX inference for live RGB and depth streams."""
+"""非阻塞 YOLOv8 ONNX 推理服务，用于实时 RGB 和深度流检测。"""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class _FrameJob:
+    """待推理帧任务。"""
     device_id: str
     stream_type: str
     image: np.ndarray
@@ -29,12 +30,13 @@ class _FrameJob:
 
 
 class YoloV8Detector:
-    """Runs one shared YOLO network on latest-only frames in a daemon thread."""
+    """在 daemon 线程中运行共享 YOLO 网络，仅处理最新帧。"""
 
     DEFAULT_MODEL_PATH = "/home/jetson/sweetbomb/models/yolov8n/best.onnx"
     DEFAULT_LABELS = ("Depth_SweetBomb", "RGB_SweetBomb")
 
     def __init__(self) -> None:
+        """初始化检测器，读取环境变量并启动工作线程。"""
         self.enabled = os.getenv("YOLO_ENABLED", "1").lower() not in {
             "0",
             "false",
@@ -82,7 +84,7 @@ class YoloV8Detector:
         frame_id: int,
         capture_timestamp_ms: float,
     ) -> None:
-        """Replace any pending frame for this stream without blocking capture."""
+        """提交一帧用于推理，不阻塞采集线程。"""
         if not self.enabled or image is None or image.size == 0:
             return
 
@@ -103,7 +105,7 @@ class YoloV8Detector:
             self._condition.notify()
 
     def get_snapshot(self, device_id: str) -> dict:
-        """Return JSON-safe detector status plus the latest result per stream."""
+        """获取检测器状态及每个流的最新结果。"""
         with self._result_lock:
             streams = {}
             for stream_type in ("color", "depth"):
@@ -131,7 +133,7 @@ class YoloV8Detector:
         stream_type: str,
         image: np.ndarray,
     ) -> np.ndarray:
-        """Draw the latest cached detections on a copy of a live RGB frame."""
+        """在 RGB 帧副本上绘制最新检测框。"""
         normalized_stream_type = stream_type.split("-", 1)[0].lower()
         with self._result_lock:
             result = self._results.get((device_id, normalized_stream_type))
@@ -178,28 +180,29 @@ class YoloV8Detector:
             )
             label_top = max(0, y1 - text_height - baseline - 4)
             label_bottom = min(height - 1, label_top + text_height + baseline + 4)
-            label_right = min(width - 1, x1 + text_width + 8)
-            cv2.rectangle(
-                annotated,
-                (x1, label_top),
-                (label_right, label_bottom),
-                accent,
-                cv2.FILLED,
-            )
-            cv2.putText(
-                annotated,
-                label,
-                (x1 + 4, label_bottom - baseline - 2),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                font_scale,
-                (8, 8, 8),
-                font_thickness,
-                cv2.LINE_AA,
-            )
+        label_right = min(width - 1, x1 + text_width + 8)
+        cv2.rectangle(
+            annotated,
+            (x1, label_top),
+            (label_right, label_bottom),
+            accent,
+            cv2.FILLED,
+        )
+        cv2.putText(
+            annotated,
+            label,
+            (x1 + 4, label_bottom - baseline - 2),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (8, 8, 8),
+            font_thickness,
+            cv2.LINE_AA,
+        )
 
         return annotated
 
     def clear_device(self, device_id: str) -> None:
+        """清除指定设备的待处理任务和检测结果。"""
         with self._condition:
             for key in [key for key in self._pending if key[0] == device_id]:
                 self._pending.pop(key, None)
@@ -213,6 +216,7 @@ class YoloV8Detector:
                 self._revision += 1
 
     def stop(self) -> None:
+        """停止检测器工作线程。"""
         self._running = False
         with self._condition:
             self._condition.notify_all()
@@ -220,6 +224,7 @@ class YoloV8Detector:
             self._thread.join(timeout=2.0)
 
     def _worker_loop(self) -> None:
+        """工作线程主循环：加载模型后持续消费待处理帧。"""
         try:
             self._load_model()
         except Exception as exc:
@@ -249,6 +254,7 @@ class YoloV8Detector:
                 time.sleep(remaining)
 
     def _take_oldest_pending_job(self) -> Optional[_FrameJob]:
+        """取出最旧的待处理帧，优先交替颜色/深度流。"""
         with self._condition:
             while self._running and not self._pending:
                 self._condition.wait(timeout=1.0)
@@ -284,6 +290,7 @@ class YoloV8Detector:
             return job
 
     def _load_model(self) -> None:
+        """加载 ONNX 模型并初始化后端。"""
         if not self.model_path.is_file():
             raise FileNotFoundError(f"YOLO model not found: {self.model_path}")
 
@@ -300,6 +307,7 @@ class YoloV8Detector:
         )
 
     def _set_status(self, ready: bool, error: Optional[str]) -> None:
+        """更新检测器就绪状态和错误信息。"""
         with self._result_lock:
             self._ready = ready
             self._error = error
@@ -312,6 +320,7 @@ class YoloV8Detector:
         detections: list[dict],
         inference_ms: float,
     ) -> None:
+        """保存单帧推理结果，并更新流级状态。"""
         height, width = job.image.shape[:2]
         with self._result_lock:
             self._revision += 1
@@ -331,6 +340,7 @@ class YoloV8Detector:
             }
 
     def _infer(self, image: np.ndarray, stream_type: str) -> list[dict]:
+        """执行单次 YOLO 推理，返回归一化检测框列表。"""
         if self._net is None:
             return []
 
@@ -410,6 +420,7 @@ class YoloV8Detector:
         return [candidates[index] for index in selected_indices]
 
     def _class_aware_nms(self, boxes_xywh: list, candidates: list[dict]) -> list[int]:
+        """按类别执行 NMS，避免不同类别相互抑制。"""
         selected = []
         class_ids = sorted({candidate["class_id"] for candidate in candidates})
         for class_id in class_ids:
@@ -436,6 +447,7 @@ class YoloV8Detector:
         return selected
 
     def _expected_class_ids(self, stream_type: str) -> set[int]:
+        """根据流类型返回期望的类别 ID 集合。"""
         token = "rgb" if stream_type == "color" else "depth"
         return {
             index
@@ -444,11 +456,13 @@ class YoloV8Detector:
         }
 
     def _label_for(self, class_id: int) -> str:
+        """根据类别 ID 返回标签，未知 ID 返回默认名称。"""
         if 0 <= class_id < len(self._labels):
             return self._labels[class_id]
         return f"class_{class_id}"
 
     def _letterbox(self, image: np.ndarray) -> tuple[np.ndarray, float, float, float]:
+        """将图像缩放并填充到模型输入尺寸，保持长宽比。"""
         image_height, image_width = image.shape[:2]
         scale = min(
             self.input_size / image_width,

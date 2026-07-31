@@ -1,4 +1,4 @@
-"""Point cloud analysis task with real hardware grounding."""
+"""基于真实硬件的点云分析任务。"""
 
 import asyncio
 import logging
@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 @register_task
 class PointCloudAnalysisTask(BaseTask):
     """
-    Task for analyzing real point cloud data from the RealSense depth sensor.
-    
-    1. Grabs `point_cloud['vertices']` (N x 3 NumPy array) directly from rs_manager memory.
-    2. Calculates Bounding Box (Min/Max XYZ bounds and dimensions).
-    3. Calculates Point Cloud Centroid.
-    4. Evaluates valid vertex count.
+    分析 RealSense 深度相机真实点云数据的任务。
+
+    1. 从 rs_manager 内存直接获取 `point_cloud['vertices']` (N x 3 NumPy 数组)
+    2. 计算包围盒 (Min/Max XYZ 边界和尺寸)
+    3. 计算点云质心
+    4. 评估有效顶点数量
     """
 
     task_type = "point_cloud_analysis"

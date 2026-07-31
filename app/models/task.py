@@ -1,4 +1,4 @@
-"""Task system data models."""
+"""任务系统数据模型。"""
 
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class TaskStatus(str, Enum):
-    """Task lifecycle status."""
+    """任务生命周期状态。"""
     PENDING = "pending"
     RUNNING = "running"
     PAUSED = "paused"
@@ -18,7 +18,7 @@ class TaskStatus(str, Enum):
 
 
 class TaskPriority(int, Enum):
-    """Task priority levels."""
+    """任务优先级。"""
     LOW = 1
     NORMAL = 5
     HIGH = 10
@@ -26,7 +26,7 @@ class TaskPriority(int, Enum):
 
 
 class TaskConfig(BaseModel):
-    """Base configuration for a task."""
+    """任务基础配置。"""
     device_id: Optional[str] = None
     priority: TaskPriority = TaskPriority.NORMAL
     max_retries: int = 0
@@ -35,7 +35,7 @@ class TaskConfig(BaseModel):
 
 
 class TaskCreateRequest(BaseModel):
-    """Request body for creating a new task."""
+    """创建新任务的请求体。"""
     task_type: str
     device_id: Optional[str] = None
     config: Optional[TaskConfig] = None
@@ -43,13 +43,13 @@ class TaskCreateRequest(BaseModel):
 
 
 class TaskUpdateRequest(BaseModel):
-    """Request body for updating a task."""
+    """更新任务的请求体。"""
     priority: Optional[TaskPriority] = None
     params: Optional[Dict[str, Any]] = None
 
 
 class TaskProgress(BaseModel):
-    """Task progress information."""
+    """任务进度信息。"""
     current_step: int = 0
     total_steps: int = 0
     percentage: float = 0.0
@@ -59,7 +59,7 @@ class TaskProgress(BaseModel):
 
 
 class TaskResult(BaseModel):
-    """Result of a completed task."""
+    """已完成任务的结果。"""
     success: bool
     data: Dict[str, Any] = Field(default_factory=dict)
     message: str = ""
@@ -68,7 +68,7 @@ class TaskResult(BaseModel):
 
 
 class TaskInfo(BaseModel):
-    """Complete information about a task."""
+    """任务的完整信息。"""
     task_id: str
     task_type: str
     status: TaskStatus = TaskStatus.PENDING
@@ -77,15 +77,15 @@ class TaskInfo(BaseModel):
     config: TaskConfig = Field(default_factory=TaskConfig)
     params: Dict[str, Any] = Field(default_factory=dict)
 
-    # Timestamps
+    # 时间戳
     created_at: datetime = Field(default_factory=datetime.now)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    # Progress tracking
+    # 进度追踪
     progress: TaskProgress = Field(default_factory=TaskProgress)
 
-    # Result (populated when completed)
+    # 结果（完成后填充）
     result: Optional[TaskResult] = None
 
     class Config:
@@ -93,7 +93,7 @@ class TaskInfo(BaseModel):
 
 
 class TaskTypeInfo(BaseModel):
-    """Information about an available task type."""
+    """可用任务类型的信息。"""
     task_type: str
     name: str
     description: str
@@ -103,7 +103,7 @@ class TaskTypeInfo(BaseModel):
 
 
 class TaskListResponse(BaseModel):
-    """Response for listing tasks."""
+    """列出任务的响应。"""
     tasks: List[TaskInfo]
     total: int
     running_count: int
@@ -111,7 +111,7 @@ class TaskListResponse(BaseModel):
 
 
 class TaskEvent(BaseModel):
-    """Socket.IO event payload for task updates."""
+    """任务更新的 Socket.IO 事件负载。"""
     event_type: str  # created, started, progress, paused, resumed, stopped, completed, failed
     task_id: str
     task_type: str

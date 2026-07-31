@@ -1,4 +1,4 @@
-"""Data collection task with real hardware grounding."""
+"""基于真实硬件的数据采集任务。"""
 
 import asyncio
 import json
@@ -26,11 +26,11 @@ logger = logging.getLogger(__name__)
 @register_task
 class DataCollectionTask(BaseTask):
     """
-    Task for collecting and saving real sensor data from RealSense.
-    
-    1. Grabs latest RGB and Depth frames from rs_manager memory.
-    2. Saves them locally to data/collections/{task_id}/ using cv2.
-    3. Writes a metadata.json track record.
+    从 RealSense 采集并保存真实传感器数据的任务。
+
+    1. 从 rs_manager 内存获取最新的 RGB 和 Depth 帧
+    2. 使用 cv2 保存到 data/collections/{task_id}/
+    3. 写入 metadata.json 追踪记录
     """
 
     task_type = "data_collection"

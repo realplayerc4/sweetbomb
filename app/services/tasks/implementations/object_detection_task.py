@@ -1,4 +1,4 @@
-"""Object detection task implementation."""
+"""目标检测任务实现。"""
 
 import asyncio
 from typing import Any, Dict, Optional
@@ -15,13 +15,12 @@ logger = logging.getLogger(__name__)
 @register_task
 class ObjectDetectionTask(BaseTask):
     """
-    Task for running object detection on RealSense camera frames.
+    对 RealSense 相机帧运行目标检测的任务。
 
-    This task simulates object detection processing. In a real implementation,
-    it would:
-    1. Get frames from the RealSense device
-    2. Run object detection model (YOLO, SSD, etc.)
-    3. Report detected objects and confidence scores
+    当前为模拟实现，实际部署时将：
+    1. 从 RealSense 设备获取帧
+    2. 运行目标检测模型（YOLO、SSD 等）
+    3. 报告检测到的物体及置信度分数
     """
 
     task_type = "object_detection"
